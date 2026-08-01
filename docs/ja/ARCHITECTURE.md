@@ -1,17 +1,19 @@
 # アーキテクチャ
 
-このプロジェクトの技術方針と、「なぜそれを選んだか」「なぜ他を採らなかったか」の
-記録です。現時点では開発環境のみが存在し、アプリケーションコードは次のタスク以降で
-実装します。
+このプロジェクトの構成 — 何をモデル化し、どんなループを回し、各判断がどこに
+書かれているか。
+
+各判断(何を選んだか・なぜか・何を採らなかったか)は
+[Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/tree/main/okf)
+v0.2 に従い、[knowledge/](knowledge/index.md) 以下に 1 ファイル 1 件で置いています。
+このページは概観と図だけを持ち、理由は再掲しません(二重管理を作らないため)。
 
 English: [../ARCHITECTURE.md](../ARCHITECTURE.md)
 
 ## ドメイン: シナリオはテストケースの束
 
-**テストケース**は、1 つの判定を得る自然言語のゴールです(例:「間違った
-パスワードでエラーが出ることを確認」)。**シナリオ**は、対象アプリと(多くの場合)
-モデルを共有するケースの束です。判定を持つのはケースであり、シナリオはそれらを
-まとめて順序づけるだけです。
+**テストケース**は 1 つの判定を得る自然言語のゴール、**シナリオ**は対象アプリと
+(多くの場合)モデルを共有するケースの束です。
 
 ```
    Scenario (scenarios/login.yaml)
@@ -28,21 +30,9 @@ English: [../ARCHITECTURE.md](../ARCHITECTURE.md)
       └─ Step { index, action, uiText, screenshotPath, note, createdAt }
 ```
 
-**モデル解決**は `case.model ?? scenario.model ?? LLM_MODEL` で、`packages/core`
-の `resolveModel` が算出し `CaseRun` に保存します。後から設定を変えても、履歴には
-「実際に動いたモデル」が残ります。
-
-*なぜケース単位でモデルを選べるか:* 明白なハッピーパスは軽いモデルで十分な一方、
-難しい判定には大きなモデルが要ることがあります。run 単位でモデルを固定すると、
-束全体を最も遅い選択に引きずられます。
-
-*なぜケースを逐次実行するか:* 1 台のデバイスを共有するため、並列にすると 2 つの
-ケースのタップが混線します。各ケースは開始前にアプリを force-stop してから起動し
-直します。プロセスが生きたまま `am start` すると前のケースが残した画面が復帰し、
-ナビゲーション履歴とログイン状態を引き継いでしまうためです。
-
-*なぜ 1 件失敗しても続行するか:* ケースを束ねる目的は、1 回の実行で全件について
-知ることだからです。run が `passed` になるのは全ケースが passed のときだけです。
+判定の単位がケースである理由、逐次実行する理由、
+`case.model ?? scenario.model ?? LLM_MODEL` の解決順序:
+[knowledge/scenarios-bundle-cases.md](knowledge/scenarios-bundle-cases.md)。
 
 ## E2E ループ
 
@@ -83,309 +73,57 @@ English: [../ARCHITECTURE.md](../ARCHITECTURE.md)
                                          └────────────────────┘
 ```
 
-## 想定するリポジトリ構成
+## リポジトリ構成
 
 ```
 apps/example    テスト対象の Expo アプリ
 apps/web        Vite + React ダッシュボード
-packages/*      エージェントコア・adb ラッパー・LLM クライアント(ビルドレス TS)
+packages/*      エージェント本体・adb ラッパ・LLM クライアント(ビルドレス TS)
 ```
 
 ## 各判断
 
-### Expo prebuild(CNG)
+[knowledge/](knowledge/index.md) 以下に 1 ファイル 1 件。
 
-CNG は app config から `android/` / `ios/` を再生成するため、ネイティブ
-プロジェクトは使い捨てにでき、gitignore しています。Android SDK と
-Azul Zulu JDK 17(Expo 推奨の JDK)を devshell に入れる根拠がこれです
-(managed workflow だけなら不要でした)。
+### ドメイン
 
-*なぜ `jdk17` でなく `zulu17` か:* nixpkgs の `jdk17` は darwin では既に Zulu の
-実体ですが、Linux では素の OpenJDK になります。`zulu17` と明示することで意図を
-示し、全プラットフォームで同じ JVM に揃えます。
-
-*なぜ devshell に JVM が 2 つあるか:* AGP は依然 JDK 17 を要求する一方、
-firebase-tools 15 は JDK 21 未満では Firestore エミュレータを起動しません。両方を
-同梱し、`PATH` と `JAVA_HOME` の先頭は 17 のままにして Gradle に影響を与えず、
-エミュレータ用レシピだけが `$FIREBASE_JAVA_HOME/bin` を前置します。`JAVA_HOME` では
-なく `PATH` なのは、firebase-tools が `java` を `PATH` から解決するためです。
-
-*なぜ Expo Go でないか:* エージェントはネイティブモジュールを含む現実的な UI を
-操作する必要があり、Go はカスタムネイティブコードを載せられません。
-
-### Bun への全面統一(パッケージマネージャ・ランタイム・テストランナー)
-
-インストール・TypeScript 実行・`bun test` を 1 つのツールで賄います。Bun が TS を
-そのまま実行できることが、`packages/*` のビルドレス構成を成立させています。
-モノレポは Bun の `workspaces` を使います。
-
-*なぜ pnpm + Node + Vitest でないか:* 3 つのツールと 3 つの設定を同期し続ける
-必要があるためです。*受け入れたリスク:* Genkit は Bun を公式サポートしていません。
-逃げ道として Node 22 を devshell に残しており、問題が出たらエージェントのみ Node で
-動かします。
-
-### 供給網対策: 公開後 1 日ルールを 3 層で揃える
-
-公開から 24 時間未満のものは一切取り込みません。侵害されたリリースが lockfile に
-入る前に検知・取り下げされる猶予を作るためです。
-
-| 層 | 仕組み |
+| 判断 | ファイル |
 | --- | --- |
-| npm パッケージ | `bunfig.toml` → `minimumReleaseAge = 86400`(秒) |
-| GitHub Actions | `just pin` → `pinact run --min-age 1`(日) |
-| 更新 PR | `renovate.json` → `minimumReleaseAge: "1 day"` |
+| ドメイン: シナリオはテストケースの束 | [scenarios-bundle-cases.md](knowledge/scenarios-bundle-cases.md) |
+| シナリオ: ファイル管理 + ad-hoc 実行 | [scenarios-files-and-ad-hoc.md](knowledge/scenarios-files-and-ad-hoc.md) |
 
-さらに pinact が Actions を 40 文字 SHA に固定し、タグは末尾コメントに残します。
-Renovate の `helpers:pinGitHubActionDigests` がその固定を追従します。
+### エージェントループ
 
-*なぜタグを信頼しないか:* 可変タグはレビュー後に悪意あるコードへ差し替えられます。
+| 判断 | ファイル |
+| --- | --- |
+| UI 取得: `adb shell uiautomator dump` | [ui-capture-uiautomator-dump.md](knowledge/ui-capture-uiautomator-dump.md) |
+| モデル入力: UI ツリーのテキストのみ | [model-input-ui-tree-text.md](knowledge/model-input-ui-tree-text.md) |
+| LM Studio + Gemma 4 / Genkit + Zod | [lm-studio-genkit-zod.md](knowledge/lm-studio-genkit-zod.md) |
 
-### TypeScript strict・ビルドレス
+### 永続化
 
-`tsconfig.base.json` で `strict` / `noUncheckedIndexedAccess` /
-`exactOptionalPropertyTypes` などを有効にし、全 app / package がこれを extends
-します。`packages/*` は TS ソースのまま workspace 内で参照されます。
+| 判断 | ファイル |
+| --- | --- |
+| 実行履歴: Firestore + ファイル | [run-history-firestore.md](knowledge/run-history-firestore.md) |
+| 汎用 Zod コンバータ: 双方向で検証する | [zod-firestore-converter.md](knowledge/zod-firestore-converter.md) |
 
-*なぜ今バンドラを入れないか:* 消費側が同一リポジトリ内の Bun だけである以上、
-ビルド段階に得るものがありません。npm publish や単一ファイル化が必要になった
-時点で [tsdown](https://tsdown.dev/) を導入します。
+### ダッシュボード
 
-### oxlint / oxfmt
+| 判断 | ファイル |
+| --- | --- |
+| Web ダッシュボード: Vite + React + Hono + MUI | [web-dashboard-stack.md](knowledge/web-dashboard-stack.md) |
+| SSE は維持し、Firestore リスナーは将来の選択肢 | [sse-over-firestore-listeners.md](knowledge/sse-over-firestore-listeners.md) |
+| デバイスのライブビュー: gRPC `streamScreenshot` の中継 | [live-device-view.md](knowledge/live-device-view.md) |
+| ケース単位の画面録画: `scrcpy --no-playback --record` | [per-case-screen-recording.md](knowledge/per-case-screen-recording.md) |
 
-Rust 製で TS/TSX をネイティブに扱え、staged ファイルに対する pre-commit フックで
-実用的な速度が出ます。devshell ではなく `devDependencies` に置いているのは、
-JS ツールチェーンのバージョンを workspace 側で一体管理するほうが Expo
-エコシステムと整合するためです。
+### プラットフォームとツール
 
-*なぜ ESLint + Prettier でないか:* 遅く、監査対象のプラグイン面が大きすぎます。
-*留意点:* oxfmt は 1.0 前です。不安定なら `fmt` 系タスクだけ切り離せます。
-
-### Web ダッシュボード: Vite + React + Hono + MUI
-
-ランナーの操作は最初からブラウザで行います(プロンプト投入・ステップの逐次表示・
-スクリーンショット閲覧)。Hono はエージェントプロセスと同居し、SSE/WebSocket で
-進捗を配信します。MUI + MUI Icons でデータ密度の高い画面をデザイン自作なしに
-組みます。
-
-*なぜ CLI 先行でないか:* 主要なデバッグ材料がステップログとスクリーンショット
-であり、ターミナルはどちらの表示にも向きません。
-
-### デバイスのライブビュー: gRPC `streamScreenshot` を WebSocket で中継
-
-ダッシュボードはエミュレータの画面をライブ表示します(専用の Device ページと、
-実行中の run のステップタイムライン横の両方)。Hono サーバがエミュレータの gRPC
-ブリッジ(`emulator -grpc 8554`)に接続し、`EmulatorController` サービスの
-サーバストリーミング `streamScreenshot` を購読して、届いた PNG をそのまま
-バイナリの WebSocket フレームとしてブラウザへ送ります。クライアントは object URL
-にして描画します。`apps/web/server/proto/emulator_controller.proto` は
-エミュレータ同梱の `lib/` からベンダリングしたもので、`@grpc/proto-loader` が
-実行時に読み込むため、ビルドレスなワークスペースに codegen が入りません。
-
-*Why not `android-emulator-webrtc` の WebRTC:* Google 公式の React コンポーネント
-であり第一候補でしたが、デスクトップ版エミュレータでは動作しません。現行の 2.0.1
-は "Emulator Gateway" に対して REST + WebSocket JSEP で話す設計で、その
-ゲートウェイの役割は JSEP をエミュレータの `Rtc` gRPC サービスへ中継することです。
-しかしこのビルドに `Rtc` サービスは存在しません。emulator 37.2.2 の
-darwin-aarch64 版は `rtc_service.proto` を同梱しておらず、バイナリに登録された
-`android.emulation.control.*` サービスは `EmulatorController` /
-`SnapshotService` / `UiController` / `Adb` のみで、`Rtc` も
-`requestRtcStream` / `sendJsepMessage` のシンボルも見つかりません。RTC サービスは
-Google の Linux コンテナ用 `emulator-webrtc` イメージにのみ組み込まれています。
-旧版 1.0.18 も解決になりません。PNG フォールバックは `getScreenshot` を grpc-web
-で呼びますが、ブリッジは grpc-web も話さないため、結局 Envoy や grpcwebproxy が
-必要になります。`streamScreenshot` を自前で中継すれば、プロセスを1つ減らし、
-プロキシなしで同じ画面に到達できます。
-
-*捨てたもの:* 音声・入力転送・動画コーデック並みの効率。いずれも不要です。この
-ビューはエージェントの動作を見るためのもので、操作は adb 経由で行われます。
-
-*フレームが「止まって見える」理由:* `streamScreenshot` は画面が変化したときだけ
-フレームを出すため、静止したデバイスではフレームが来ないのが正常です。中継側では
-アニメーション時にソケットが溢れないよう 20fps 程度に間引いています。
-
-*Why 認証なしの gRPC:* ブリッジは localhost にのみバインドし、`-grpc-use-token`
-なしで起動するため提示すべき資格情報がありません。リポジトリ内でこのフラグに
-依存しているものは他になく、外してもライブビューが消えるだけです。
-
-### ケース単位の画面録画: `scrcpy --no-playback --record`
-
-各ケースは最初から最後まで録画されます。ランナーはアプリのリセット直前に
-ケースごとの scrcpy を起動し、判定が確定した時点で端末側のキャプチャを終了させて
-scrcpy に `var/videos/{runId}/{caseId}.mp4` を確定させ、自ら終了させます。パスは
-`CaseRun` に載り、ダッシュボードは終了したケースのアコーディオン内でそれを再生
-します。`RECORD_RUNS=0` で機能全体を無効化できます。
-
-*なぜ run 単位でなくケース単位か:* 判定の単位はケースなので、「落ちたケースを見る」
-ために通ったケースをスクラブさせるべきではありません。スクリーンショットの
-保存構造とも揃います。
-
-*なぜ `adb shell screenrecord` でないか:* 3 分で打ち切られますが、20 ステップの
-予算をローカルモデルで消化するケースは普通にそれを超えます。加えて出力は端末上に
-残るため、あとから取り出す手間もかかります。
-
-*なぜ `adb emu screenrecord` でないか:* エミュレータ専用なので、実機のために同じ
-機能をもう一度実装することになります。scrcpy は端末の H.264 ストリームを adb 経由で
-引き出してホスト側で mux するため、両方を 1 つの実装で、時間制限なしにカバーできます。
-
-*なぜ `--no-playback` か:* 欲しいのは録画ファイルであり、ミラーリング用ウィンドウは
-ディスプレイを要求します(ヘッドレスな CI マシンには無い)。ダッシュボードの
-ライブビューは別経路(gRPC フレーム)なので影響しません。
-
-*なぜ停止がシグナルではなく端末側の `adb shell pkill` なのか:* これは実機検証で
-判明しました。scrcpy 4.1 は割り込み処理を SDL のイベントループ経由で行いますが、
-`--no-playback` かつサーバプロセスからの起動ではそのループが回らないため、
-**`SIGINT` も `SIGTERM` も完全に無視されます**。素直な実装(`SIGINT` を送り、
-タイムアウトで `SIGKILL` にフォールバック)は毎回 `moov` アトムのないファイルを
-生成し、`ffprobe` は "moov atom not found" を返してどのプレーヤーでも開けませんでした。
-代わりに端末側のキャプチャを終了させると、scrcpy が唯一監視している経路 —
-ビデオストリームの終端 — に届き、自らインデックスを書いて終了します。`stop()` は
-その終了を待つので、パスを誰かに渡す時点でファイルは完成しています。`SIGKILL` の
-タイムアウトは、固まった scrcpy が端末を掴んだままになるのを防ぐためだけに残してあり、
-その場合は再生不能なファイルのパスを返さず録画失敗として報告します。
-
-*なぜ各ケース冒頭が欠けうるか:* scrcpy はビデオソケットの確立に少し時間がかかり、
-最初のフレームを待つとその遅延が全ケースに乗ります。失われるのはアプリのリセット
-画面で、判定はそこに依存しません。
-
-*なぜ録画はベストエフォートか:* scrcpy が無い、あるいは端末がエンコーダを拒む場合は
-`record.failed` を warn に出して `videoPath` を null にするだけで、ケース自体は
-落としません。判定はステップログが決めるものであり、動画はスクリーンショットと同じく
-デバッグ用の補助だからです。なお **エラーで終わったケースの録画は保持されます** —
-最も見る価値があるのがそれだからです。
-
-### LM Studio + Gemma 4 / Genkit + Zod
-
-モデルはローカルの MLX エンジンで動かします(`gemma-4-12b`、メモリが厳しければ
-E4B)。Genkit の OpenAI 互換プラグインを `http://localhost:1234/v1` に向け、操作
-判断はすべて Zod で検証した構造化出力として受け取ります。
-
-*なぜネイティブ tool call を使わないか:* MLX 系 Gemma 4 の tool call パーサが
-不安定なため、構造化出力で完全に回避します。Genkit は判断ごとのトレースを Dev UI
-で確認でき(「なぜそこをタップしたか」)、将来 `genkit eval` で判断品質の回帰
-テストにも繋げられます。LM Studio は GUI アプリのため手動インストールです。
-
-### UI 取得: `adb shell uiautomator dump`
-
-追加アプリも計装サーバも端末側コードも不要で、シェルコマンドから XML が得られます。
-
-*なぜ Appium UiAutomator2 や自作 Accessibility Service でないか:* 高速ですが、
-インストール・起動・バージョン同期が必要なサーバが増えます。dump のレイテンシが
-ボトルネックになった時点で再検討します。
-
-### モデル入力: UI ツリーのテキストのみ
-
-スクリーンショットは取得・保存しダッシュボードに表示しますが、モデルには渡しません。
-テキストのみのプロンプトは小さく速く、UI ツリーには操作に必要な resource ID と
-アクセシビリティラベルが既に含まれています。
-
-*なぜ画像入力を使わないか:* Gemma 4 は画像を扱えるので精度が必要になれば解禁でき
-ますが、トークンとレイテンシの実コストが伴います。
-
-### 実行履歴: Firestore + ファイル
-
-ステップログと判定結果は Firestore に、ドメインをそのままドキュメント階層に写した
-形(`runs/{runId}` → `cases/{caseId}` → `steps/{index}`)で保存します。
-スクリーンショットとケース単位の画面録画はファイルのままで、パスをドキュメントに
-持ちます。開発と CI は
-ポート 8790 の Firestore エミュレータ、プロジェクト ID は `demo-gemma-e2e` を
-使います。`demo-` 接頭辞が付いていると firebase-tools は Google へ一切接続せず、
-完全オフラインで動きます。
-
-階層がドメインと一致しているため、1 ケース分のタイムラインの取得はフラットな
-テーブルへの絞り込みではなく、1 つのサブコレクションへの 1 クエリで済みます。
-ステップのドキュメント ID はゼロ埋めした index(`000007`)で、Firestore の辞書順が
-そのままステップ順になり、別途 `orderBy` 用フィールドを同期する必要がありません。
-
-*なぜ SQLite(置き換え前)をやめたか:* 単一のローカルファイルはマシン間でも将来の
-ホスト版ダッシュボードとも共有できず、履歴がテストを回したノート PC に閉じ込め
-られます。Firestore ならエミュレータによって「設定不要のローカル開発」を保ったまま、
-共有デプロイへの道が開けます。移行時に store のコードは変わらず、
-`FIRESTORE_EMULATOR_HOST` が無くなるだけです。
-
-*なぜ DB に blob を入れないか:* Firestore のドキュメント上限は 1 MiB で、課金も
-読み取り単位です。スクリーンショットはその両方を破綻させます。
-
-### 汎用 Zod コンバータ: 双方向で検証する
-
-`packages/store` の `zodConverter(schema, label)` は任意の Zod スキーマを Firestore
-の `FirestoreDataConverter` に変換し、全コレクションがこれを通ります。重要なのは
-読み取りだけでなく**書き込み時にも** parse することです。
-
-*なぜ書き込み時も検証するか:* Firestore はスキーマレスであり、型システムが「ある」と
-信じているフィールドを実際に保証するのは実行時チェックだけです。不正なドキュメントを
-書き込み時点で弾くからこそ、読み取り側は検証失敗を「日常的に起こること」ではなく
-「本物の破損」として扱えます。保存されるのは Zod の出力なので、未知のキーは除去され
-デフォルトが適用され、ディスク上のドキュメントはスキーマと厳密に一致します。
-
-ドキュメントはパスが既に表している情報(`runId` / `caseId` / `index`)を持ちません。
-読み出し時にドキュメント ID から復元します。*なぜ二重に持たないか:* 同じ事実の
-コピーが 2 つあれば、いずれ食い違うからです。
-
-*なぜタイムスタンプを Firestore `Timestamp` でなく ISO 8601 文字列のままにするか:*
-JSON API・SSE ペイロード・ダッシュボードのいずれも既に ISO 文字列を話すため、
-`Timestamp` にすると境界ごとに変換が必要になる割に得るものがありません。この store が
-実行するクエリはドキュメント ID 順か文字列フィールド順であり、ISO 8601 はどちらでも
-正しくソートされます。
-
-### SSE は維持し、Firestore リスナーは将来の選択肢
-
-ダッシュボードは引き続き、プロセス内の `RunEventBus` が発行する SSE で run を追跡し、
-Firestore は永続化専用です。イベントには `caseId` が付き、クライアントは各ステップを
-正しいケースに振り分けられます。
-
-*なぜブラウザを Firestore のリアルタイムリスナーに直結しないか:* Firebase の資格情報を
-クライアントへ配り、現在は全拒否のセキュリティルールを開ける必要があるのに対し、
-得られるのは数十行のバスの削除だけだからです。別プロセスが開始した run を追う必要が
-出たら再検討します — それこそが Firestore への移行で可能になったことです。
-
-### 構造化ログ: stderr への NDJSON を Zod で検証
-
-実行時のログは 1 行 1 JSON として stderr に出力します。共通の骨格は固定で、
-`ts`(ISO 8601)・`level`(`debug`/`info`/`warn`/`error`)・`event`(`run.step`
-`adb.exec_failed` `http.request` のようなドット区切りの名前空間)を必ず持ち、
-イベント固有の構造化フィールドをそこに並べます。`LogEvent` スキーマと
-`createLogger` は `@gemma-e2e/logger` が持ち、`child()` で `runId` などの
-コンテキストを束ねると以降の全行に伝播します。
-
-ライブラリは自分からは書きません。`packages/adb`・`packages/agent`・Hono アプリ
-はいずれも `logger` を受け取り、既定は no-op です。出力の可否はプロセスの
-エントリポイント 1 箇所だけが決めます。テストでは収集用の sink を注入するだけで
-発行イベントを検証できます。
-
-*なぜ stdout でなく stderr か:* stdout はコマンド本来の出力の場所であり、結果を
-`jq` に流したときにログまで飲み込まれてはいけないためです。
-
-*なぜ pino や winston を使わないか:* 目的である「Zod による検証」は既に満たして
-おり、残りは JSON 1 行とレベル絞り込みだけだからです。*なぜ検証失敗で例外に
-しないか:* ログのフィールド不備で実行を止める価値はないため、不正なイベントも
-そのまま出力し、直前に該当パスを示す `log.invalid_event` 警告を出します。開発中は
-気づけて、本番では無害です。
-
-### シナリオ: ファイル管理 + ad-hoc 実行
-
-テストシナリオは YAML としてリポジトリに置き、レビュー・バージョン管理・CI での
-再実行を可能にします。加えてダッシュボードからコミットされていない単発のプロンプトも
-実行でき、モデルはドロップダウンから選べます。中身は `GET /api/models` が LLM
-エンドポイントの `/v1/models` から取得します。
-
-*なぜモデル一覧をサーバ経由にするか:* LM Studio は CORS ヘッダを返さないため、
-ブラウザから直接呼べません。埋め込みモデルは ID で除外しています。判断を生成できず、
-選んでも失敗する run にしかならないためです。
-
-ad-hoc プロンプトはケース 1 件だけのシナリオになります。ランナーが扱う形が 1 つで
-済み、ファイル由来かフォーム由来かによらず履歴の見た目が揃います。
-
-### ツールとプロセス
-
-- **Nix flake + direnv** — SDK・Zulu JDK・Bun・各 CLI を `flake.lock` で固定するため、
-  「自分の環境では動く」が「あなたの環境でも動く」になります。Android SDK は
-  [android-nixpkgs](https://github.com/tadfisher/android-nixpkgs) から取得し
-  Android Studio を不要にしています。`adb` は SDK 由来の 1 本のみで、nixpkgs の
-  `android-tools` とは二重化させません。
-- **just** — npm scripts の羅列ではなく、`just --list` で発見できる薄いタスク一覧。
-- **lefthook + gitleaks** — 秘密情報は修正が安いコミット時点で止めます。push 済みの
-  鍵のローテーションは安くありません。
-- **Renovate** — 依存更新をローカルと同じ公開後日数ポリシーで PR にします。
-- **英語を原本とし日本語を併置** — ドキュメントとコメントは英語で書き、`docs/ja/`
-  に日本語版を置きます。
-- **MIT ライセンス。**
+| 判断 | ファイル |
+| --- | --- |
+| Expo prebuild(CNG) | [expo-prebuild-cng.md](knowledge/expo-prebuild-cng.md) |
+| Bun への全面統一 | [bun-everywhere.md](knowledge/bun-everywhere.md) |
+| TypeScript strict・ビルドレス | [typescript-strict-buildless.md](knowledge/typescript-strict-buildless.md) |
+| oxlint / oxfmt | [oxlint-oxfmt.md](knowledge/oxlint-oxfmt.md) |
+| 構造化ログ: stderr への NDJSON を Zod で検証 | [structured-logs-ndjson.md](knowledge/structured-logs-ndjson.md) |
+| 供給網対策: 公開後 1 日ルールを 3 層で揃える | [supply-chain-release-age.md](knowledge/supply-chain-release-age.md) |
+| ツールとプロセス | [tooling-and-process.md](knowledge/tooling-and-process.md) |

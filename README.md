@@ -48,9 +48,10 @@ Full onboarding, including Nix/direnv and LM Studio setup: [SETUP.md](SETUP.md).
 ## Documentation
 
 - [SETUP.md](SETUP.md) — development environment onboarding
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — technical decisions and data flow
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — overview and data flow
+- [docs/knowledge/](docs/knowledge/index.md) — every technical decision, one file each (OKF v0.2)
 
-日本語版: [docs/ja/SETUP.md](docs/ja/SETUP.md) / [docs/ja/ARCHITECTURE.md](docs/ja/ARCHITECTURE.md)
+日本語版: [docs/ja/SETUP.md](docs/ja/SETUP.md) / [docs/ja/ARCHITECTURE.md](docs/ja/ARCHITECTURE.md) / [docs/ja/knowledge/](docs/ja/knowledge/index.md)
 
 ## License
 
