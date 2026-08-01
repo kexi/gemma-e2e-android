@@ -15,6 +15,7 @@ describe("ActionSchema", () => {
       { type: "swipe", direction: "up" },
       { type: "key_event", key: "back" },
       { type: "wait", ms: 500 },
+      { type: "remember", text: "confirmation code 4821" },
       { type: "finish", verdict: "passed", reason: "home screen reached" },
     ];
 
@@ -43,6 +44,11 @@ describe("ActionSchema", () => {
 
   test("rejects a non-positive wait", () => {
     expect(ActionSchema.safeParse({ type: "wait", ms: 0 }).success).toBe(false);
+  });
+
+  test("rejects a remember with nothing to remember", () => {
+    expect(ActionSchema.safeParse({ type: "remember", text: "" }).success).toBe(false);
+    expect(ActionSchema.safeParse({ type: "remember" }).success).toBe(false);
   });
 
   test("rejects a finish with a verdict outside passed/failed", () => {

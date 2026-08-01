@@ -35,11 +35,38 @@ describe("buildDecisionPrompt", () => {
     const prompt = buildDecisionPrompt({ ...input, uiText: "   " });
     expect(prompt).toContain("appears to be empty");
   });
+
+  test("lists remembered facts in a section of their own, above the history", () => {
+    const prompt = buildDecisionPrompt({
+      ...input,
+      rememberedFacts: ["confirmation code 4821", "total is 4200 JPY"],
+    });
+
+    expect(prompt).toContain("# Remembered facts");
+    expect(prompt).toContain("- confirmation code 4821");
+    expect(prompt).toContain("- total is 4200 JPY");
+    expect(prompt.indexOf("# Remembered facts")).toBeLessThan(prompt.indexOf("# Steps so far"));
+  });
+
+  test("omits the section entirely when nothing has been remembered", () => {
+    expect(buildDecisionPrompt(input)).not.toContain("Remembered facts");
+    expect(buildDecisionPrompt({ ...input, rememberedFacts: [] })).not.toContain(
+      "Remembered facts",
+    );
+  });
 });
 
 describe("SYSTEM_PROMPT", () => {
   test("names every action the schema accepts", () => {
-    for (const action of ["tap", "input_text", "swipe", "key_event", "wait", "finish"]) {
+    for (const action of [
+      "tap",
+      "input_text",
+      "swipe",
+      "key_event",
+      "wait",
+      "remember",
+      "finish",
+    ]) {
       expect(SYSTEM_PROMPT).toContain(action);
     }
   });

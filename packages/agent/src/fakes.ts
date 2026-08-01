@@ -43,10 +43,23 @@ export class FakeAdb implements AdbLike {
   readonly calls: AdbCall[] = [];
   #screenIndex = 0;
 
+  /**
+   * Activity reported per screen, aligned with `screens`. Left empty by
+   * default, so most tests exercise the unsigned history format a device that
+   * cannot report its focus produces.
+   */
+  activities: string[] = [];
+
   constructor(
     private readonly screens: string[] = [LOGIN_XML],
     private readonly failures: { screencap?: boolean } = {},
   ) {}
+
+  async focusedActivity(): Promise<string> {
+    this.#record("focusedActivity");
+    const index = Math.min(this.#screenIndex, this.activities.length - 1);
+    return this.activities[index] ?? "";
+  }
 
   #record(method: string, ...args: unknown[]): void {
     this.calls.push({ method, args });

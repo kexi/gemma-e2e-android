@@ -8,6 +8,7 @@ import {
   type BinaryCommandResult,
   type CommandResult,
   escapeInputText,
+  parseFocusedActivity,
 } from "./client.ts";
 import { LOGIN_SCREEN_XML } from "./fixtures.ts";
 
@@ -291,6 +292,67 @@ describe("screencap", () => {
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe("focusedActivity", () => {
+  /** Shape of `dumpsys window displays` on the project's API 35 emulator. */
+  const DISPLAYS = [
+    "WINDOW MANAGER DISPLAY CONTENTS (dumpsys window displays)",
+    "  Display: mDisplayId=0",
+    "  mCurrentFocus=Window{ba22b58 u0 dev.kexi.gemmae2e.example/dev.kexi.gemmae2e.example.MainActivity}",
+    "  mFocusedApp=ActivityRecord{a1bd6b5 u0 dev.kexi.gemmae2e.example/.MainActivity t28}",
+    "",
+  ].join("\n");
+
+  test("asks the displays subcommand rather than dumping all of window manager", async () => {
+    const { calls, run } = recorder([DISPLAYS]);
+    await new AdbClient({ run }).focusedActivity();
+    expect(calls[0]).toEqual(["adb", "shell", "dumpsys", "window", "displays"]);
+  });
+
+  test("names the focused activity relative to its package", async () => {
+    const { run } = recorder([DISPLAYS]);
+    expect(await new AdbClient({ run }).focusedActivity()).toBe(".MainActivity");
+  });
+
+  test("falls back to mFocusedApp while a transition leaves mCurrentFocus null", () => {
+    const midTransition = [
+      "  mCurrentFocus=null",
+      "  mFocusedApp=ActivityRecord{a1 u0 com.example.app/.DetailActivity t7}",
+    ].join("\n");
+
+    expect(parseFocusedActivity(midTransition)).toBe(".DetailActivity");
+  });
+
+  /**
+   * The project's own emulator does exactly this: a secondary display reports
+   * no focus, and reading only the first matching line found nothing at all.
+   */
+  test("skips a display that reports no focus and takes the one that does", () => {
+    const twoDisplays = [
+      "  Display: mDisplayId=2",
+      "  mCurrentFocus=null",
+      "  Display: mDisplayId=0",
+      "  mCurrentFocus=Window{88e8cea u0 com.example.app/com.example.app.MainActivity}",
+    ].join("\n");
+
+    expect(parseFocusedActivity(twoDisplays)).toBe(".MainActivity");
+  });
+
+  test("keeps an activity that lives outside the package it runs in", () => {
+    const external = "  mCurrentFocus=Window{a1 u0 com.example.app/androidx.compose.HostActivity}";
+    expect(parseFocusedActivity(external)).toBe("androidx.compose.HostActivity");
+  });
+
+  test("returns an empty signature when neither line names a component", () => {
+    expect(parseFocusedActivity("  mCurrentFocus=null\n  mFocusedApp=null")).toBe("");
+    expect(parseFocusedActivity("")).toBe("");
+  });
+
+  test("reports nothing rather than throwing when the device refuses the call", async () => {
+    const { run } = recorder([{ exitCode: 1, stdout: "", stderr: "device offline" }]);
+    expect(await new AdbClient({ run }).focusedActivity()).toBe("");
   });
 });
 

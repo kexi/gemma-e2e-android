@@ -1,4 +1,10 @@
-export { AdbClient, AdbError, escapeInputText } from "./client.ts";
+export {
+  AdbClient,
+  AdbError,
+  escapeInputText,
+  parseFocusedActivity,
+  shortenActivity,
+} from "./client.ts";
 export type {
   AdbClientOptions,
   BinaryCommandResult,

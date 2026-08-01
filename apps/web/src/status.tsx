@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import Chip from "@mui/material/Chip";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import BookmarkIcon from "@mui/icons-material/Bookmark";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
 import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
@@ -34,6 +35,8 @@ export function actionIcon(action: Action): ReactElement {
       return <ArrowBackIcon />;
     case "wait":
       return <HourglassEmptyIcon />;
+    case "remember":
+      return <BookmarkIcon />;
     case "finish":
       return action.verdict === "passed" ? <CheckCircleIcon /> : <ErrorIcon />;
   }
@@ -51,6 +54,8 @@ export function describeAction(action: Action): string {
       return `press ${action.key}`;
     case "wait":
       return `wait ${action.ms}ms`;
+    case "remember":
+      return `remember ${JSON.stringify(action.text)}`;
     case "finish":
       return `finish ${action.verdict}: ${action.reason}`;
   }

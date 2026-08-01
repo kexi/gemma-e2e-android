@@ -97,6 +97,53 @@ export function escapeInputText(text: string): string {
 }
 
 /**
+ * Pulls the activity out of a `dumpsys window` focus line. Both lines name a
+ * window as `… pkg/pkg.SomeActivity}`, sometimes with a hash and a session id
+ * around it, so the component is matched rather than the whole line split.
+ */
+const FOCUS_COMPONENT = /\b([A-Za-z][\w.]*)\/([\w.$]+)/;
+
+/**
+ * Reduces a `pkg/pkg.MainActivity` component to `.MainActivity`.
+ *
+ * Why shortened: this string is stamped onto every history line, and the full
+ * component would repeat the package on every one of them — tens of tokens per
+ * step buying nothing, since a case drives a single app.
+ */
+export function shortenActivity(pkg: string, activity: string): string {
+  const isInPackage = activity.startsWith(`${pkg}.`);
+  return isInPackage ? activity.slice(pkg.length) : activity;
+}
+
+/**
+ * Finds the focused activity in `dumpsys window` output.
+ *
+ * mCurrentFocus is the window actually taking input and is what changes when a
+ * dialog opens over an activity; mFocusedApp is the fallback because
+ * mCurrentFocus reads `null` while a transition is in flight, which is common
+ * right after a tap. Anything unparseable yields "" — the caller treats the
+ * signature as a nicety, not a fact worth failing a step over.
+ */
+export function parseFocusedActivity(dumpsys: string): string {
+  const lines = dumpsys.split("\n");
+
+  for (const key of ["mCurrentFocus", "mFocusedApp"]) {
+    // Every matching line is tried, not just the first: a device with more than
+    // one display prints one focus line per display, and the secondary ones
+    // read `null` while the display the user is looking at names the activity.
+    for (const line of lines.filter((candidate) => candidate.includes(key))) {
+      const match = FOCUS_COMPONENT.exec(line);
+      const isComponent = match !== null && match[1] !== undefined && match[2] !== undefined;
+      if (isComponent) {
+        return shortenActivity(match[1] as string, match[2] as string);
+      }
+    }
+  }
+
+  return "";
+}
+
+/**
  * Builds the `pkg/activity` component `am start -n` expects. A leading dot is
  * the platform's shorthand for "relative to the package", which is expanded
  * here so callers may write either form.
@@ -226,6 +273,28 @@ export class AdbClient {
   async dumpUiXml(): Promise<string> {
     await this.exec(["shell", "uiautomator", "dump", DEVICE_UI_DUMP_PATH]);
     return await this.exec(["shell", "cat", DEVICE_UI_DUMP_PATH]);
+  }
+
+  /**
+   * Names the activity currently holding focus, e.g. `.MainActivity`, or `""`
+   * when it cannot be determined.
+   *
+   * Best-effort by design: this is a label on a history line, and an OEM whose
+   * dumpsys prints something unexpected — or a device that hiccups on the call
+   * — should cost the run a nicer log, not a step. Errors are swallowed here
+   * rather than at the call site so every caller gets the same guarantee.
+   */
+  async focusedActivity(): Promise<string> {
+    try {
+      // `displays` rather than a bare `dumpsys window`: both carry the focus
+      // lines, but the bare dump is the whole window-manager state (~55KB on
+      // the project's emulator against ~20KB) pulled over adb once per step.
+      // Why not `windows`, which sounds narrower still: on API 35 that
+      // subcommand lists the window records without either focus line.
+      return parseFocusedActivity(await this.exec(["shell", "dumpsys", "window", "displays"]));
+    } catch {
+      return "";
+    }
   }
 
   /**

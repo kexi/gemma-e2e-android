@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Action } from "@gemma-e2e/core";
 import { createLogger, type LogEvent } from "@gemma-e2e/logger";
-import { runScenario, type RunEvent } from "./run.ts";
+import { type AdbLike, runScenario, type RunEvent } from "./run.ts";
 import {
   FakeAdb,
   FakeRecorder,
@@ -521,6 +521,253 @@ describe("screen recording", () => {
     expect(h.events.find((e) => e.type === "case_finished")).toMatchObject({
       videoPath: "/videos/run-1/logs-in.mp4",
     });
+  });
+});
+
+describe("remembered facts", () => {
+  const REMEMBER: Action = { type: "remember", text: "confirmation code 4821" };
+
+  test("records the fact as a step without touching the device", async () => {
+    const h = harness([REMEMBER, FINISH_PASSED], [LOGIN_XML]);
+
+    const result = await runScenario(scenario(), h.deps);
+
+    expect(result.cases[0]?.steps).toBe(2);
+    expect(h.store.case("run-1", "logs-in")?.steps[0]?.action).toEqual(REMEMBER);
+    expect(h.adb.methodNames()).not.toContain("tap");
+    expect(h.adb.methodNames()).not.toContain("typeText");
+  });
+
+  test("puts the fact in every later prompt", async () => {
+    const h = harness(
+      [REMEMBER, { type: "swipe", direction: "up" }, { type: "swipe", direction: "down" }],
+      [LOGIN_XML],
+    );
+
+    await runScenario(scenario({ cases: [testCase({ maxSteps: 3 })] }), h.deps);
+
+    const facts = h.llm.clients[0]?.inputs.map((input) => input.rememberedFacts ?? []) ?? [];
+    expect(facts[0]).toEqual([]);
+    expect(facts[1]).toEqual(["confirmation code 4821"]);
+    expect(facts[2]).toEqual(["confirmation code 4821"]);
+  });
+
+  test("keeps facts in order as they accumulate", async () => {
+    const h = harness(
+      [REMEMBER, { type: "remember", text: "total is 4200 JPY" }, FINISH_PASSED],
+      [LOGIN_XML],
+    );
+
+    await runScenario(scenario(), h.deps);
+
+    expect(h.llm.clients[0]?.inputs[2]?.rememberedFacts).toEqual([
+      "confirmation code 4821",
+      "total is 4200 JPY",
+    ]);
+  });
+
+  /**
+   * The whole reason facts travel outside the history: a run deeper than the
+   * window would otherwise lose the value it went to the trouble of recording.
+   */
+  test("survives a history long enough to push the remembering step out of the window", async () => {
+    const filler: Action[] = Array.from({ length: 40 }, (_, step) => ({
+      type: "swipe",
+      direction: step % 2 === 0 ? "up" : "down",
+    }));
+    const h = harness([REMEMBER, ...filler], [LOGIN_XML]);
+
+    await runScenario(scenario({ cases: [testCase({ maxSteps: 41 })] }), h.deps);
+
+    const last = h.llm.clients[0]?.inputs.at(-1);
+    expect(last?.historySummary).not.toContain("confirmation code 4821");
+    expect(last?.rememberedFacts).toEqual(["confirmation code 4821"]);
+  });
+
+  test("does not leak facts from one case into the next", async () => {
+    const h = harness([[REMEMBER, FINISH_PASSED], [FINISH_PASSED]]);
+
+    await runScenario(scenario({ cases: [testCase({ id: "a" }), testCase({ id: "b" })] }), h.deps);
+
+    expect(h.llm.clients[1]?.inputs[0]?.rememberedFacts).toEqual([]);
+  });
+});
+
+describe("history window", () => {
+  test("carries the last 30 steps, not the whole run", async () => {
+    // Alternating directions keep every step distinct, so the window holds
+    // steps rather than the loop guard's warnings.
+    const script: Action[] = Array.from({ length: 40 }, (_, step) => ({
+      type: "swipe",
+      direction: step % 2 === 0 ? "up" : "down",
+    }));
+    const h = harness(script, [LOGIN_XML]);
+
+    await runScenario(scenario({ cases: [testCase({ maxSteps: 40 })] }), h.deps);
+
+    const last = h.llm.clients[0]?.inputs.at(-1)?.historySummary ?? "";
+    const numbered = last.split("\n").filter((line) => /^\d+\. /.test(line));
+    expect(numbered).toHaveLength(30);
+    // History numbers steps from 1, so line 39 is the zero-based index 38 —
+    // even, hence "up". Line 9 has just aged out of the window.
+    expect(numbered.at(-1)).toBe("39. swipe up");
+    expect(numbered.at(0)).toBe("10. swipe down");
+  });
+});
+
+describe("screen signature", () => {
+  test("labels each history line with the activity the step acted on", async () => {
+    const h = harness([{ type: "tap", ref: 1 }, FINISH_PASSED], [LOGIN_XML, HOME_XML]);
+    h.adb.activities = [".LoginActivity", ".HomeActivity"];
+
+    await runScenario(scenario(), h.deps);
+
+    expect(h.llm.clients[0]?.inputs[1]?.historySummary).toBe("1. [.LoginActivity] tap [1]");
+  });
+
+  test("names the screen the decision was made on, not the one it navigated to", async () => {
+    const h = harness(
+      [{ type: "tap", ref: 1 }, { type: "tap", ref: 1 }, FINISH_PASSED],
+      [LOGIN_XML, HOME_XML],
+    );
+    h.adb.activities = [".LoginActivity", ".HomeActivity"];
+
+    await runScenario(scenario(), h.deps);
+
+    const history = h.llm.clients[0]?.inputs[2]?.historySummary ?? "";
+    expect(history).toContain("1. [.LoginActivity] tap [1]");
+    expect(history).toContain("2. [.HomeActivity] tap [1]");
+  });
+
+  test("falls back to the unlabelled format when the device cannot report one", async () => {
+    const h = harness([{ type: "tap", ref: 1 }, FINISH_PASSED], [LOGIN_XML, HOME_XML]);
+    h.adb.activities = [""];
+
+    await runScenario(scenario(), h.deps);
+
+    expect(h.llm.clients[0]?.inputs[1]?.historySummary).toBe("1. tap [1]");
+  });
+
+  test("falls back when the client has no way to report an activity at all", async () => {
+    const h = harness([{ type: "tap", ref: 1 }, FINISH_PASSED], [LOGIN_XML, HOME_XML]);
+    // An AdbLike written before signatures existed: the method is absent, not
+    // merely returning "".
+    const adb: AdbLike = {
+      dumpUi: () => h.adb.dumpUi(),
+      tap: (x, y) => h.adb.tap(x, y),
+      typeText: (text) => h.adb.typeText(text),
+      swipe: (direction) => h.adb.swipe(direction),
+      keyevent: (key) => h.adb.keyevent(key),
+      screencap: (destPath) => h.adb.screencap(destPath),
+      launchApp: (pkg, activity) => h.adb.launchApp(pkg, activity),
+      stopApp: (pkg) => h.adb.stopApp(pkg),
+    };
+
+    await runScenario(scenario(), { ...h.deps, adb });
+
+    expect(h.llm.clients[0]?.inputs[1]?.historySummary).toBe("1. tap [1]");
+  });
+
+  test("keeps the failure note alongside the signature", async () => {
+    const h = harness([{ type: "tap", ref: 99 }, FINISH_PASSED], [LOGIN_XML]);
+    h.adb.activities = [".LoginActivity"];
+
+    await runScenario(scenario(), h.deps);
+
+    const history = h.llm.clients[0]?.inputs[1]?.historySummary ?? "";
+    expect(history).toContain("[.LoginActivity] tap [99] (failed:");
+  });
+});
+
+describe("loop guard", () => {
+  /** The same swipe on a screen that never changes: the classic stall. */
+  const STUCK: Action = { type: "swipe", direction: "up" };
+
+  test("stays quiet while the agent is still making progress", async () => {
+    const h = harness([{ type: "tap", ref: 1 }, FINISH_PASSED], [LOGIN_XML, HOME_XML]);
+
+    await runScenario(scenario(), h.deps);
+
+    expect(h.llm.clients[0]?.inputs[1]?.historySummary).not.toContain("WARNING");
+  });
+
+  test("warns in the prompt once an action repeats on an identical screen", async () => {
+    const h = harness([STUCK], [LOGIN_XML]);
+
+    await runScenario(scenario({ cases: [testCase({ maxSteps: 3 })] }), h.deps);
+
+    const inputs = h.llm.clients[0]?.inputs ?? [];
+    // Step 1 is the first sighting; the warning appears only after step 2
+    // repeats it.
+    expect(inputs[1]?.historySummary).not.toContain("WARNING");
+    expect(inputs[2]?.historySummary).toContain("repeated on an identical screen");
+  });
+
+  test("does not warn when the same action lands on a different screen", async () => {
+    const h = harness(
+      [
+        { type: "tap", ref: 1 },
+        { type: "tap", ref: 1 },
+      ],
+      [LOGIN_XML, HOME_XML],
+    );
+
+    await runScenario(scenario({ cases: [testCase({ maxSteps: 3 })] }), h.deps);
+
+    expect(h.llm.clients[0]?.inputs[2]?.historySummary).not.toContain("WARNING");
+  });
+
+  test("does not warn when a different action follows on the same screen", async () => {
+    const h = harness([STUCK, { type: "swipe", direction: "down" }], [LOGIN_XML]);
+
+    await runScenario(scenario({ cases: [testCase({ maxSteps: 3 })] }), h.deps);
+
+    expect(h.llm.clients[0]?.inputs[2]?.historySummary).not.toContain("WARNING");
+  });
+
+  test("writes the repetition to the step's note only on the third occurrence", async () => {
+    const h = harness([STUCK], [LOGIN_XML]);
+
+    await runScenario(scenario({ cases: [testCase({ maxSteps: 3 })] }), h.deps);
+
+    const notes = h.store.case("run-1", "logs-in")?.steps.map((step) => step.note) ?? [];
+    expect(notes[0]).toBeNull();
+    expect(notes[1]).toBeNull();
+    expect(notes[2]).toContain("repeated on an identical screen");
+  });
+
+  test("keeps an executor failure in the note alongside the repetition", async () => {
+    const h = harness([{ type: "tap", ref: 99 }], [LOGIN_XML]);
+
+    await runScenario(scenario({ cases: [testCase({ maxSteps: 3 })] }), h.deps);
+
+    const third = h.store.case("run-1", "logs-in")?.steps[2]?.note ?? "";
+    expect(third).toContain("no element [99]");
+    expect(third).toContain("repeated on an identical screen");
+  });
+
+  test("lets the step budget end the case rather than stopping it early", async () => {
+    const h = harness([STUCK], [LOGIN_XML]);
+
+    const result = await runScenario(scenario({ cases: [testCase({ maxSteps: 6 })] }), h.deps);
+
+    expect(result.cases[0]?.steps).toBe(6);
+    expect(result.cases[0]?.reason).toContain("step budget exhausted");
+  });
+
+  test("logs the stall so a stuck run is visible without reading the steps", async () => {
+    const lines: string[] = [];
+    const h = harness([STUCK], [LOGIN_XML]);
+
+    await runScenario(scenario({ cases: [testCase({ maxSteps: 3 })] }), {
+      ...h.deps,
+      logger: createLogger({ sink: (line) => lines.push(line), level: "debug" }),
+    });
+
+    const stall = lines
+      .map((line) => JSON.parse(line) as LogEvent)
+      .find((event) => event.event === "case.loop_detected");
+    expect(stall).toMatchObject({ level: "warn", repeats: 3 });
   });
 });
 

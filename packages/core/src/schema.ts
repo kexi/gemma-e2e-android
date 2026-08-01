@@ -79,6 +79,13 @@ export const ActionSchema = z.discriminatedUnion("type", [
     type: z.literal("wait"),
     ms: z.number().int().positive(),
   }),
+  // Carries a fact forward instead of a device instruction: the agent is
+  // stateless apart from its history window, so a value only visible on one
+  // screen (a code, a total) is gone by the time a later step needs it.
+  z.object({
+    type: z.literal("remember"),
+    text: z.string().min(1),
+  }),
   z.object({
     type: z.literal("finish"),
     verdict: VerdictSchema,

@@ -7,6 +7,12 @@ export interface DecideInput {
   scenarioPrompt: string;
   historySummary: string;
   uiText: string;
+  /**
+   * Facts the agent chose to keep, newest last. Passed separately from the
+   * history so they survive the history window: a code read on step 2 is still
+   * in the prompt on step 40.
+   */
+  rememberedFacts?: readonly string[] | undefined;
 }
 
 /** The one thing the agent loop needs from a model: the next move. */
@@ -45,6 +51,10 @@ Actions:
 - swipe: scroll the screen (up scrolls toward later content).
 - key_event: press back, home, or enter.
 - wait: pause when the screen looks like it is still loading.
+- remember: record a fact from the current screen that a later step will need
+  (a confirmation code, an order number, a total). It touches nothing on the
+  device, so use it only for values you would otherwise lose once you navigate
+  away — never for narrating what you just did.
 - finish: end the test. Use verdict "passed" once you can SEE the goal has been
   met, and "failed" when the goal cannot be achieved (a blocking error, a dead
   end, or the same screen repeating with no progress). Always give a reason.
@@ -87,10 +97,20 @@ export function buildDecisionPrompt(input: DecideInput): string {
       ? "(nothing yet - this is the first step)"
       : input.historySummary;
 
+  // Its own section rather than lines prepended to the history: the history is
+  // a sliding window, and a fact folded into it would age out of the prompt
+  // exactly when a long run needs it most.
+  const facts = input.rememberedFacts ?? [];
+  const hasFacts = facts.length > 0;
+  const factsSection = hasFacts
+    ? [`# Remembered facts`, ...facts.map((fact) => `- ${fact}`), ``]
+    : [];
+
   return [
     `# Goal`,
     input.scenarioPrompt,
     ``,
+    ...factsSection,
     `# Steps so far`,
     history,
     ``,
