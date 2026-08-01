@@ -287,13 +287,6 @@ export class Store {
   async deleteRun(id: string): Promise<void> {
     await this.#db.recursiveDelete(this.#db.collection(RUNS).doc(id));
   }
-
-  /**
-   * No-op: the Firestore client pools connections for the process lifetime and
-   * closing it would break the next run. Kept so callers written against the
-   * previous SQLite store need no change.
-   */
-  close(): void {}
 }
 
 type RunDoc = z.output<typeof RunDocSchema>;
