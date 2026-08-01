@@ -14,6 +14,7 @@ export default defineConfig({
       // upgrade request is proxied as plain HTTP and the socket never opens.
       "/api": { target: API_TARGET, changeOrigin: true, ws: true },
       "/screenshots": { target: API_TARGET, changeOrigin: true },
+      "/videos": { target: API_TARGET, changeOrigin: true },
     },
   },
 });
