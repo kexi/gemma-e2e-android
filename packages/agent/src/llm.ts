@@ -50,7 +50,10 @@ Actions:
   end, or the same screen repeating with no progress). Always give a reason.
 
 Prefer finishing over repeating an action that changed nothing. Respond only
-with the structured action.`;
+with the structured action.
+
+Return the chosen action object itself, such as {"type":"tap","ref":0}. Do not
+echo the schema back: no "anyOf", no "oneOf", no list of alternatives.`;
 
 export interface GenerateRequest {
   model: string;
@@ -96,6 +99,49 @@ export function buildDecisionPrompt(input: DecideInput): string {
     ``,
     `Choose the next action.`,
   ].join("\n");
+}
+
+/** The schema keywords a model echoes back when it confuses schema with value. */
+const ENVELOPE_KEYS = ["anyOf", "oneOf"] as const;
+
+/**
+ * Unwraps a one-element `anyOf`/`oneOf` envelope around the action.
+ *
+ * Smaller models (E4B, measurably) sometimes answer with the *shape* of the
+ * response schema rather than a value of it, emitting
+ * `{"anyOf":[{"type":"input_text","ref":1,"text":"…"}]}`. The action inside is
+ * correct, so retrying three times and erroring the case throws away a usable
+ * decision over a wrapper.
+ *
+ * Why not unwrap more aggressively: an envelope holding several branches is the
+ * model listing its options rather than choosing one, and picking a branch on
+ * its behalf would be us deciding the test's next move. Anything but a single
+ * wrapped object falls through unchanged and fails validation as before, so a
+ * retry — where the model may actually choose — still happens.
+ */
+export function normalizeOutput(output: unknown): unknown {
+  const isObject = typeof output === "object" && output !== null && !Array.isArray(output);
+  if (!isObject) {
+    return output;
+  }
+
+  const record = output as Record<string, unknown>;
+  // Only a bare envelope is unwrapped: extra keys alongside it mean the shape is
+  // something other than the wrapper this works around.
+  const hasOnlyEnvelopeKey = Object.keys(record).length === 1;
+  if (!hasOnlyEnvelopeKey) {
+    return output;
+  }
+
+  for (const key of ENVELOPE_KEYS) {
+    const branches = record[key];
+    const isSingleBranch = Array.isArray(branches) && branches.length === 1;
+    if (isSingleBranch) {
+      return branches[0];
+    }
+  }
+
+  return output;
 }
 
 /**
@@ -177,7 +223,7 @@ export class GenkitLlm implements Llm {
         // again here rather than trusting `output` keeps validation ours: a
         // retry often succeeds because the failure is formatting, not
         // capability.
-        const parsed = ActionSchema.safeParse(response.output);
+        const parsed = ActionSchema.safeParse(normalizeOutput(response.output));
         if (!parsed.success) {
           throw new LlmDecisionError(
             `model returned no schema-valid action: ${parsed.error.issues

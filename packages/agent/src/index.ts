@@ -5,6 +5,7 @@ export {
   DEFAULT_MODEL,
   GenkitLlm,
   LlmDecisionError,
+  normalizeOutput,
   SYSTEM_PROMPT,
 } from "./llm.ts";
 export type {

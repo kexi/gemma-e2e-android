@@ -7,6 +7,7 @@ import {
   DEFAULT_MODEL,
   GenkitLlm,
   LlmDecisionError,
+  normalizeOutput,
   SYSTEM_PROMPT,
 } from "./llm.ts";
 
@@ -306,6 +307,95 @@ describe("decision timing", () => {
       durationMs: 900,
       error: "connection reset",
     });
+  });
+});
+
+describe("normalizeOutput", () => {
+  const action = { type: "tap", ref: 0 };
+
+  test("unwraps an action the model wrapped in a one-element anyOf", () => {
+    expect(normalizeOutput({ anyOf: [action] })).toEqual(action);
+  });
+
+  test("unwraps a one-element oneOf the same way", () => {
+    expect(normalizeOutput({ oneOf: [action] })).toEqual(action);
+  });
+
+  test("leaves an envelope listing several branches alone", () => {
+    const listed = { anyOf: [action, { type: "wait", ms: 500 }] };
+    expect(normalizeOutput(listed)).toEqual(listed);
+  });
+
+  test("leaves an empty envelope alone", () => {
+    expect(normalizeOutput({ anyOf: [] })).toEqual({ anyOf: [] });
+  });
+
+  test("leaves a plain action untouched", () => {
+    expect(normalizeOutput(action)).toEqual(action);
+  });
+
+  test("leaves an envelope key that shares the object with other keys alone", () => {
+    const mixed = { anyOf: [action], type: "tap" };
+    expect(normalizeOutput(mixed)).toEqual(mixed);
+  });
+
+  test("passes non-objects through", () => {
+    expect(normalizeOutput(null)).toBeNull();
+    expect(normalizeOutput("tap")).toBe("tap");
+    expect(normalizeOutput([action])).toEqual([action]);
+  });
+});
+
+describe("GenkitLlm schema-envelope tolerance", () => {
+  const input = { scenarioPrompt: "log in", historySummary: "", uiText: "[0] Button" };
+
+  test("accepts an action wrapped in a one-element anyOf without retrying", async () => {
+    let calls = 0;
+    const llm = new GenkitLlm({
+      generate: async () => {
+        calls++;
+        return { output: { anyOf: [{ type: "input_text", ref: 1, text: "demo@example.com" }] } };
+      },
+    });
+
+    expect(await llm.decide(input)).toEqual({
+      type: "input_text",
+      ref: 1,
+      text: "demo@example.com",
+    });
+    expect(calls).toBe(1);
+  });
+
+  test("still fails when the envelope holds more than one branch", async () => {
+    const llm = new GenkitLlm({
+      maxAttempts: 1,
+      generate: async () => ({
+        output: {
+          anyOf: [
+            { type: "tap", ref: 0 },
+            { type: "wait", ms: 500 },
+          ],
+        },
+      }),
+    });
+
+    await expect(llm.decide(input)).rejects.toBeInstanceOf(LlmDecisionError);
+  });
+
+  test("still fails when the unwrapped content violates the schema", async () => {
+    const llm = new GenkitLlm({
+      maxAttempts: 1,
+      generate: async () => ({ output: { anyOf: [{ type: "teleport", ref: 0 }] } }),
+    });
+
+    await expect(llm.decide(input)).rejects.toBeInstanceOf(LlmDecisionError);
+  });
+});
+
+describe("SYSTEM_PROMPT envelope guidance", () => {
+  test("tells the model not to echo the schema back", () => {
+    expect(SYSTEM_PROMPT).toContain("anyOf");
+    expect(SYSTEM_PROMPT).toContain("oneOf");
   });
 });
 
