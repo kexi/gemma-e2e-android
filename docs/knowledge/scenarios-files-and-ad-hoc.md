@@ -33,4 +33,7 @@ validates its body with the same Zod schema the YAML loader uses and writes
 store — a scenario built in the browser is reviewed, versioned and replayed in CI
 exactly like a hand-written one. An id that is already on disk is answered with
 409 rather than overwritten, because these files are git-managed and a silent
-replacement would destroy reviewed work.
+replacement would destroy reviewed work. Editing is the same entry point rather
+than a second one: `PUT /api/scenarios/:id` validates with that same schema and
+rewrites the same file in the same house style, so an edited scenario is
+indistinguishable from a hand-edited one.

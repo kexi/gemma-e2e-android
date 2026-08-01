@@ -222,6 +222,115 @@ describe("POST /api/scenarios", () => {
   });
 });
 
+describe("PUT /api/scenarios/:id", () => {
+  function put(id: string, body: unknown) {
+    return harness().request(`/api/scenarios/${id}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  const EDITED_LOGIN = {
+    title: "Login (revised)",
+    app: { package: "dev.kexi.gemmae2e.example" },
+    cases: [{ id: "valid", title: "Logs in", prompt: "Check that a user can log in." }],
+  };
+
+  test("rewrites the file so the listing reports the edited scenario", async () => {
+    const res = await put("login", EDITED_LOGIN);
+
+    expect(res.status).toBe(200);
+    const listed = (await (await harness().request("/api/scenarios")).json()) as {
+      scenarios: { id: string; title: string; cases: { id: string }[] }[];
+    };
+    const edited = listed.scenarios.find((s) => s.id === "login");
+    expect(edited).toMatchObject({ title: "Login (revised)" });
+    expect(edited?.cases.map((one) => one.id)).toEqual(["valid"]);
+  });
+
+  test("accepts a body that repeats the id from the path", async () => {
+    const res = await put("login", { ...EDITED_LOGIN, id: "login" });
+
+    expect(res.status).toBe(200);
+  });
+
+  test("writes the same house style as a scenario created through POST", async () => {
+    await put("login", EDITED_LOGIN);
+    await harness().request("/api/scenarios", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...EDITED_LOGIN, id: "twin" }),
+    });
+
+    const edited = await readFile(join(scenariosDir, "login.yaml"), "utf8");
+    const created = await readFile(join(scenariosDir, "twin.yaml"), "utf8");
+    expect(edited).toBe(created);
+    // The id stays out of the file, and prose still folds as `>-`.
+    expect(edited).not.toContain("id: login");
+    expect(edited).toContain("prompt: >-");
+  });
+
+  test("reports a scenario that is not on disk as 404 rather than creating it", async () => {
+    const res = await put("nope", { ...EDITED_LOGIN, title: "Nope" });
+
+    expect(res.status).toBe(404);
+    expect(await Bun.file(join(scenariosDir, "nope.yaml")).exists()).toBe(false);
+  });
+
+  test("rejects a body the scenario schema does not accept", async () => {
+    const res = await put("login", { title: "No cases", cases: [] });
+
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { error: string }).error).toContain("at least one case");
+    // A rejected edit leaves the committed file exactly as it was.
+    expect(await readFile(join(scenariosDir, "login.yaml"), "utf8")).toBe(LOGIN_YAML);
+  });
+
+  test("refuses to rename, because the file name is the id", async () => {
+    const res = await put("login", { ...EDITED_LOGIN, id: "renamed" });
+
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { error: string }).error).toContain("id cannot be changed");
+    expect(await readFile(join(scenariosDir, "login.yaml"), "utf8")).toBe(LOGIN_YAML);
+    expect(await Bun.file(join(scenariosDir, "renamed.yaml")).exists()).toBe(false);
+  });
+
+  test("rejects an id that would escape the scenarios directory", async () => {
+    const res = await harness().request("/api/scenarios/..%2Fescape", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(EDITED_LOGIN),
+    });
+
+    expect(res.status).toBe(400);
+    expect(await Bun.file(join(scenariosDir, "../escape.yaml")).exists()).toBe(false);
+  });
+
+  test("rejects two cases sharing an id, which would collide in Firestore", async () => {
+    const res = await put("login", {
+      ...EDITED_LOGIN,
+      cases: [
+        { id: "same", prompt: "First." },
+        { id: "same", prompt: "Second." },
+      ],
+    });
+
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { error: string }).error).toContain("duplicate case id");
+  });
+
+  test("rejects a non-JSON body", async () => {
+    const res = await harness().request("/api/scenarios/login", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: "not json",
+    });
+
+    expect(res.status).toBe(400);
+  });
+});
+
 describe("GET /api/models", () => {
   test("returns the models the endpoint offers", async () => {
     const app = createApp({

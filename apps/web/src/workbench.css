@@ -326,6 +326,15 @@ html:active-view-transition-type(backward)::view-transition-new(workbench-main) 
   border-color: #1e8e3e;
 }
 
+/* The edit dialog's id field. Read-only rather than disabled so the value stays
+   selectable, but it must not read as a field the user just filled in
+   correctly, so the success border is taken back off. */
+.builder-form input:read-only {
+  border-color: var(--workbench-divider, rgb(0 0 0 / 32%));
+  color: var(--workbench-text-secondary, rgb(0 0 0 / 60%));
+  cursor: default;
+}
+
 .builder-open,
 .builder-add,
 .builder-cancel,

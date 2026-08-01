@@ -62,8 +62,8 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   const [model, setModel] = useState(SERVER_DEFAULT);
   const [starting, setStarting] = useState(false);
 
-  // Also called after the builder writes a file, so a scenario created here is
-  // runnable without a page reload.
+  // Also called after the builder writes a file, so a scenario created or
+  // edited here is runnable without a page reload.
   function reloadScenarios() {
     fetchScenarios()
       .then((body) => setScenarios(body.scenarios))
@@ -156,6 +156,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                     {scenario.model !== undefined && ` · ${scenario.model}`}
                   </Typography>
                 </Box>
+                <ScenarioBuilder models={models} scenario={scenario} onSaved={reloadScenarios} />
                 <Tooltip title={`Run ${scenario.id}`}>
                   <span>
                     <IconButton
@@ -198,7 +199,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
         </Stack>
 
         <Box sx={{ mt: 1.5 }}>
-          <ScenarioBuilder models={models} onCreated={reloadScenarios} />
+          <ScenarioBuilder models={models} onSaved={reloadScenarios} />
         </Box>
       </Box>
 

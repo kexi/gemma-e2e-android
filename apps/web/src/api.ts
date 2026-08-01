@@ -48,6 +48,21 @@ export function createScenario(
   });
 }
 
+/**
+ * Rewrites `scenarios/<id>.yaml` in place. Same body as the create request:
+ * the file is replaced whole rather than patched, so the editor always sends
+ * the complete scenario it is showing.
+ */
+export function updateScenario(
+  body: CreateScenarioRequest,
+): Promise<{ scenario: Scenario; path: string }> {
+  return json(`/api/scenarios/${encodeURIComponent(body.id)}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 export function fetchRuns(): Promise<{ runs: Run[] }> {
   return json("/api/runs");
 }

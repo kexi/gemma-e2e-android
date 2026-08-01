@@ -164,6 +164,70 @@ export function createApp(deps: AppDeps) {
     return c.json({ scenario, path }, 201);
   });
 
+  // The edit counterpart of POST: same validation, same serialiser, so a
+  // scenario keeps the house style whether it was written once or ten times.
+  app.put("/api/scenarios/:id", async (c) => {
+    const targetId = c.req.param("id");
+
+    let body: unknown;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: "body must be JSON" }, 400);
+    }
+
+    // The id is the filename, so the body may omit it; supplying a different
+    // one is refused rather than honoured, because renaming means moving a
+    // git-managed file and leaving no scenario at the old path.
+    const isMapping = typeof body === "object" && body !== null && !Array.isArray(body);
+    if (!isMapping) {
+      return c.json({ error: "body must be a JSON object" }, 400);
+    }
+    const given = (body as { id?: unknown }).id;
+    const hasOtherId = given !== undefined && given !== targetId;
+    if (hasOtherId) {
+      return c.json({ error: "id cannot be changed; the file name is the id" }, 400);
+    }
+
+    const parsed = ScenarioSchema.safeParse({ ...(body as object), id: targetId });
+    if (!parsed.success) {
+      const issues = parsed.error.issues
+        .map((issue) => `${issue.path.join(".") || "<root>"}: ${issue.message}`)
+        .join("; ");
+      return c.json({ error: `not a valid scenario (${issues})` }, 400);
+    }
+
+    const scenario = parsed.data;
+    const isSlug = SCENARIO_ID_PATTERN.test(scenario.id);
+    if (!isSlug) {
+      return c.json({ error: "id must be a lowercase slug (a-z, 0-9, hyphen)" }, 400);
+    }
+
+    const duplicate = findDuplicateCaseId(scenario);
+    if (duplicate !== null) {
+      return c.json({ error: `duplicate case id "${duplicate}"` }, 400);
+    }
+
+    const path = join(deps.scenariosDir, `${scenario.id}.yaml`);
+    // 404 rather than an upsert: PUT here edits a file the user picked from the
+    // listing, and creating one from a mistyped URL would hide the typo.
+    const exists = await Bun.file(path).exists();
+    if (!exists) {
+      return c.json({ error: `no such scenario: ${scenario.id}` }, 404);
+    }
+
+    try {
+      await Bun.write(path, toScenarioYaml(scenario));
+    } catch (error) {
+      log.error("http.scenario_write_failed", { path, ...errorFields(error) });
+      const message = error instanceof Error ? error.message : String(error);
+      return c.json({ error: message }, 500);
+    }
+
+    log.info("scenario.updated", { scenarioId: scenario.id, cases: scenario.cases.length, path });
+    return c.json({ scenario, path });
+  });
+
   const listModels = deps.listModels;
   app.get("/api/models", async (c) => {
     const hasSource = listModels !== undefined;
