@@ -130,15 +130,15 @@ export class Store {
 
     const db = new Database(dbPath, { create: true });
     // WAL keeps the dashboard's reads from blocking the runner's writes.
-    db.exec("PRAGMA journal_mode = WAL");
-    db.exec("PRAGMA foreign_keys = ON");
+    db.run("PRAGMA journal_mode = WAL");
+    db.run("PRAGMA foreign_keys = ON");
 
     Store.#migrate(db);
     return new Store(db);
   }
 
   static #migrate(db: Database): void {
-    db.exec("CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL)");
+    db.run("CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL)");
 
     const row = db.query<{ version: number }, []>("SELECT version FROM schema_version").get();
     const isFresh = row === null;
@@ -155,7 +155,7 @@ export class Store {
 
     db.transaction(() => {
       for (const statement of pending) {
-        db.exec(statement);
+        db.run(statement);
       }
       db.run("UPDATE schema_version SET version = ?", [MIGRATIONS.length]);
     })();
