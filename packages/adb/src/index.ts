@@ -1,5 +1,11 @@
 export { AdbClient, AdbError, escapeInputText } from "./client.ts";
-export type { AdbClientOptions, CommandResult, CommandRunner } from "./client.ts";
+export type {
+  AdbClientOptions,
+  BinaryCommandResult,
+  BinaryCommandRunner,
+  CommandResult,
+  CommandRunner,
+} from "./client.ts";
 
 export { centerOf, parseBounds, parseUiDump, UiDumpParseError } from "./parse.ts";
 

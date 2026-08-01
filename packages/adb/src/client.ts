@@ -8,17 +8,37 @@ export interface CommandResult {
   stderr: string;
 }
 
+/**
+ * A command whose stdout is arbitrary bytes. Kept separate from
+ * {@link CommandResult} rather than widening `stdout` to a union, so every
+ * text-oriented caller keeps a plain `string` and cannot accidentally receive
+ * bytes it would have to narrow.
+ */
+export interface BinaryCommandResult {
+  exitCode: number;
+  stdout: Uint8Array;
+  stderr: string;
+}
+
 /** Injection seam: tests substitute a recorder, production uses Bun.spawn. */
 export type CommandRunner = (
   argv: readonly string[],
   options: { timeoutMs: number },
 ) => Promise<CommandResult>;
 
+/** The {@link CommandRunner} seam for commands that emit binary stdout. */
+export type BinaryCommandRunner = (
+  argv: readonly string[],
+  options: { timeoutMs: number },
+) => Promise<BinaryCommandResult>;
+
 export interface AdbClientOptions {
   serial?: string | undefined;
   adbPath?: string | undefined;
   timeoutMs?: number | undefined;
   run?: CommandRunner | undefined;
+  /** Binary-stdout seam, used by `screencap`; defaults alongside `run`. */
+  runBinary?: BinaryCommandRunner | undefined;
   /** Defaults to a no-op, so importing the client never writes on its own. */
   logger?: Logger | undefined;
 }
@@ -28,11 +48,16 @@ export class AdbError extends Error {
 
   constructor(
     readonly argv: readonly string[],
-    readonly result: CommandResult,
+    readonly result: CommandResult | BinaryCommandResult,
   ) {
+    // A binary command that failed prints a diagnostic rather than the payload,
+    // so decoding its stdout for the message is safe; the bytes are only kept
+    // undecoded on the success path, where they are the file being written.
+    const stdout =
+      typeof result.stdout === "string" ? result.stdout : new TextDecoder().decode(result.stdout);
     super(
       `adb ${argv.join(" ")} failed (exit ${result.exitCode}): ${
-        result.stderr.trim() || result.stdout.trim()
+        result.stderr.trim() || stdout.trim()
       }`,
     );
   }
@@ -69,7 +94,17 @@ export function escapeInputText(text: string): string {
   return text.replace(/([\\()<>|;&*~"'`$\][?{}#])/g, "\\$1").replace(/ /g, "%s");
 }
 
-const defaultRunner: CommandRunner = async (argv, { timeoutMs }) => {
+/**
+ * Spawns `argv`, killing it after `timeoutMs`, and hands stdout to `collect`.
+ * `stdout: "pipe"` guarantees a stream, but Bun's overload-free signature types
+ * it as the union of every mode, so the cast states what the options already
+ * fix.
+ */
+async function spawnAndCollect<T>(
+  argv: readonly string[],
+  timeoutMs: number,
+  collect: (stdout: ReadableStream<Uint8Array>) => Promise<T>,
+): Promise<{ exitCode: number; stdout: T; stderr: string }> {
   const proc = Bun.spawn([...argv], { stdout: "pipe", stderr: "pipe" });
 
   const timer = setTimeout(() => {
@@ -78,21 +113,37 @@ const defaultRunner: CommandRunner = async (argv, { timeoutMs }) => {
 
   try {
     const [stdout, stderr, exitCode] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
+      collect(proc.stdout as ReadableStream<Uint8Array>),
+      new Response(proc.stderr as ReadableStream<Uint8Array>).text(),
       proc.exited,
     ]);
     return { exitCode, stdout, stderr };
   } finally {
     clearTimeout(timer);
   }
-};
+}
+
+const defaultRunner: CommandRunner = async (argv, { timeoutMs }) =>
+  await spawnAndCollect(argv, timeoutMs, async (stdout) => await new Response(stdout).text());
+
+/**
+ * Reads stdout as raw bytes. `.text()` would decode as UTF-8 and replace every
+ * byte that is not valid UTF-8 with U+FFFD — which silently corrupts a PNG,
+ * starting with its own `89 50 4E 47` magic.
+ */
+const defaultBinaryRunner: BinaryCommandRunner = async (argv, { timeoutMs }) =>
+  await spawnAndCollect(
+    argv,
+    timeoutMs,
+    async (stdout) => new Uint8Array(await new Response(stdout).arrayBuffer()),
+  );
 
 export class AdbClient {
   readonly #serial: string | undefined;
   readonly #adbPath: string;
   readonly #timeoutMs: number;
   readonly #run: CommandRunner;
+  readonly #runBinary: BinaryCommandRunner;
   readonly #log: Logger;
 
   constructor(options: AdbClientOptions = {}) {
@@ -100,6 +151,7 @@ export class AdbClient {
     this.#adbPath = options.adbPath ?? "adb";
     this.#timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.#run = options.run ?? defaultRunner;
+    this.#runBinary = options.runBinary ?? defaultBinaryRunner;
     this.#log = options.logger ?? noopLogger;
   }
 
@@ -108,7 +160,7 @@ export class AdbClient {
    * logged: a run issues an adb call per step per action, and recording the
    * successful ones would bury the one line that explains a broken run.
    */
-  #fail(argv: readonly string[], result: CommandResult): AdbError {
+  #fail(argv: readonly string[], result: CommandResult | BinaryCommandResult): AdbError {
     const error = new AdbError(argv, result);
     this.#log.error("adb.exec_failed", {
       argv: [...argv],
@@ -164,10 +216,19 @@ export class AdbClient {
     return await this.exec(["shell", "cat", DEVICE_UI_DUMP_PATH]);
   }
 
-  /** `exec-out` keeps the PNG bytes off the shell's line-ending translation. */
+  /**
+   * Writes a PNG screenshot to `destPath`, byte for byte.
+   *
+   * Why not `adb shell screencap -p`: the shell allocates a pty on some
+   * transports and translates LF into CRLF, which rewrites any 0x0A inside the
+   * compressed image data. `exec-out` is a raw stream with no such translation.
+   *
+   * Why the bytes are never turned into a string: PNG is not text, and any
+   * decode step — even a round trip through UTF-8 — destroys it.
+   */
   async screencap(destPath: string): Promise<string> {
     const argv = this.buildArgv(["exec-out", "screencap", "-p"]);
-    const result = await this.#run(argv, { timeoutMs: this.#timeoutMs });
+    const result = await this.#runBinary(argv, { timeoutMs: this.#timeoutMs });
 
     const failed = result.exitCode !== 0;
     if (failed) {

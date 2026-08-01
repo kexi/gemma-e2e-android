@@ -1,5 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { AdbClient, AdbError, type CommandResult, escapeInputText } from "./client.ts";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import {
+  AdbClient,
+  AdbError,
+  type BinaryCommandResult,
+  type CommandResult,
+  escapeInputText,
+} from "./client.ts";
 import { LOGIN_SCREEN_XML } from "./fixtures.ts";
 
 /** Records argv instead of spawning adb: no device is involved in these tests. */
@@ -181,6 +190,76 @@ describe("screenSize", () => {
   test("falls back to a default when the output is unrecognised", async () => {
     const { run } = recorder(["\n"]);
     expect(await new AdbClient({ run }).screenSize()).toEqual({ width: 1080, height: 2400 });
+  });
+});
+
+describe("screencap", () => {
+  /**
+   * A PNG header followed by bytes that are not valid UTF-8: a lone 0x80
+   * continuation, an unpaired surrogate's encoding, and a 0xFF that can never
+   * appear in UTF-8. Decoding this to a string replaces each with U+FFFD
+   * (`EF BF BD`), which is exactly the corruption being guarded against.
+   */
+  const PNG_BYTES = new Uint8Array([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+    0x80, 0xed, 0xa0, 0x80, 0xff, 0xfe, 0xc0, 0x0a, 0x0d, 0x0a, 0x49, 0x45, 0x4e, 0x44,
+  ]);
+
+  function binaryRecorder(stdout: Uint8Array) {
+    const calls: string[][] = [];
+    const runBinary = async (argv: readonly string[]): Promise<BinaryCommandResult> => {
+      calls.push([...argv]);
+      return { exitCode: 0, stdout, stderr: "" };
+    };
+    return { calls, runBinary };
+  }
+
+  test("uses exec-out so no shell line-ending translation touches the bytes", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "adb-screencap-"));
+    try {
+      const { calls, runBinary } = binaryRecorder(PNG_BYTES);
+      await new AdbClient({ runBinary, serial: "emulator-5554" }).screencap(join(dir, "s.png"));
+      expect(calls[0]).toEqual(["adb", "-s", "emulator-5554", "exec-out", "screencap", "-p"]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("writes the stdout bytes verbatim, without any text decoding", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "adb-screencap-"));
+    const destPath = join(dir, "shot.png");
+    try {
+      const { runBinary } = binaryRecorder(PNG_BYTES);
+
+      expect(await new AdbClient({ runBinary }).screencap(destPath)).toBe(destPath);
+
+      const written = new Uint8Array(await readFile(destPath));
+      expect(written).toEqual(PNG_BYTES);
+      expect(written.slice(0, 4)).toEqual(new Uint8Array([0x89, 0x50, 0x4e, 0x47]));
+      // Belt and braces: U+FFFD is what a UTF-8 round trip would leave behind.
+      expect([...written].join(",")).not.toContain("239,191,189");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("a non-zero exit reports stderr rather than writing a file", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "adb-screencap-"));
+    const destPath = join(dir, "missing.png");
+    try {
+      const runBinary = async (): Promise<BinaryCommandResult> => ({
+        exitCode: 1,
+        stdout: new Uint8Array(),
+        stderr: "device offline",
+      });
+
+      const promise = new AdbClient({ runBinary }).screencap(destPath);
+      await expect(promise).rejects.toBeInstanceOf(AdbError);
+      await expect(promise).rejects.toThrow(/device offline/);
+      expect(await Bun.file(destPath).exists()).toBe(false);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });
 
