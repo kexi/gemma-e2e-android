@@ -16,6 +16,7 @@
     "@gemma-e2e/adb": "workspace:*",
     "@gemma-e2e/agent": "workspace:*",
     "@gemma-e2e/core": "workspace:*",
+    "@gemma-e2e/logger": "workspace:*",
     "@gemma-e2e/store": "workspace:*",
     "@mui/icons-material": "9.1.1",
     "@mui/material": "9.1.2",

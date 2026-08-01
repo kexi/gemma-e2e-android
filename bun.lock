@@ -33,6 +33,7 @@
         "@gemma-e2e/adb": "workspace:*",
         "@gemma-e2e/agent": "workspace:*",
         "@gemma-e2e/core": "workspace:*",
+        "@gemma-e2e/logger": "workspace:*",
         "@gemma-e2e/store": "workspace:*",
         "@mui/icons-material": "9.1.1",
         "@mui/material": "9.1.2",
@@ -53,6 +54,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@gemma-e2e/core": "workspace:*",
+        "@gemma-e2e/logger": "workspace:*",
         "fast-xml-parser": "^5.3.1",
       },
     },
@@ -62,6 +64,7 @@
       "dependencies": {
         "@gemma-e2e/adb": "workspace:*",
         "@gemma-e2e/core": "workspace:*",
+        "@gemma-e2e/logger": "workspace:*",
         "@gemma-e2e/store": "workspace:*",
         "@genkit-ai/compat-oai": "^1.40.1",
         "genkit": "^1.40.1",
@@ -73,6 +76,13 @@
       "version": "0.0.0",
       "dependencies": {
         "yaml": "^2.8.1",
+        "zod": "^3.25.76",
+      },
+    },
+    "packages/logger": {
+      "name": "@gemma-e2e/logger",
+      "version": "0.0.0",
+      "dependencies": {
         "zod": "^3.25.76",
       },
     },
@@ -347,6 +357,8 @@
     "@gemma-e2e/core": ["@gemma-e2e/core@workspace:packages/core"],
 
     "@gemma-e2e/example": ["@gemma-e2e/example@workspace:apps/example"],
+
+    "@gemma-e2e/logger": ["@gemma-e2e/logger@workspace:packages/logger"],
 
     "@gemma-e2e/store": ["@gemma-e2e/store@workspace:packages/store"],
 

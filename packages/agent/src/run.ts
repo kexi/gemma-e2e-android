@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { mkdir } from "node:fs/promises";
 import type { Action, Run, RunStatus, Scenario, Step, UiNode } from "@gemma-e2e/core";
 import { serializeForLlm, type UiRef } from "@gemma-e2e/adb";
+import { errorFields, type Logger, noopLogger } from "@gemma-e2e/logger";
 import type { Llm } from "./llm.ts";
 
 /** The slice of AdbClient the loop needs; a fake satisfies it in tests. */
@@ -44,6 +45,8 @@ export interface RunDeps {
   store: StoreLike;
   screenshotDir: string;
   onEvent?: ((event: RunEvent) => void) | undefined;
+  /** Defaults to a no-op; the caller decides whether a run writes NDJSON. */
+  logger?: Logger | undefined;
   runId?: string | undefined;
   now?: (() => Date) | undefined;
   sleep?: ((ms: number) => Promise<void>) | undefined;
@@ -105,6 +108,9 @@ export async function runScenario(scenario: Scenario, deps: RunDeps): Promise<Ru
   const emit = deps.onEvent ?? (() => {});
   const sleep = deps.sleep ?? defaultSleep;
   const runId = deps.runId ?? crypto.randomUUID();
+  // Bound once so runId rides on every line the loop emits, including the ones
+  // written from the catch below.
+  const log = (deps.logger ?? noopLogger).child({ runId });
 
   store.createRun({
     id: runId,
@@ -113,6 +119,11 @@ export async function runScenario(scenario: Scenario, deps: RunDeps): Promise<Ru
     prompt: scenario.prompt,
   });
   emit({ type: "run_started", runId, scenario });
+  log.info("run.started", {
+    scenarioId: scenario.id,
+    title: scenario.title,
+    maxSteps: scenario.maxSteps,
+  });
 
   const runScreenshotDir = join(screenshotDir, runId);
   const history: string[] = [];
@@ -132,6 +143,7 @@ export async function runScenario(scenario: Scenario, deps: RunDeps): Promise<Ru
 
     while (index < scenario.maxSteps) {
       emit({ type: "step_started", runId, index });
+      log.debug("run.step", { index });
 
       const tree = await adb.dumpUi();
       const { text: uiText, refs } = serializeForLlm(tree);
@@ -143,6 +155,7 @@ export async function runScenario(scenario: Scenario, deps: RunDeps): Promise<Ru
         uiText,
       });
       emit({ type: "action_decided", runId, index, action });
+      log.info("run.action_decided", { index, action: describeAction(action), type: action.type });
 
       let note: string | null = null;
       const isFinish = action.type === "finish";
@@ -155,10 +168,15 @@ export async function runScenario(scenario: Scenario, deps: RunDeps): Promise<Ru
           // Recorded rather than thrown: a bad ref is the model's mistake, and
           // the note feeds back into history so the next step can recover.
           note = error instanceof Error ? error.message : String(error);
+          log.warn("run.action_failed", {
+            index,
+            action: describeAction(action),
+            ...errorFields(error),
+          });
         }
       }
 
-      const screenshotPath = await captureScreenshot(adb, runScreenshotDir, index);
+      const screenshotPath = await captureScreenshot(adb, runScreenshotDir, index, log);
 
       const step = store.addStep({
         runId,
@@ -185,24 +203,34 @@ export async function runScenario(scenario: Scenario, deps: RunDeps): Promise<Ru
     if (ranOutOfSteps) {
       status = "failed";
       reason = `step budget exhausted after ${scenario.maxSteps} steps without a verdict`;
+      log.warn("run.budget_exhausted", { maxSteps: scenario.maxSteps });
     }
   } catch (error) {
     status = "error";
     reason = error instanceof Error ? error.message : String(error);
+    log.error("run.errored", { index, ...errorFields(error) });
   }
 
   store.finishRun(runId, { status, verdictReason: reason });
   emit({ type: "run_finished", runId, status, reason });
+  log.info("run.finished", { status, reason, steps: index });
 
   return { runId, status, reason, steps: index };
 }
 
-async function captureScreenshot(adb: AdbLike, dir: string, index: number): Promise<string | null> {
+async function captureScreenshot(
+  adb: AdbLike,
+  dir: string,
+  index: number,
+  log: Logger,
+): Promise<string | null> {
   try {
     return await adb.screencap(join(dir, `${String(index).padStart(3, "0")}.png`));
-  } catch {
+  } catch (error) {
     // A missing screenshot must not fail the run: the step log is what decides
-    // the verdict, and the image is only a debugging aid.
+    // the verdict, and the image is only a debugging aid. Logged rather than
+    // swallowed outright, so a device that never produces one is diagnosable.
+    log.warn("run.screenshot_failed", { index, ...errorFields(error) });
     return null;
   }
 }

@@ -3,6 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Action } from "@gemma-e2e/core";
+import { createLogger, type LogEvent } from "@gemma-e2e/logger";
 import { runScenario, type RunEvent } from "./run.ts";
 import { FakeAdb, FakeStore, HOME_XML, LOGIN_XML, scenario, ScriptedLlm } from "./fakes.ts";
 
@@ -325,5 +326,84 @@ describe("events", () => {
     await runScenario(scenario(), h.deps);
 
     expect(h.events.at(-1)).toMatchObject({ type: "run_finished", status: "error" });
+  });
+});
+
+describe("structured logging", () => {
+  /** Captures NDJSON lines the way a stderr consumer would read them back. */
+  function capture() {
+    const lines: string[] = [];
+    return {
+      logger: createLogger({ sink: (line) => lines.push(line), level: "debug" }),
+      events: () => lines.map((line) => JSON.parse(line) as LogEvent),
+    };
+  }
+
+  test("reports a run from start to verdict, every line tagged with the runId", async () => {
+    const log = capture();
+    const h = harness([FINISH_PASSED]);
+
+    await runScenario(scenario(), { ...h.deps, logger: log.logger });
+
+    const events = log.events();
+    expect(events.map((e) => e.event)).toContain("run.started");
+    expect(events.map((e) => e.event)).toContain("run.finished");
+    expect(events.every((e) => e["runId"] === "run-1")).toBe(true);
+  });
+
+  test("records the verdict on run.finished", async () => {
+    const log = capture();
+    const h = harness([FINISH_PASSED]);
+
+    await runScenario(scenario(), { ...h.deps, logger: log.logger });
+
+    expect(log.events().find((e) => e.event === "run.finished")).toMatchObject({
+      level: "info",
+      status: "passed",
+      reason: "greeting is visible",
+    });
+  });
+
+  test("warns when an action fails without ending the run", async () => {
+    const log = capture();
+    const h = harness([{ type: "tap", ref: 99 }, FINISH_PASSED]);
+
+    await runScenario(scenario(), { ...h.deps, logger: log.logger });
+
+    const failure = log.events().find((e) => e.event === "run.action_failed");
+    expect(failure).toMatchObject({ level: "warn", index: 0 });
+    expect(String(failure?.["error"])).toContain("no element [99]");
+  });
+
+  test("logs an errored run at error level", async () => {
+    const log = capture();
+    const h = harness([new Error("boom")]);
+
+    await runScenario(scenario(), { ...h.deps, logger: log.logger });
+
+    expect(log.events().find((e) => e.event === "run.errored")).toMatchObject({
+      level: "error",
+      error: "boom",
+    });
+  });
+
+  test("warns when the step budget runs out", async () => {
+    const log = capture();
+    const h = harness([{ type: "swipe", direction: "up" }]);
+
+    await runScenario(scenario({ maxSteps: 2 }), { ...h.deps, logger: log.logger });
+
+    expect(log.events().find((e) => e.event === "run.budget_exhausted")).toMatchObject({
+      level: "warn",
+      maxSteps: 2,
+    });
+  });
+
+  test("stays silent when no logger is injected", async () => {
+    const h = harness([FINISH_PASSED]);
+
+    const result = await runScenario(scenario(), h.deps);
+
+    expect(result.status).toBe("passed");
   });
 });

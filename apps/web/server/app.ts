@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { serveStatic } from "hono/bun";
 import { loadScenariosDir, type Run, type Scenario } from "@gemma-e2e/core";
+import { errorFields, type Logger, noopLogger } from "@gemma-e2e/logger";
 import type { RunEvent } from "@gemma-e2e/agent";
 import { RunEventBus } from "./bus.ts";
 
@@ -30,6 +31,8 @@ export interface AppDeps {
   screenshotsDir?: string | undefined;
   clientDir?: string | undefined;
   bus?: RunEventBus | undefined;
+  /** Defaults to a no-op so the app tests stay quiet unless they opt in. */
+  logger?: Logger | undefined;
 }
 
 interface CreateRunBody {
@@ -47,13 +50,32 @@ function isNonEmptyString(value: unknown): value is string {
 
 export function createApp(deps: AppDeps) {
   const bus = deps.bus ?? new RunEventBus();
+  const log = deps.logger ?? noopLogger;
   const app = new Hono();
+
+  // One line per completed request, emitted after the handler so the status and
+  // duration are known. Static asset routes are included: a 404 on a built
+  // asset is exactly the kind of deploy mistake this is meant to surface.
+  app.use("*", async (c, next) => {
+    const startedAt = performance.now();
+    await next();
+    log.info("http.request", {
+      method: c.req.method,
+      path: c.req.path,
+      status: c.res.status,
+      durationMs: Math.round(performance.now() - startedAt),
+    });
+  });
 
   app.get("/api/scenarios", async (c) => {
     try {
       const scenarios = await loadScenariosDir(deps.scenariosDir);
       return c.json({ scenarios });
     } catch (error) {
+      log.error("http.scenarios_failed", {
+        scenariosDir: deps.scenariosDir,
+        ...errorFields(error),
+      });
       const message = error instanceof Error ? error.message : String(error);
       return c.json({ error: message }, 500);
     }
@@ -73,6 +95,11 @@ export function createApp(deps: AppDeps) {
     }
 
     const runId = crypto.randomUUID();
+    log.info("run.requested", {
+      runId,
+      scenarioId: scenario.value.id,
+      maxSteps: scenario.value.maxSteps,
+    });
     deps.startRun({
       runId,
       scenario: scenario.value,
@@ -100,6 +127,9 @@ export function createApp(deps: AppDeps) {
     if (run === null) {
       return c.json({ error: "no such run" }, 404);
     }
+
+    const sseLog = log.child({ runId });
+    sseLog.info("sse.connected", { replayedSteps: run.steps.length, status: run.status });
 
     return streamSSE(c, async (stream) => {
       // Replay before subscribing so a client that attaches mid-run (or after
@@ -153,9 +183,12 @@ export function createApp(deps: AppDeps) {
 
         stream.onAbort(() => {
           unsubscribe();
+          sseLog.info("sse.aborted", {});
           resolve();
         });
       });
+
+      sseLog.info("sse.disconnected", {});
     });
   });
 

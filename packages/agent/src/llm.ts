@@ -1,6 +1,7 @@
 import { type Genkit, genkit } from "genkit";
 import { openAICompatible } from "@genkit-ai/compat-oai";
 import { type Action, ActionSchema } from "@gemma-e2e/core";
+import { errorFields, type Logger, noopLogger } from "@gemma-e2e/logger";
 
 export interface DecideInput {
   scenarioPrompt: string;
@@ -56,6 +57,8 @@ export interface GenkitLlmOptions {
   apiKey?: string | undefined;
   maxAttempts?: number | undefined;
   generate?: GenerateFn | undefined;
+  /** Defaults to a no-op, so constructing a client never writes on its own. */
+  logger?: Logger | undefined;
 }
 
 export class LlmDecisionError extends Error {
@@ -93,11 +96,13 @@ export class GenkitLlm implements Llm {
   readonly #model: string;
   readonly #maxAttempts: number;
   readonly #generate: GenerateFn;
+  readonly #log: Logger;
 
   constructor(options: GenkitLlmOptions = {}) {
     this.#model = options.model ?? process.env["LLM_MODEL"] ?? DEFAULT_MODEL;
     this.#maxAttempts = options.maxAttempts ?? MAX_ATTEMPTS;
     this.#generate = options.generate ?? GenkitLlm.#genkitGenerate(options);
+    this.#log = options.logger ?? noopLogger;
   }
 
   static #genkitGenerate(options: GenkitLlmOptions): GenerateFn {
@@ -146,6 +151,15 @@ export class GenkitLlm implements Llm {
         return parsed.data;
       } catch (error) {
         lastError = error;
+        // Each retry is logged, not just the final failure: a run that succeeds
+        // on attempt 3 every time is a model problem worth seeing before it
+        // starts failing outright.
+        this.#log.warn("llm.attempt_failed", {
+          attempt,
+          maxAttempts: this.#maxAttempts,
+          model: this.#model,
+          ...errorFields(error),
+        });
       }
     }
 

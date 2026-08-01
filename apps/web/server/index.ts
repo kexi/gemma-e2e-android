@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { AdbClient } from "@gemma-e2e/adb";
 import { GenkitLlm, runScenario } from "@gemma-e2e/agent";
+import { createLogger, errorFields, parseLogLevel } from "@gemma-e2e/logger";
 import { Store } from "@gemma-e2e/store";
 import { createApp, type StartRunInput } from "./app.ts";
 
@@ -13,15 +14,23 @@ const varDir = process.env["VAR_DIR"] ?? join(repoRoot, "var");
 const screenshotsDir = join(varDir, "screenshots");
 const clientDir = join(import.meta.dir, "..", "dist");
 
+// The one place a logger is actually wired to stderr: every package defaults to
+// a no-op, so the process entrypoint decides that this run writes NDJSON.
+const logger = createLogger({
+  level: parseLogLevel(process.env["LOG_LEVEL"]),
+  bindings: { service: "web" },
+});
+
 const store = Store.open(join(varDir, "runs.db"));
 
 // Constructed once and shared: both hold only configuration, and a device or
 // model that is missing surfaces as a run with status=error rather than as a
 // startup crash, so the dashboard stays usable without hardware attached.
-const adb = new AdbClient({ serial: process.env["ANDROID_SERIAL"] });
+const adb = new AdbClient({ serial: process.env["ANDROID_SERIAL"], logger });
 const llm = new GenkitLlm({
   baseURL: process.env["LLM_BASE_URL"],
   model: process.env["LLM_MODEL"],
+  logger,
 });
 
 function startRun({ runId, scenario, onEvent }: StartRunInput): void {
@@ -36,8 +45,9 @@ function startRun({ runId, scenario, onEvent }: StartRunInput): void {
     screenshotDir: screenshotsDir,
     runId,
     onEvent,
+    logger,
   }).catch((error: unknown) => {
-    console.error(`run ${runId} crashed outside the loop:`, error);
+    logger.error("run.crashed", { runId, ...errorFields(error) });
   });
 }
 
@@ -48,9 +58,10 @@ const app = createApp({
   scenariosDir,
   startRun,
   screenshotsDir,
+  logger,
   ...(isProduction ? { clientDir } : {}),
 });
 
-console.log(`dashboard API on http://localhost:${port} (scenarios: ${scenariosDir})`);
+logger.info("server.started", { port, scenariosDir, varDir, mode: isProduction ? "prod" : "dev" });
 
 export default { port, fetch: app.fetch };

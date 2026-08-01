@@ -12,6 +12,7 @@
   "dependencies": {
     "@gemma-e2e/adb": "workspace:*",
     "@gemma-e2e/core": "workspace:*",
+    "@gemma-e2e/logger": "workspace:*",
     "@gemma-e2e/store": "workspace:*",
     "@genkit-ai/compat-oai": "^1.40.1",
     "genkit": "^1.40.1",

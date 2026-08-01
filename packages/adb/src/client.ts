@@ -1,4 +1,5 @@
 import type { KeyName, SwipeDirection, UiNode } from "@gemma-e2e/core";
+import { errorFields, type Logger, noopLogger } from "@gemma-e2e/logger";
 import { parseUiDump } from "./parse.ts";
 
 export interface CommandResult {
@@ -18,6 +19,8 @@ export interface AdbClientOptions {
   adbPath?: string | undefined;
   timeoutMs?: number | undefined;
   run?: CommandRunner | undefined;
+  /** Defaults to a no-op, so importing the client never writes on its own. */
+  logger?: Logger | undefined;
 }
 
 export class AdbError extends Error {
@@ -90,12 +93,30 @@ export class AdbClient {
   readonly #adbPath: string;
   readonly #timeoutMs: number;
   readonly #run: CommandRunner;
+  readonly #log: Logger;
 
   constructor(options: AdbClientOptions = {}) {
     this.#serial = options.serial;
     this.#adbPath = options.adbPath ?? "adb";
     this.#timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.#run = options.run ?? defaultRunner;
+    this.#log = options.logger ?? noopLogger;
+  }
+
+  /**
+   * Logs a failed command and returns the error to throw. Only failures are
+   * logged: a run issues an adb call per step per action, and recording the
+   * successful ones would bury the one line that explains a broken run.
+   */
+  #fail(argv: readonly string[], result: CommandResult): AdbError {
+    const error = new AdbError(argv, result);
+    this.#log.error("adb.exec_failed", {
+      argv: [...argv],
+      exitCode: result.exitCode,
+      stderr: result.stderr.trim(),
+      ...errorFields(error),
+    });
+    return error;
   }
 
   /** Full argv for a command, with `-s <serial>` inserted when targeting one device. */
@@ -110,7 +131,7 @@ export class AdbClient {
 
     const failed = result.exitCode !== 0;
     if (failed) {
-      throw new AdbError(argv, result);
+      throw this.#fail(argv, result);
     }
 
     return result.stdout;
@@ -150,7 +171,7 @@ export class AdbClient {
 
     const failed = result.exitCode !== 0;
     if (failed) {
-      throw new AdbError(argv, result);
+      throw this.#fail(argv, result);
     }
 
     await Bun.write(destPath, result.stdout);

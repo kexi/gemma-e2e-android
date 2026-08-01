@@ -1,0 +1,10 @@
+{
+  // "bun" types: the default sink writes to process.stderr and the tests run on
+  // bun:test. The logger itself imports nothing from node: or Bun, so a browser
+  // bundle that only pulls in the schema stays clean.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["bun"]
+  },
+  "include": ["src/**/*.ts"]
+}

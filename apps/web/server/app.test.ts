@@ -3,6 +3,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Run, Step } from "@gemma-e2e/core";
+import { createLogger, type LogEvent } from "@gemma-e2e/logger";
 import type { RunEvent } from "@gemma-e2e/agent";
 import { RunEventBus } from "./bus.ts";
 import { createApp, type StartRunInput, type StoreReader } from "./app.ts";
@@ -256,5 +257,93 @@ describe("GET /api/runs/:id/events", () => {
 
     const events = await collectSse(res);
     expect(events.map((e) => e.type)).toEqual(["step_recorded", "step_recorded", "run_finished"]);
+  });
+});
+
+describe("structured logging", () => {
+  /** Captures NDJSON lines the way a stderr consumer would read them back. */
+  function capture() {
+    const lines: string[] = [];
+    return {
+      logger: createLogger({ sink: (line) => lines.push(line), level: "debug" }),
+      events: () => lines.map((line) => JSON.parse(line) as LogEvent),
+    };
+  }
+
+  test("emits one http.request line per request, with method, path and status", async () => {
+    const log = capture();
+    const app = createApp({
+      store: new FakeStore(),
+      scenariosDir,
+      startRun: () => {},
+      logger: log.logger,
+    });
+
+    await app.request("/api/scenarios");
+
+    const request = log.events().find((e) => e.event === "http.request");
+    expect(request).toMatchObject({
+      level: "info",
+      method: "GET",
+      path: "/api/scenarios",
+      status: 200,
+    });
+    expect(typeof request?.["durationMs"]).toBe("number");
+  });
+
+  test("logs the failing status for a request that 404s", async () => {
+    const log = capture();
+    const app = createApp({
+      store: new FakeStore(),
+      scenariosDir,
+      startRun: () => {},
+      logger: log.logger,
+    });
+
+    await app.request("/api/runs/nope");
+
+    expect(log.events().find((e) => e.event === "http.request")).toMatchObject({
+      path: "/api/runs/nope",
+      status: 404,
+    });
+  });
+
+  test("reports a scenario directory that cannot be read at error level", async () => {
+    const log = capture();
+    const app = createApp({
+      store: new FakeStore(),
+      scenariosDir: join(scenariosDir, "does-not-exist"),
+      startRun: () => {},
+      logger: log.logger,
+    });
+
+    await app.request("/api/scenarios");
+
+    expect(log.events().find((e) => e.event === "http.scenarios_failed")).toMatchObject({
+      level: "error",
+    });
+  });
+
+  test("tags SSE lifecycle lines with the runId", async () => {
+    const log = capture();
+    const store = new FakeStore();
+    store.add(run({ status: "passed" }));
+    const app = createApp({ store, scenariosDir, startRun: () => {}, logger: log.logger });
+
+    const res = await app.request("/api/runs/run-1/events");
+    await res.text();
+
+    expect(log.events().find((e) => e.event === "sse.connected")).toMatchObject({
+      runId: "run-1",
+      status: "passed",
+    });
+  });
+
+  test("writes nothing when no logger is injected", async () => {
+    const app = createApp({ store: new FakeStore(), scenariosDir, startRun: () => {} });
+
+    const res = await app.request("/api/scenarios");
+
+    expect(res.status).toBe(200);
   });
 });
