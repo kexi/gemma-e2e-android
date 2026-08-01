@@ -72,6 +72,9 @@
               # NDJSON logs and API responses get inspected constantly; keep
               # the JSON tooling declared instead of leaning on system python.
               pkgs.jq
+              # Mirrors the (headless) emulator or a physical device screen;
+              # watching the agent drive the app beats reading step logs.
+              pkgs.scrcpy
               # Kept as a fallback: `#!/usr/bin/env node` shebang CLIs (Expo CLI)
               # resolve node, and Genkit is not officially supported on Bun yet.
               pkgs.nodejs_22

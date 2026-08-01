@@ -73,6 +73,10 @@ avd-create:
 emu:
     emulator -avd {{ avd_name }} -no-window -no-audio -no-boot-anim
 
+# Mirror the connected device/emulator screen in a window (works while emu runs headless).
+mirror:
+    scrcpy --stay-awake
+
 # Prebuild (CNG) and install the example app on the running emulator/device.
 android:
     bun run --cwd apps/example android
