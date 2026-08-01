@@ -13,7 +13,8 @@
     "fmt": "bun run scripts/run-if-sources.ts oxfmt",
     "fmt:check": "bun run scripts/run-if-sources.ts oxfmt --check",
     "typecheck": "bun run scripts/run-if-sources.ts --typecheck",
-    "prepare": "lefthook install"
+    "preinstall": "npx only-allow bun",
+    "prepare": "lefthook install || true"
   },
   "devDependencies": {
     "@types/bun": "^1.3.14",
