@@ -54,3 +54,12 @@ export function screenshotUrl(storedPath: string): string {
   const name = storedPath.split("/").slice(-3).join("/");
   return `/screenshots/${name}`;
 }
+
+/**
+ * Recordings are one file per case under the run directory, so the URL is the
+ * last two path segments: `<runId>/<caseId>.mp4`.
+ */
+export function videoUrl(storedPath: string): string {
+  const name = storedPath.split("/").slice(-2).join("/");
+  return `/videos/${name}`;
+}

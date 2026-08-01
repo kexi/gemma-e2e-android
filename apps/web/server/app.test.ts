@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { CaseRun, Run, Step } from "@gemma-e2e/core";
@@ -60,6 +60,7 @@ function caseRun(overrides: Partial<CaseRun> = {}): CaseRun {
     verdictReason: "greeting is visible",
     startedAt: "2026-01-01T00:00:00.000Z",
     finishedAt: "2026-01-01T00:01:00.000Z",
+    videoPath: null,
     steps: [],
     ...overrides,
   };
@@ -326,6 +327,20 @@ describe("GET /api/runs/:id/events", () => {
     expect(events[3]).toMatchObject({ status: "failed" });
   });
 
+  test("replays the recording path so a reloaded page still shows the player", async () => {
+    store.add(
+      run({
+        cases: [caseRun({ videoPath: "/var/videos/run-1/valid.mp4", steps: [step(0)] })],
+      }),
+    );
+
+    const events = await collectSse(await harness().request("/api/runs/run-1/events"));
+
+    expect(events.find((e) => e.type === "case_finished")).toMatchObject({
+      videoPath: "/var/videos/run-1/valid.mp4",
+    });
+  });
+
   test("tags every replayed per-case event with its caseId", async () => {
     store.add(
       run({
@@ -382,7 +397,14 @@ describe("GET /api/runs/:id/events", () => {
     // the read below rather than before it.
     const live: RunEvent[] = [
       { type: "step_recorded", runId: "run-1", caseId: "valid", step: step(1) },
-      { type: "case_finished", runId: "run-1", caseId: "valid", status: "passed", reason: "done" },
+      {
+        type: "case_finished",
+        runId: "run-1",
+        caseId: "valid",
+        status: "passed",
+        reason: "done",
+        videoPath: null,
+      },
       { type: "run_finished", runId: "run-1", status: "passed", reason: "all 1 cases passed" },
     ];
     void (async () => {
@@ -402,6 +424,28 @@ describe("GET /api/runs/:id/events", () => {
       "case_finished",
       "run_finished",
     ]);
+  });
+});
+
+describe("GET /videos/*", () => {
+  test("serves a run's recording from the videos directory", async () => {
+    const videosDir = await mkdtemp(join(tmpdir(), "gemma-videos-"));
+    await mkdir(join(videosDir, "run-1"), { recursive: true });
+    await writeFile(join(videosDir, "run-1", "valid.mp4"), "not really an mp4");
+
+    const app = createApp({ store, scenariosDir, startRun: () => {}, videosDir });
+    const res = await app.request("/videos/run-1/valid.mp4");
+
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("not really an mp4");
+
+    await rm(videosDir, { recursive: true, force: true });
+  });
+
+  test("is absent when no videos directory is configured", async () => {
+    const res = await harness().request("/videos/run-1/valid.mp4");
+
+    expect(res.status).toBe(404);
   });
 });
 

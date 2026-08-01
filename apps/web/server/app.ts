@@ -45,6 +45,8 @@ export interface AppDeps {
   scenariosDir: string;
   startRun: StartRun;
   screenshotsDir?: string | undefined;
+  /** Backs `/videos/*`; omitted, finished cases show no player. */
+  videosDir?: string | undefined;
   clientDir?: string | undefined;
   bus?: RunEventBus | undefined;
   /** Defaults to a no-op so the app tests stay quiet unless they opt in. */
@@ -210,6 +212,7 @@ export function createApp(deps: AppDeps) {
               caseId: caseRun.caseId,
               status: caseRun.status,
               reason: caseRun.verdictReason,
+              videoPath: caseRun.videoPath,
             }),
           });
         }
@@ -324,6 +327,14 @@ export function createApp(deps: AppDeps) {
     );
   }
 
+  const hasVideos = deps.videosDir !== undefined;
+  if (hasVideos) {
+    app.get(
+      "/videos/*",
+      serveStatic({ root: deps.videosDir as string, rewriteRequestPath: stripVideosPrefix }),
+    );
+  }
+
   const hasClient = deps.clientDir !== undefined;
   if (hasClient) {
     const root = deps.clientDir as string;
@@ -338,6 +349,10 @@ export function createApp(deps: AppDeps) {
 
 function stripPrefix(path: string): string {
   return path.replace(/^\/screenshots/, "");
+}
+
+function stripVideosPrefix(path: string): string {
+  return path.replace(/^\/videos/, "");
 }
 
 type ScenarioResolution = { value: Scenario } | { error: string; status: 400 | 404 };

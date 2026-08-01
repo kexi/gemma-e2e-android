@@ -70,6 +70,11 @@ export interface FinishInput {
   verdictReason?: string | null | undefined;
 }
 
+export interface FinishCaseInput extends FinishInput {
+  /** Written only when recording produced a file; omitted leaves it null. */
+  videoPath?: string | null | undefined;
+}
+
 export interface StoreOptions {
   /** Defaults to GOOGLE_CLOUD_PROJECT, then the emulator's demo project. */
   projectId?: string | undefined;
@@ -177,6 +182,7 @@ export class Store {
       verdictReason: null,
       startedAt,
       finishedAt: null,
+      videoPath: null,
       steps: [],
     };
 
@@ -202,7 +208,7 @@ export class Store {
     return step;
   }
 
-  async finishCase(runId: string, caseId: string, input: FinishInput): Promise<void> {
+  async finishCase(runId: string, caseId: string, input: FinishCaseInput): Promise<void> {
     const ref = this.#case(runId, caseId);
     const snapshot = await ref.get();
     const isMissing = !snapshot.exists;
@@ -214,6 +220,7 @@ export class Store {
       status: input.status,
       verdictReason: input.verdictReason ?? null,
       finishedAt: new Date().toISOString(),
+      videoPath: input.videoPath ?? null,
     });
   }
 
@@ -318,6 +325,7 @@ function toCaseDoc(caseRun: CaseRun): CaseDoc {
     verdictReason: caseRun.verdictReason,
     startedAt: caseRun.startedAt,
     finishedAt: caseRun.finishedAt,
+    videoPath: caseRun.videoPath,
   };
 }
 

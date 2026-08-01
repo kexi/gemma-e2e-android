@@ -173,6 +173,26 @@ static image rather than a stalled one. The view is read-only. If it will not
 connect, `just mirror` opens the same screen in scrcpy independently of the
 dashboard. Point the server at a different bridge with `EMULATOR_GRPC=host:port`.
 
+### Screen recordings
+
+Every case is recorded end to end with scrcpy and saved as
+
+```
+var/videos/{runId}/{caseId}.mp4
+```
+
+Once a case finishes, its accordion on the run page grows a player, so a failure
+nobody watched live can still be replayed. The same recording works for
+emulators and physical devices, and there is no time limit on a clip.
+
+Recording is on by default and needs no setup — scrcpy comes from the devshell.
+Turn it off with `RECORD_RUNS=0` in `.env` (or in the environment). It is best
+effort either way: if scrcpy cannot start, the run continues unrecorded, the
+server logs `record.failed`, and the case's `videoPath` stays null.
+
+`var/` is gitignored, so recordings never reach a commit. They are also the
+bulkiest thing a run produces — delete `var/videos/` when disk space matters.
+
 ## 8. Verify
 
 ```sh

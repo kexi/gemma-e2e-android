@@ -15,6 +15,7 @@ import { resolveModel } from "@gemma-e2e/core";
 import { serializeForLlm, type UiRef } from "@gemma-e2e/adb";
 import { errorFields, type Logger, noopLogger } from "@gemma-e2e/logger";
 import type { LlmFactory } from "./llm.ts";
+import { recordCase, type Recorder } from "./recorder.ts";
 
 /** The slice of AdbClient the loop needs; a fake satisfies it in tests. */
 export interface AdbLike {
@@ -50,7 +51,11 @@ export interface StoreLike {
   finishCase(
     runId: string,
     caseId: string,
-    input: { status: RunStatus; verdictReason?: string | null },
+    input: {
+      status: RunStatus;
+      verdictReason?: string | null;
+      videoPath?: string | null | undefined;
+    },
   ): Promise<void>;
   finishRun(
     runId: string,
@@ -73,6 +78,7 @@ export type RunEvent =
       caseId: string;
       status: RunStatus;
       reason: string | null;
+      videoPath: string | null;
     }
   | { type: "run_finished"; runId: string; status: RunStatus; reason: string | null };
 
@@ -82,6 +88,8 @@ export interface RunDeps {
   llm: LlmFactory;
   store: StoreLike;
   screenshotDir: string;
+  /** Omitted, cases run unrecorded and every `videoPath` stays null. */
+  recorder?: Recorder | undefined;
   /** Last resort when neither the case nor the scenario names a model. */
   defaultModel: string;
   onEvent?: ((event: RunEvent) => void) | undefined;
@@ -96,6 +104,7 @@ export interface CaseResult {
   status: RunStatus;
   reason: string | null;
   steps: number;
+  videoPath: string | null;
 }
 
 export interface RunResult {
@@ -237,8 +246,31 @@ async function runCase(ctx: CaseContext): Promise<CaseResult> {
   let status: RunStatus = "running";
   let reason: string | null = null;
   let index = 0;
+  let videoPath: string | null = null;
 
-  try {
+  // The recording brackets the whole case, including the app reset, so the clip
+  // starts on the same screen the first step sees. A failure is reported rather
+  // than thrown so the recording of a crashed case survives alongside its error.
+  const recorded = await recordCase(deps.recorder, { runId, caseId }, log, runSteps);
+  videoPath = recorded.videoPath;
+
+  const crashed = !recorded.ok;
+  if (crashed) {
+    // Handled per case, not per run: a device hiccup during one case says
+    // nothing about the next, and the remaining cases still deserve a verdict.
+    const { error } = recorded;
+    status = "error";
+    reason = error instanceof Error ? error.message : String(error);
+    log.error("case.errored", { index, ...errorFields(error) });
+  }
+
+  await store.finishCase(runId, caseId, { status, verdictReason: reason, videoPath });
+  emit({ type: "case_finished", runId, caseId, status, reason, videoPath });
+  log.info("case.finished", { status, reason, steps: index, videoPath });
+
+  return { caseId, status, reason, steps: index, videoPath };
+
+  async function runSteps(): Promise<void> {
     await resetApp(adb, scenario.app);
     await mkdir(caseScreenshotDir, { recursive: true });
 
@@ -307,19 +339,7 @@ async function runCase(ctx: CaseContext): Promise<CaseResult> {
       reason = `step budget exhausted after ${testCase.maxSteps} steps without a verdict`;
       log.warn("case.budget_exhausted", { maxSteps: testCase.maxSteps });
     }
-  } catch (error) {
-    // Caught per case, not per run: a device hiccup during one case says
-    // nothing about the next, and the remaining cases still deserve a verdict.
-    status = "error";
-    reason = error instanceof Error ? error.message : String(error);
-    log.error("case.errored", { index, ...errorFields(error) });
   }
-
-  await store.finishCase(runId, caseId, { status, verdictReason: reason });
-  emit({ type: "case_finished", runId, caseId, status, reason });
-  log.info("case.finished", { status, reason, steps: index });
-
-  return { caseId, status, reason, steps: index };
 }
 
 /**

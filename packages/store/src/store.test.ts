@@ -229,6 +229,25 @@ describeWithFirestore("Store", () => {
       expect(caseRun?.verdictReason).toBeNull();
     });
 
+    test("stores the screen recording's path", async () => {
+      await seedRun();
+      await seedCase();
+      await store.finishCase(runId, "valid", {
+        status: "passed",
+        videoPath: "/var/videos/run/valid.mp4",
+      });
+
+      expect((await store.getRun(runId))?.cases[0]?.videoPath).toBe("/var/videos/run/valid.mp4");
+    });
+
+    test("leaves videoPath null when the case was not recorded", async () => {
+      await seedRun();
+      await seedCase();
+      await store.finishCase(runId, "valid", { status: "passed" });
+
+      expect((await store.getRun(runId))?.cases[0]?.videoPath).toBeNull();
+    });
+
     test("throws for an unknown case", async () => {
       await seedRun();
       await expect(store.finishCase(runId, "ghost", { status: "passed" })).rejects.toThrow(

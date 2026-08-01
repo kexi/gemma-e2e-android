@@ -5,6 +5,7 @@ import {
   DEFAULT_BASE_URL,
   DEFAULT_MODEL,
   runScenario,
+  ScrcpyRecorder,
 } from "@gemma-e2e/agent";
 import { createLogger, errorFields, parseLogLevel } from "@gemma-e2e/logger";
 import { Store } from "@gemma-e2e/store";
@@ -19,6 +20,7 @@ const port = Number(process.env["PORT"] ?? DEFAULT_PORT);
 const scenariosDir = process.env["SCENARIOS_DIR"] ?? join(repoRoot, "scenarios");
 const varDir = process.env["VAR_DIR"] ?? join(repoRoot, "var");
 const screenshotsDir = join(varDir, "screenshots");
+const videosDir = join(varDir, "videos");
 const clientDir = join(import.meta.dir, "..", "dist");
 const llmBaseURL = process.env["LLM_BASE_URL"] ?? DEFAULT_BASE_URL;
 // Last resort in the case → scenario → env chain; a scenario that names no
@@ -38,6 +40,15 @@ const store = Store.open();
 // model that is missing surfaces as a run with status=error rather than as a
 // startup crash, so the dashboard stays usable without hardware attached.
 const adb = new AdbClient({ serial: process.env["ANDROID_SERIAL"], logger });
+
+// On unless explicitly switched off: a recording is the artifact that explains
+// a failure nobody watched live, so the useful default is to always have one.
+const isRecording = process.env["RECORD_RUNS"] !== "0";
+// The same serial adb targets, so both halves follow one device when several
+// are attached.
+const recorder = isRecording
+  ? new ScrcpyRecorder({ videoDir: videosDir, serial: process.env["ANDROID_SERIAL"], logger })
+  : undefined;
 // A factory rather than a client: the model is chosen per case, and one Genkit
 // instance underneath serves every model a run touches.
 const llm = createGenkitLlmFactory({ baseURL: llmBaseURL, logger });
@@ -52,6 +63,7 @@ function startRun({ runId, scenario, onEvent }: StartRunInput): void {
     llm,
     store,
     screenshotDir: screenshotsDir,
+    recorder,
     defaultModel,
     runId,
     onEvent,
@@ -74,6 +86,7 @@ const app = createApp({
   scenariosDir,
   startRun,
   screenshotsDir,
+  videosDir,
   logger,
   device,
   listModels: () => listModels({ baseURL: llmBaseURL, logger }),
@@ -86,6 +99,7 @@ logger.info("server.started", {
   varDir,
   emulatorGrpcTarget,
   defaultModel,
+  recording: isRecording,
   firestoreEmulator: process.env["FIRESTORE_EMULATOR_HOST"] ?? null,
   mode: isProduction ? "prod" : "dev",
 });

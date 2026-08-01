@@ -16,7 +16,7 @@ import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import type { CaseRun, Run, RunStatus, Step } from "@gemma-e2e/core/schema";
-import { fetchRun, screenshotUrl } from "../api.ts";
+import { fetchRun, screenshotUrl, videoUrl } from "../api.ts";
 import { actionIcon, describeAction, StatusChip } from "../status.tsx";
 import { DeviceLiveView } from "../DeviceLiveView.tsx";
 
@@ -37,6 +37,8 @@ interface CaseFinished {
   caseId: string;
   status: RunStatus;
   reason: string | null;
+  /** Absent on a replayed event from a case recorded before videos existed. */
+  videoPath?: string | null;
 }
 
 interface RunFinished {
@@ -85,19 +87,22 @@ function placeholderCase(caseId: string, steps: Step[]): CaseRun {
     verdictReason: null,
     startedAt: new Date().toISOString(),
     finishedAt: null,
+    videoPath: null,
     steps,
   };
 }
 
-function finishCase(
-  cases: CaseMap,
-  caseId: string,
-  status: RunStatus,
-  reason: string | null,
-): CaseMap {
+function finishCase(cases: CaseMap, event: CaseFinished): CaseMap {
   const next = new Map(cases);
-  const existing = next.get(caseId) ?? placeholderCase(caseId, []);
-  next.set(caseId, { ...existing, status, verdictReason: reason });
+  const existing = next.get(event.caseId) ?? placeholderCase(event.caseId, []);
+  next.set(event.caseId, {
+    ...existing,
+    status: event.status,
+    verdictReason: event.reason,
+    // Kept when the event omits it, so a replay cannot erase a path the
+    // initial fetch already supplied.
+    videoPath: event.videoPath ?? existing.videoPath,
+  });
   return next;
 }
 
@@ -150,9 +155,7 @@ export function RunPage() {
 
       if (event.type === "case_finished") {
         const finished = event as CaseFinished;
-        setCases((current) =>
-          finishCase(current, finished.caseId, finished.status, finished.reason),
-        );
+        setCases((current) => finishCase(current, finished));
       }
 
       if (event.type === "run_finished") {
@@ -269,6 +272,23 @@ function CaseAccordion({ caseRun }: { caseRun: CaseRun }) {
             <Alert severity={caseRun.status === "passed" ? "success" : "warning"}>
               {caseRun.verdictReason}
             </Alert>
+          )}
+
+          {/* Only once the case is over: scrcpy finalises the mp4 on stop, so a
+              player pointed at the file mid-case would find no index to seek by. */}
+          {caseRun.videoPath !== null && caseRun.status !== "running" && (
+            <Box>
+              <Typography variant="subtitle2" gutterBottom>
+                Recording
+              </Typography>
+              <Box
+                component="video"
+                controls
+                preload="metadata"
+                src={videoUrl(caseRun.videoPath)}
+                sx={{ width: "100%", maxWidth: 360, borderRadius: 1, display: "block" }}
+              />
+            </Box>
           )}
 
           {caseRun.steps.map((step) => (

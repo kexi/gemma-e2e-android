@@ -7,6 +7,7 @@ import { createLogger, type LogEvent } from "@gemma-e2e/logger";
 import { runScenario, type RunEvent } from "./run.ts";
 import {
   FakeAdb,
+  FakeRecorder,
   FakeStore,
   HOME_XML,
   LOGIN_XML,
@@ -424,6 +425,102 @@ describe("verdicts and errors", () => {
 
     expect(result.status).toBe("passed");
     expect(store.case("run-1", "logs-in")?.steps[0]?.screenshotPath).toBeNull();
+  });
+});
+
+describe("screen recording", () => {
+  const twoCases = scenario({
+    cases: [testCase({ id: "valid" }), testCase({ id: "invalid" })],
+  });
+
+  test("films every case start to finish, one recording at a time", async () => {
+    const h = harness([[FINISH_PASSED], [FINISH_PASSED]]);
+    const recorder = new FakeRecorder();
+
+    await runScenario(twoCases, { ...h.deps, recorder });
+
+    expect(recorder.calls).toEqual(["start:valid", "stop:valid", "start:invalid", "stop:invalid"]);
+  });
+
+  test("starts recording before the app reset, so the clip covers the whole case", async () => {
+    const h = harness([FINISH_PASSED]);
+    const recorder = new FakeRecorder();
+    const order: string[] = [];
+    const stopApp = h.adb.stopApp.bind(h.adb);
+    h.adb.stopApp = async (pkg: string) => {
+      order.push(...recorder.calls, "stopApp");
+      await stopApp(pkg);
+    };
+
+    await runScenario(scenario({ app: { package: "com.example.app" } }), {
+      ...h.deps,
+      recorder,
+    });
+
+    expect(order).toEqual(["start:logs-in", "stopApp"]);
+  });
+
+  test("stores the recording path on the case", async () => {
+    const h = harness([FINISH_PASSED]);
+
+    const result = await runScenario(scenario(), { ...h.deps, recorder: new FakeRecorder() });
+
+    expect(result.cases[0]?.videoPath).toBe("/videos/run-1/logs-in.mp4");
+    expect(h.store.case("run-1", "logs-in")?.videoPath).toBe("/videos/run-1/logs-in.mp4");
+  });
+
+  test("leaves videoPath null when no recorder is injected", async () => {
+    const h = harness([FINISH_PASSED]);
+
+    const result = await runScenario(scenario(), h.deps);
+
+    expect(result.cases[0]?.videoPath).toBeNull();
+    expect(h.store.case("run-1", "logs-in")?.videoPath).toBeNull();
+  });
+
+  test("passes the case even when the recorder never starts", async () => {
+    const h = harness([FINISH_PASSED]);
+
+    const result = await runScenario(scenario(), {
+      ...h.deps,
+      recorder: new FakeRecorder({ start: true }),
+    });
+
+    expect(result.status).toBe("passed");
+    expect(result.cases[0]?.videoPath).toBeNull();
+  });
+
+  test("passes the case even when the recording cannot be finalised", async () => {
+    const h = harness([FINISH_PASSED]);
+
+    const result = await runScenario(scenario(), {
+      ...h.deps,
+      recorder: new FakeRecorder({ stop: true }),
+    });
+
+    expect(result.status).toBe("passed");
+    expect(h.store.case("run-1", "logs-in")?.videoPath).toBeNull();
+  });
+
+  test("keeps the recording of a case that errored", async () => {
+    const h = harness([[new Error("device offline")], [FINISH_PASSED]]);
+    const recorder = new FakeRecorder();
+
+    const result = await runScenario(twoCases, { ...h.deps, recorder });
+
+    expect(result.cases[0]?.status).toBe("error");
+    expect(result.cases[0]?.videoPath).toBe("/videos/run-1/valid.mp4");
+    expect(recorder.calls).toContain("stop:valid");
+  });
+
+  test("carries the recording path on case_finished", async () => {
+    const h = harness([FINISH_PASSED]);
+
+    await runScenario(scenario(), { ...h.deps, recorder: new FakeRecorder() });
+
+    expect(h.events.find((e) => e.type === "case_finished")).toMatchObject({
+      videoPath: "/videos/run-1/logs-in.mp4",
+    });
   });
 });
 

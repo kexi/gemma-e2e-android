@@ -118,6 +118,11 @@ export const CaseRunSchema = z.object({
   verdictReason: z.string().nullable(),
   startedAt: z.string(),
   finishedAt: z.string().nullable(),
+  /**
+   * Screen recording of this case, or null when recording was off or failed.
+   * Defaulted so case documents written before recording existed still parse.
+   */
+  videoPath: z.string().nullable().default(null),
   steps: z.array(StepSchema).default([]),
 });
 

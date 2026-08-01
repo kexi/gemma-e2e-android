@@ -11,6 +11,7 @@ import type {
 import { parseUiDump } from "@gemma-e2e/adb";
 import type { AdbLike, StoreLike } from "./run.ts";
 import type { DecideInput, Llm } from "./llm.ts";
+import type { Recorder, RecorderProcess, Recording } from "./recorder.ts";
 
 export const LOGIN_XML = `<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>
 <hierarchy rotation="0">
@@ -177,6 +178,7 @@ export class FakeStore implements StoreLike {
       verdictReason: null,
       startedAt: new Date().toISOString(),
       finishedAt: null,
+      videoPath: null,
       steps: [],
     };
     run.cases.push(caseRun);
@@ -211,12 +213,17 @@ export class FakeStore implements StoreLike {
   async finishCase(
     runId: string,
     caseId: string,
-    input: { status: RunStatus; verdictReason?: string | null },
+    input: {
+      status: RunStatus;
+      verdictReason?: string | null;
+      videoPath?: string | null | undefined;
+    },
   ): Promise<void> {
     const caseRun = this.#requireCase(runId, caseId);
     caseRun.status = input.status;
     caseRun.verdictReason = input.verdictReason ?? null;
     caseRun.finishedAt = new Date().toISOString();
+    caseRun.videoPath = input.videoPath ?? null;
   }
 
   async finishRun(
@@ -256,6 +263,75 @@ export class FakeStore implements StoreLike {
       throw new Error(`no such case: ${runId}/${caseId}`);
     }
     return caseRun;
+  }
+}
+
+/**
+ * Records start/stop calls in the order they happen, so a test can assert that
+ * a case is filmed from before its first adb call until after its last.
+ */
+export class FakeRecorder implements Recorder {
+  /** `start:<caseId>` / `stop:<caseId>`, interleaved as they were called. */
+  readonly calls: string[] = [];
+
+  constructor(private readonly failures: { start?: boolean; stop?: boolean } = {}) {}
+
+  async start(input: { runId: string; caseId: string }): Promise<Recording> {
+    this.calls.push(`start:${input.caseId}`);
+    if (this.failures.start === true) {
+      throw new Error("scrcpy is not installed");
+    }
+
+    const path = `/videos/${input.runId}/${input.caseId}.mp4`;
+    const calls = this.calls;
+    const failStop = this.failures.stop === true;
+
+    return {
+      path,
+      stop: async () => {
+        calls.push(`stop:${input.caseId}`);
+        if (failStop) {
+          throw new Error("scrcpy did not exit");
+        }
+      },
+    };
+  }
+}
+
+/**
+ * A scrcpy stand-in. Like the real thing under `--no-playback`, it ignores
+ * SIGINT and SIGTERM entirely and exits only when the stream it was recording
+ * ends — or when killed outright.
+ */
+export class FakeProcess implements RecorderProcess {
+  readonly signals: NodeJS.Signals[] = [];
+  readonly exited: Promise<number>;
+  #resolve!: (code: number) => void;
+
+  constructor(private readonly exitCode = 0) {
+    this.exited = new Promise<number>((resolve) => {
+      this.#resolve = resolve;
+    });
+  }
+
+  kill(signal: NodeJS.Signals): void {
+    this.signals.push(signal);
+    // Only SIGKILL lands; the graceful signals are what scrcpy drops on the
+    // floor, and a test that let them work would prove nothing.
+    const isForced = signal === "SIGKILL";
+    if (isForced) {
+      this.#resolve(137);
+    }
+  }
+
+  /** The device-side capture ended, so scrcpy finalises the file and exits. */
+  streamClosed(): void {
+    this.#resolve(this.exitCode);
+  }
+
+  /** Ends the process on its own, as a crash would. */
+  die(code = 1): void {
+    this.#resolve(code);
   }
 }
 
