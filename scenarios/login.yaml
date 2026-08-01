@@ -6,6 +6,6 @@ prompt: >-
   password "demo1234", submit the form, and confirm that the app reaches a
   logged-in screen showing a greeting.
 app:
-  package: com.kexi.gemmae2e.example
+  package: dev.kexi.gemmae2e.example
   activity: .MainActivity
 maxSteps: 15
