@@ -80,7 +80,8 @@ llm:
     set -euo pipefail
     if ! command -v lms >/dev/null 2>&1; then
         echo "lms not found. LM Studio is a GUI app and is not managed by nix." >&2
-        echo "Install it from https://lmstudio.ai/ then run its CLI bootstrap." >&2
+        echo "Install it from https://lmstudio.ai/ then set up the CLI:" >&2
+        echo "  https://lmstudio.ai/docs/cli  (~/.lmstudio/bin/lms bootstrap)" >&2
         exit 1
     fi
     lms server start

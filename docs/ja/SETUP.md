@@ -23,8 +23,35 @@ experimental-features = nix-command flakes
 ```
 
 続いて [direnv](https://direnv.net/) と
-[nix-direnv](https://github.com/nix-community/nix-direnv) を導入し、シェルに
-フックします(`direnv hook fish | source`、`eval "$(direnv hook bash)"` など)。
+[nix-direnv](https://github.com/nix-community/nix-direnv) を導入します
+(nix-direnv が devshell をキャッシュするので、ディレクトリに入るのが一瞬に
+なります)。
+
+```sh
+# macOS(Homebrew)
+brew install direnv nix-direnv
+# または Nix 自体で
+nix profile install nixpkgs#direnv nixpkgs#nix-direnv
+```
+
+シェルにフックします:
+
+```sh
+# fish: ~/.config/fish/config.fish
+direnv hook fish | source
+
+# zsh: ~/.zshrc          # bash: ~/.bashrc
+eval "$(direnv hook zsh)"
+```
+
+`~/.config/direnv/direnvrc` で nix-direnv を読み込みます:
+
+```sh
+# Homebrew の場合
+source "$(brew --prefix)/share/nix-direnv/direnvrc"
+# nix profile の場合
+source "$HOME/.nix-profile/share/nix-direnv/direnvrc"
+```
 
 ## 2. devshell に入る
 
@@ -55,8 +82,9 @@ just install    # = bun install
 
 LM Studio は GUI アプリのため Nix 管理外です。
 
-1. [LM Studio](https://lmstudio.ai/) をインストールし、設定から `lms` CLI を
-   有効にします。
+1. [LM Studio](https://lmstudio.ai/) をインストールし、`lms` CLI をセットアップ
+   します — 手順は [lms CLI ガイド](https://lmstudio.ai/docs/cli) を参照
+   (`~/.lmstudio/bin/lms bootstrap` で PATH に追加されます)。
 2. `gemma-4-12b` モデルをダウンロードします。メモリが厳しい場合は E4B を使います。
 3. OpenAI 互換サーバを起動します。
 

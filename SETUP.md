@@ -23,8 +23,34 @@ experimental-features = nix-command flakes
 ```
 
 Then install [direnv](https://direnv.net/) and
-[nix-direnv](https://github.com/nix-community/nix-direnv), and hook direnv into
-your shell (`direnv hook fish | source`, `eval "$(direnv hook bash)"`, …).
+[nix-direnv](https://github.com/nix-community/nix-direnv) (nix-direnv caches
+the devshell so entering the directory is instant):
+
+```sh
+# macOS (Homebrew)
+brew install direnv nix-direnv
+# or with Nix itself
+nix profile install nixpkgs#direnv nixpkgs#nix-direnv
+```
+
+Hook direnv into your shell:
+
+```sh
+# fish: ~/.config/fish/config.fish
+direnv hook fish | source
+
+# zsh: ~/.zshrc          # bash: ~/.bashrc
+eval "$(direnv hook zsh)"
+```
+
+And point direnv at nix-direnv in `~/.config/direnv/direnvrc`:
+
+```sh
+# Homebrew install
+source "$(brew --prefix)/share/nix-direnv/direnvrc"
+# nix profile install
+source "$HOME/.nix-profile/share/nix-direnv/direnvrc"
+```
 
 ## 2. Enter the devshell
 
@@ -55,8 +81,9 @@ too fresh — wait, or add a targeted `minimumReleaseAgeExcludes` entry.
 
 LM Studio is a GUI app, so it is not managed by Nix.
 
-1. Install [LM Studio](https://lmstudio.ai/) and enable its `lms` CLI from the
-   app's settings.
+1. Install [LM Studio](https://lmstudio.ai/) and set up its `lms` CLI —
+   see the [lms CLI guide](https://lmstudio.ai/docs/cli) (`~/.lmstudio/bin/lms
+   bootstrap` adds it to your PATH).
 2. Download the `gemma-4-12b` model. If memory is tight, use the E4B variant
    instead.
 3. Start the OpenAI-compatible server:
