@@ -90,6 +90,30 @@ export function Sidebar({ onNavigate }: SidebarProps) {
       .catch((cause: unknown) => setError(message(cause)));
   }, [selectedRunId]);
 
+  // Without this the status chips freeze at whatever the last fetch saw, so a
+  // run started here (or from another tab) stays "running" forever.
+  useEffect(() => {
+    const source = new EventSource("/api/events");
+
+    // The payload is ignored on purpose: the event only says the history moved,
+    // and refetching the list keeps one shape of truth instead of patching a
+    // row from an event and hoping it matches what /api/runs would have said.
+    const reload = () => {
+      fetchRuns()
+        .then((body) => setRuns(body.runs))
+        // Why not surface this: EventSource reconnects on its own, and a blip
+        // must not replace the history that is already on screen with an alert.
+        .catch(() => {});
+    };
+
+    // Every frame the server sends carries an `event:` name, so the default
+    // "message" listener never fires; each name is registered explicitly.
+    source.addEventListener("run_started", reload);
+    source.addEventListener("run_finished", reload);
+
+    return () => source.close();
+  }, []);
+
   async function start(body: CreateRunRequest) {
     setStarting(true);
     setError(null);

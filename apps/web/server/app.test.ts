@@ -770,6 +770,75 @@ describe("GET /api/runs/:id/events", () => {
   });
 });
 
+describe("GET /api/events", () => {
+  /** Waits for the handler to attach, since it subscribes as the body is read. */
+  async function untilSubscribed(bus: RunEventBus): Promise<void> {
+    while (bus.globalListenerCount() === 0) {
+      await Bun.sleep(1);
+    }
+  }
+
+  /** Reads SSE frames until `count` have arrived, then lets the caller stop. */
+  async function readSse(res: Response, count: number): Promise<{ type: string }[]> {
+    const body = res.body;
+    if (body === null) {
+      throw new Error("expected a streaming body");
+    }
+    const reader = body.getReader();
+    const decoder = new TextDecoder();
+    const seen: { type: string }[] = [];
+    let buffered = "";
+
+    // Read incrementally rather than res.text(): this stream has no terminal
+    // event, so waiting for it to close would hang.
+    while (seen.length < count) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      buffered += decoder.decode(value, { stream: true });
+      for (const line of buffered.split("\n")) {
+        const isData = line.startsWith("data: ");
+        if (isData) {
+          seen.push(JSON.parse(line.slice("data: ".length)) as { type: string });
+        }
+      }
+      buffered = "";
+    }
+
+    await reader.cancel();
+    return seen;
+  }
+
+  test("streams run_finished for a run nobody is watching individually", async () => {
+    const bus = new RunEventBus();
+
+    const res = await harness(bus).request("/api/events");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("text/event-stream");
+
+    // The handler subscribes while the body is being consumed, so an event
+    // published before that lands would be delivered to nobody.
+    await untilSubscribed(bus);
+    bus.publish({ type: "run_finished", runId: "run-1", status: "passed", reason: "done" });
+
+    const events = await readSse(res, 1);
+    expect(events.map((e) => e.type)).toEqual(["run_finished"]);
+  });
+
+  test("ignores per-step events so a client is only woken by run boundaries", async () => {
+    const bus = new RunEventBus();
+
+    const res = await harness(bus).request("/api/events");
+    await untilSubscribed(bus);
+    bus.publish({ type: "step_started", runId: "run-1", caseId: "valid", index: 0 });
+    bus.publish({ type: "run_finished", runId: "run-1", status: "passed", reason: "done" });
+
+    const events = await readSse(res, 1);
+    expect(events.map((e) => e.type)).toEqual(["run_finished"]);
+  });
+});
+
 describe("GET /videos/*", () => {
   test("serves a run's recording from the videos directory", async () => {
     const videosDir = await mkdtemp(join(tmpdir(), "gemma-videos-"));

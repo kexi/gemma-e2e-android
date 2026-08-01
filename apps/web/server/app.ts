@@ -342,6 +342,45 @@ export function createApp(deps: AppDeps) {
     return c.json({ run });
   });
 
+  app.get("/api/events", (c) => {
+    log.info("sse.connected", { scope: "all" });
+
+    return streamSSE(c, async (stream) => {
+      // Why not replay, and why only the run-level events: this stream is a
+      // "something changed" signal, not a data source. The client refetches
+      // /api/runs when it fires, so its own first fetch already covers the
+      // history, and per-step events would wake every client for a timeline
+      // only the open run page is showing.
+      let pending: Promise<void> = Promise.resolve();
+
+      await new Promise<void>((resolve) => {
+        const unsubscribe = bus.subscribeAll((event) => {
+          const isRunLevel = event.type === "run_started" || event.type === "run_finished";
+          if (!isRunLevel) {
+            return;
+          }
+
+          // Chained rather than fired and forgotten: the bus is synchronous, so
+          // two events arriving back to back would otherwise interleave their
+          // writes.
+          pending = pending.then(() =>
+            stream.writeSSE({ event: event.type, data: JSON.stringify(event) }),
+          );
+        });
+
+        // The only end of this stream: it spans every run, so no event is
+        // terminal for it and it stays open until the client goes away.
+        stream.onAbort(() => {
+          unsubscribe();
+          log.info("sse.aborted", { scope: "all" });
+          resolve();
+        });
+      });
+
+      log.info("sse.disconnected", { scope: "all" });
+    });
+  });
+
   app.get("/api/runs/:id/events", async (c) => {
     const runId = c.req.param("id");
     const run = await deps.store.getRun(runId);

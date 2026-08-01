@@ -13,6 +13,7 @@ export type BusListener = (event: RunEvent) => void;
  */
 export class RunEventBus {
   readonly #listeners = new Map<string, Set<BusListener>>();
+  readonly #globalListeners = new Set<BusListener>();
   readonly #finished = new Set<string>();
 
   subscribe(runId: string, listener: BusListener): () => void {
@@ -32,18 +33,31 @@ export class RunEventBus {
     };
   }
 
+  /** Watches every run at once, for a view that spans the whole history. */
+  subscribeAll(listener: BusListener): () => void {
+    this.#globalListeners.add(listener);
+
+    return () => {
+      this.#globalListeners.delete(listener);
+    };
+  }
+
   publish(event: RunEvent): void {
     const isTerminal = event.type === "run_finished";
     if (isTerminal) {
       this.#finished.add(event.runId);
     }
 
+    // Snapshot first: a listener may unsubscribe itself on the terminal event,
+    // and mutating the set mid-iteration would skip the listener after it.
+    for (const listener of Array.from(this.#globalListeners)) {
+      listener(event);
+    }
+
     const listeners = this.#listeners.get(event.runId);
     if (listeners === undefined) {
       return;
     }
-    // Snapshot first: a listener may unsubscribe itself on the terminal event,
-    // and mutating the set mid-iteration would skip the listener after it.
     const snapshot = Array.from(listeners);
     for (const listener of snapshot) {
       listener(event);
@@ -57,5 +71,9 @@ export class RunEventBus {
 
   listenerCount(runId: string): number {
     return this.#listeners.get(runId)?.size ?? 0;
+  }
+
+  globalListenerCount(): number {
+    return this.#globalListeners.size;
   }
 }
