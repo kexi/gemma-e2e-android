@@ -1,4 +1,13 @@
-import type { Action, Run, RunStatus, Scenario, Step, UiNode } from "@gemma-e2e/core";
+import type {
+  Action,
+  CaseRun,
+  Run,
+  RunStatus,
+  Scenario,
+  Step,
+  TestCase,
+  UiNode,
+} from "@gemma-e2e/core";
 import { parseUiDump } from "@gemma-e2e/adb";
 import type { AdbLike, StoreLike } from "./run.ts";
 import type { DecideInput, Llm } from "./llm.ts";
@@ -86,6 +95,13 @@ export class FakeAdb implements AdbLike {
   async launchApp(pkg: string, activity?: string): Promise<void> {
     this.#record("launchApp", pkg, activity);
   }
+
+  async stopApp(pkg: string): Promise<void> {
+    this.#record("stopApp", pkg);
+    // A relaunched app shows its first screen again, which is the whole point
+    // of resetting between cases.
+    this.#screenIndex = 0;
+  }
 }
 
 /** Returns scripted actions in order; the last one repeats. */
@@ -107,13 +123,55 @@ export class ScriptedLlm implements Llm {
   }
 }
 
-/** In-memory StoreLike, so loop tests do not touch the filesystem. */
+/**
+ * An {@link LlmFactory} that gives each case its own scripted client and
+ * records the model every case asked for.
+ */
+export class ScriptedLlmFactory {
+  /** Models requested, in the order cases reached them. */
+  readonly models: string[] = [];
+  readonly clients: ScriptedLlm[] = [];
+  #index = 0;
+
+  /** One script per case, in declaration order; the last one repeats. */
+  constructor(private readonly scripts: (Action | Error)[][]) {}
+
+  build = (model: string): ScriptedLlm => {
+    this.models.push(model);
+    const index = Math.min(this.#index++, this.scripts.length - 1);
+    const client = new ScriptedLlm(this.scripts[index] as (Action | Error)[]);
+    this.clients.push(client);
+    return client;
+  };
+}
+
+/** In-memory StoreLike, so loop tests do not touch Firestore. */
 export class FakeStore implements StoreLike {
   readonly runs = new Map<string, Run>();
-  #nextStepId = 1;
 
-  createRun(input: { id: string; scenarioId: string; title: string; prompt: string }): Run {
+  async createRun(input: { id: string; scenarioId: string; title: string }): Promise<Run> {
     const run: Run = {
+      ...input,
+      status: "running",
+      verdictReason: null,
+      startedAt: new Date().toISOString(),
+      finishedAt: null,
+      cases: [],
+    };
+    this.runs.set(input.id, run);
+    return run;
+  }
+
+  async createCase(input: {
+    runId: string;
+    caseId: string;
+    order: number;
+    title: string;
+    prompt: string;
+    model: string;
+  }): Promise<CaseRun> {
+    const run = this.#requireRun(input.runId);
+    const caseRun: CaseRun = {
       ...input,
       status: "running",
       verdictReason: null,
@@ -121,26 +179,24 @@ export class FakeStore implements StoreLike {
       finishedAt: null,
       steps: [],
     };
-    this.runs.set(input.id, run);
-    return run;
+    run.cases.push(caseRun);
+    return caseRun;
   }
 
-  addStep(input: {
+  async addStep(input: {
     runId: string;
+    caseId: string;
     index: number;
     action: Action;
     uiText: string;
     screenshotPath?: string | null | undefined;
     note?: string | null | undefined;
-  }): Step {
-    const run = this.runs.get(input.runId);
-    if (run === undefined) {
-      throw new Error(`no such run: ${input.runId}`);
-    }
+  }): Promise<Step> {
+    const caseRun = this.#requireCase(input.runId, input.caseId);
 
     const step: Step = {
-      id: this.#nextStepId++,
       runId: input.runId,
+      caseId: input.caseId,
       index: input.index,
       action: input.action,
       uiText: input.uiText,
@@ -148,31 +204,75 @@ export class FakeStore implements StoreLike {
       note: input.note ?? null,
       createdAt: new Date().toISOString(),
     };
-    run.steps.push(step);
+    caseRun.steps.push(step);
     return step;
   }
 
-  finishRun(runId: string, input: { status: RunStatus; verdictReason?: string | null }): void {
-    const run = this.runs.get(runId);
-    if (run === undefined) {
-      throw new Error(`no such run: ${runId}`);
-    }
+  async finishCase(
+    runId: string,
+    caseId: string,
+    input: { status: RunStatus; verdictReason?: string | null },
+  ): Promise<void> {
+    const caseRun = this.#requireCase(runId, caseId);
+    caseRun.status = input.status;
+    caseRun.verdictReason = input.verdictReason ?? null;
+    caseRun.finishedAt = new Date().toISOString();
+  }
+
+  async finishRun(
+    runId: string,
+    input: { status: RunStatus; verdictReason?: string | null },
+  ): Promise<void> {
+    const run = this.#requireRun(runId);
     run.status = input.status;
     run.verdictReason = input.verdictReason ?? null;
     run.finishedAt = new Date().toISOString();
   }
 
-  getRun(id: string): Run | null {
+  async getRun(id: string): Promise<Run | null> {
     return this.runs.get(id) ?? null;
   }
+
+  /** Synchronous peek, so assertions need no await. */
+  run(id: string): Run | null {
+    return this.runs.get(id) ?? null;
+  }
+
+  case(runId: string, caseId: string): CaseRun | null {
+    return this.runs.get(runId)?.cases.find((c) => c.caseId === caseId) ?? null;
+  }
+
+  #requireRun(runId: string): Run {
+    const run = this.runs.get(runId);
+    if (run === undefined) {
+      throw new Error(`no such run: ${runId}`);
+    }
+    return run;
+  }
+
+  #requireCase(runId: string, caseId: string): CaseRun {
+    const caseRun = this.#requireRun(runId).cases.find((c) => c.caseId === caseId);
+    if (caseRun === undefined) {
+      throw new Error(`no such case: ${runId}/${caseId}`);
+    }
+    return caseRun;
+  }
+}
+
+export function testCase(overrides: Partial<TestCase> = {}): TestCase {
+  return {
+    id: "logs-in",
+    prompt: "check that the user can log in",
+    maxSteps: 20,
+    ...overrides,
+  };
 }
 
 export function scenario(overrides: Partial<Scenario> = {}): Scenario {
   return {
     id: "login",
     title: "Login",
-    prompt: "check that the user can log in",
-    maxSteps: 20,
+    cases: [testCase()],
     ...overrides,
   };
 }

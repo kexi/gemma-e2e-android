@@ -4,20 +4,26 @@
 // against even when it imports nothing but types.
 export {
   ActionSchema,
+  AppTargetSchema,
   BoundsSchema,
+  CaseRunSchema,
   KeyNameSchema,
+  resolveModel,
   RunSchema,
   RunStatusSchema,
   ScenarioSchema,
   StepSchema,
   SwipeDirectionSchema,
+  TestCaseSchema,
   UiNodeSchema,
   VerdictSchema,
 } from "./schema.ts";
 
 export type {
   Action,
+  AppTarget,
   Bounds,
+  CaseRun,
   KeyName,
   Run,
   RunStatus,
@@ -25,6 +31,7 @@ export type {
   ScenarioInput,
   Step,
   SwipeDirection,
+  TestCase,
   UiNode,
   Verdict,
 } from "./schema.ts";

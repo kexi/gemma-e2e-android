@@ -85,7 +85,9 @@ LM Studio is a GUI app, so it is not managed by Nix.
    see the [lms CLI guide](https://lmstudio.ai/docs/cli) (`~/.lmstudio/bin/lms
    bootstrap` adds it to your PATH).
 2. Download the `gemma-4-12b` model. If memory is tight, use the E4B variant
-   instead.
+   instead. Set `LLM_MODEL` in `.env` to whatever `lms ps` reports — that value
+   is the last fallback in the `case.model → scenario.model → LLM_MODEL` chain,
+   so a scenario that names no model runs on it.
 3. Start the OpenAI-compatible server:
 
    ```sh
@@ -115,16 +117,47 @@ just android      # expo run:android — prebuilds (CNG) and installs the login 
 The first run generates `android/` and downloads Gradle dependencies, so it
 takes a while; later runs are incremental.
 
-## 6. Dashboard
+## 6. Firestore emulator
+
+Run history lives in Firestore. Development never touches a real Google
+project: the emulator runs locally under the project id `demo-gemma-e2e`, whose
+`demo-` prefix makes firebase-tools work entirely offline with no credentials
+and no billing account.
+
+```sh
+just db     # Firestore emulator on 127.0.0.1:8790
+```
+
+`just web` starts this for you, so the standalone recipe is only needed when
+running the API server by hand. `firebase.json` holds the port; `.firebaserc`
+holds the project id. The emulator is a Java program that firebase-tools
+downloads on first run, and it stores nothing between restarts — every `just db`
+starts from an empty database.
+
+Anything talking to it needs two variables, which `just web` and `just test`
+export automatically:
+
+```sh
+export FIRESTORE_EMULATOR_HOST=127.0.0.1:8790
+export GOOGLE_CLOUD_PROJECT=demo-gemma-e2e
+```
+
+`firestore.rules` denies every client read and write. That is deliberate: the
+only writer is the dashboard's server process through the Admin SDK, which
+bypasses rules entirely, so a browser pointed at this project fails loudly
+instead of exposing run history.
+
+## 7. Dashboard
 
 ```sh
 just web
 ```
 
-This starts the Hono API on `http://localhost:5175` and the Vite dev server on
-`http://localhost:5173` — open the second one. From there you can run a
-committed scenario, submit a one-off prompt, watch steps stream in live, and
-browse the run history.
+This starts three processes — the Firestore emulator on `127.0.0.1:8790`, the
+Hono API on `http://localhost:5175`, and the Vite dev server on
+`http://localhost:5173`. Open the last one. From there you can run a committed
+scenario, submit a one-off prompt against a model of your choice, watch steps
+stream in live under each case, and browse the run history.
 
 ### Live device view
 
@@ -140,14 +173,19 @@ static image rather than a stalled one. The view is read-only. If it will not
 connect, `just mirror` opens the same screen in scrcpy independently of the
 dashboard. Point the server at a different bridge with `EMULATOR_GRPC=host:port`.
 
-## 7. Verify
+## 8. Verify
 
 ```sh
 just check
 ```
 
-This runs lint, format check, typecheck, a full-history secret scan, and the
-Actions SHA-pin check — the same gates as CI. `just --list` shows every task.
+This runs lint, format check, typecheck, the test suite, a full-history secret
+scan, and the Actions SHA-pin check. `just --list` shows every task.
+
+`just test` wraps `bun test` in `firebase emulators:exec`, so the Firestore
+tests get a throwaway emulator that starts and stops with them and never
+touches your `just db` data. A bare `bun test` has no emulator, so those tests
+skip themselves rather than fail — the run reports them as skipped.
 
 ### Troubleshooting
 
@@ -156,3 +194,6 @@ Actions SHA-pin check — the same gates as CI. `just --list` shows every task.
 - **Emulator will not boot** — confirm the AVD exists with `avdmanager list avd`; recreate it with `just avd-create` (it passes `--force`).
 - **Expo CLI on Bun** — use `bunx --bun expo …`. Without `--bun`, the `#!/usr/bin/env node` shebang wins and it runs under Node.
 - **Hooks not firing** — run `just setup` (`lefthook install`).
+- **"firebase-tools no longer supports Java version before 21"** — the emulator recipes prepend `$FIREBASE_JAVA_HOME/bin` to `PATH` for exactly this reason (the devshell's default JDK is 17, which AGP needs). If you invoke `firebase` directly, do the same: `PATH="$FIREBASE_JAVA_HOME/bin:$PATH" firebase …`.
+- **Port 8790 already in use** — a previous `just db` is still running; stop it, or change the port in `firebase.json`.
+- **Firestore tests all skipped** — that is a bare `bun test`. Use `just test`, which supplies the emulator.

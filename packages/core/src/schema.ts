@@ -92,8 +92,8 @@ export const RunStatusSchema = z.enum(["running", "passed", "failed", "error"]);
 export type RunStatus = z.infer<typeof RunStatusSchema>;
 
 export const StepSchema = z.object({
-  id: z.number().int().nonnegative(),
   runId: z.string(),
+  caseId: z.string(),
   index: z.number().int().nonnegative(),
   action: ActionSchema,
   uiText: z.string(),
@@ -104,11 +104,16 @@ export const StepSchema = z.object({
 
 export type Step = z.infer<typeof StepSchema>;
 
-export const RunSchema = z.object({
-  id: z.string(),
-  scenarioId: z.string(),
+/** One case's slice of a run: its own verdict, model, and step timeline. */
+export const CaseRunSchema = z.object({
+  runId: z.string(),
+  caseId: z.string(),
+  /** Position within the scenario, so cases sort in declaration order. */
+  order: z.number().int().nonnegative(),
   title: z.string(),
   prompt: z.string(),
+  /** The model actually used, after `case.model ?? scenario.model ?? env`. */
+  model: z.string(),
   status: RunStatusSchema,
   verdictReason: z.string().nullable(),
   startedAt: z.string(),
@@ -116,23 +121,71 @@ export const RunSchema = z.object({
   steps: z.array(StepSchema).default([]),
 });
 
+export type CaseRun = z.infer<typeof CaseRunSchema>;
+
+export const RunSchema = z.object({
+  id: z.string(),
+  scenarioId: z.string(),
+  title: z.string(),
+  status: RunStatusSchema,
+  verdictReason: z.string().nullable(),
+  startedAt: z.string(),
+  finishedAt: z.string().nullable(),
+  cases: z.array(CaseRunSchema).default([]),
+});
+
 export type Run = z.infer<typeof RunSchema>;
+
+export const AppTargetSchema = z.object({
+  package: z.string().min(1),
+  activity: z.string().min(1).optional(),
+});
+
+export type AppTarget = z.infer<typeof AppTargetSchema>;
+
+/**
+ * One assertion about the app, in natural language. A case is what actually
+ * gets a verdict; the scenario around it only groups and orders them.
+ */
+export const TestCaseSchema = z.object({
+  /** Slug: it addresses a Firestore document and appears in URLs and logs. */
+  id: z
+    .string()
+    .min(1)
+    .regex(/^[a-z0-9][a-z0-9-]*$/, "must be a lowercase slug (a-z, 0-9, hyphen)"),
+  title: z.string().min(1).optional(),
+  prompt: z.string().min(1),
+  /** Overrides the scenario's model for this case alone. */
+  model: z.string().min(1).optional(),
+  // A wrong turn early can otherwise burn tokens indefinitely; every case is
+  // bounded even when the scenario file omits a budget.
+  maxSteps: z.number().int().positive().default(20),
+});
+
+export type TestCase = z.infer<typeof TestCaseSchema>;
 
 export const ScenarioSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
-  prompt: z.string().min(1),
-  app: z
-    .object({
-      package: z.string().min(1),
-      activity: z.string().min(1).optional(),
-    })
-    .optional(),
-  // A wrong turn early can otherwise burn tokens indefinitely; every run is
-  // bounded even when the scenario file omits a budget.
-  maxSteps: z.number().int().positive().default(20),
+  app: AppTargetSchema.optional(),
+  /** Default model for every case that does not name its own. */
+  model: z.string().min(1).optional(),
+  cases: z.array(TestCaseSchema).min(1, "a scenario needs at least one case"),
 });
 
 export type Scenario = z.infer<typeof ScenarioSchema>;
 /** Pre-parse shape: `maxSteps` is optional on disk, defaulted after parsing. */
 export type ScenarioInput = z.input<typeof ScenarioSchema>;
+
+/**
+ * Picks the model for a case: the case's own choice wins, then the scenario's,
+ * then the process default. Kept here rather than in the agent so the server
+ * and dashboard can show the same answer without running anything.
+ */
+export function resolveModel(
+  testCase: Pick<TestCase, "model">,
+  scenario: Pick<Scenario, "model">,
+  fallback: string,
+): string {
+  return testCase.model ?? scenario.model ?? fallback;
+}

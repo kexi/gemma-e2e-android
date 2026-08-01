@@ -3,7 +3,7 @@ import type { RunEvent } from "@gemma-e2e/agent";
 import { RunEventBus } from "./bus.ts";
 
 function started(runId: string): RunEvent {
-  return { type: "step_started", runId, index: 0 };
+  return { type: "step_started", runId, caseId: "valid", index: 0 };
 }
 
 function finished(runId: string): RunEvent {

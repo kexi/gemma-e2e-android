@@ -86,6 +86,9 @@ LM Studio は GUI アプリのため Nix 管理外です。
    します — 手順は [lms CLI ガイド](https://lmstudio.ai/docs/cli) を参照
    (`~/.lmstudio/bin/lms bootstrap` で PATH に追加されます)。
 2. `gemma-4-12b` モデルをダウンロードします。メモリが厳しい場合は E4B を使います。
+   `.env` の `LLM_MODEL` には `lms ps` が表示する値を設定してください。これは
+   `case.model → scenario.model → LLM_MODEL` の最後のフォールバックで、モデルを
+   指定していないシナリオはこの値で動きます。
 3. OpenAI 互換サーバを起動します。
 
    ```sh
@@ -115,16 +118,45 @@ just android      # = expo run:android(prebuild(CNG)→ ビルド → インス�
 初回は `android/` の生成と Gradle 依存のダウンロードで時間がかかります。
 2回目以降は差分ビルドです。
 
-## 6. ダッシュボード
+## 6. Firestore エミュレータ
+
+実行履歴は Firestore に保存します。開発中に本物の Google プロジェクトへ触れることは
+ありません。エミュレータはプロジェクト ID `demo-gemma-e2e` でローカル起動し、
+`demo-` 接頭辞のおかげで資格情報も課金アカウントも不要な完全オフライン動作になります。
+
+```sh
+just db     # Firestore エミュレータを 127.0.0.1:8790 で起動
+```
+
+`just web` がこれも起動するため、単体レシピが要るのは API サーバを手で動かすときだけ
+です。ポートは `firebase.json`、プロジェクト ID は `.firebaserc` にあります。
+エミュレータ本体は firebase-tools が初回に取得する Java プログラムで、再起動をまたいで
+データを保持しません(`just db` のたびに空の DB から始まります)。
+
+接続する側には次の 2 つの環境変数が必要です(`just web` と `just test` は自動で
+設定します)。
+
+```sh
+export FIRESTORE_EMULATOR_HOST=127.0.0.1:8790
+export GOOGLE_CLOUD_PROJECT=demo-gemma-e2e
+```
+
+`firestore.rules` はクライアントからの読み書きを全拒否しています。これは意図的です。
+書き込むのはダッシュボードのサーバプロセスが使う Admin SDK だけで、Admin SDK は
+ルールを迂回します。ブラウザからこのプロジェクトを覗こうとすると、履歴が漏れる
+のではなく明確に失敗します。
+
+## 7. ダッシュボード
 
 ```sh
 just web
 ```
 
-Hono の API が `http://localhost:5175`、Vite の開発サーバが
-`http://localhost:5173` で起動します。ブラウザで開くのは後者です。コミット済みの
-シナリオの実行、その場かぎりのプロンプト投入、ステップのライブ表示、実行履歴の
-閲覧がここからできます。
+3 つのプロセスが起動します — Firestore エミュレータ(`127.0.0.1:8790`)、Hono の
+API(`http://localhost:5175`)、Vite の開発サーバ(`http://localhost:5173`)。
+ブラウザで開くのは最後のものです。コミット済みシナリオの実行、モデルを選んでの
+その場かぎりのプロンプト投入、ケースごとのステップのライブ表示、実行履歴の閲覧が
+ここからできます。
 
 ### デバイスのライブビュー
 
@@ -140,15 +172,19 @@ Hono の API が `http://localhost:5175`、Vite の開発サーバが
 `just mirror` でダッシュボードとは独立に scrcpy で同じ画面を開けます。別の
 ブリッジを見せたいときは `EMULATOR_GRPC=host:port` を指定します。
 
-## 7. 動作確認
+## 8. 動作確認
 
 ```sh
 just check
 ```
 
-lint・フォーマットチェック・型チェック・履歴全体の秘密情報スキャン・Actions の
-SHA 固定チェックを実行します(CI と同じゲート)。タスク一覧は `just --list` で
-確認できます。
+lint・フォーマットチェック・型チェック・テスト・履歴全体の秘密情報スキャン・
+Actions の SHA 固定チェックを実行します。タスク一覧は `just --list` で確認できます。
+
+`just test` は `bun test` を `firebase emulators:exec` で包むため、Firestore の
+テストにはテストと同時に起動・終了する使い捨てエミュレータが割り当てられ、`just db`
+のデータには一切触れません。素の `bun test` にはエミュレータが無いので、該当テストは
+失敗ではなく skip され、実行結果にスキップ数として出ます。
 
 ### トラブルシューティング
 
@@ -157,3 +193,6 @@ SHA 固定チェックを実行します(CI と同じゲート)。タスク一�
 - **エミュレータが起動しない** — `avdmanager list avd` で AVD の存在を確認し、`just avd-create`(`--force` 付き)で作り直します。
 - **Bun で Expo CLI を動かす** — `bunx --bun expo …` を使います。`--bun` がないと `#!/usr/bin/env node` シェバンに従って Node で動きます。
 - **フックが動かない** — `just setup`(= `lefthook install`)を実行します。
+- **`firebase-tools no longer supports Java version before 21`** — エミュレータ用レシピが `$FIREBASE_JAVA_HOME/bin` を `PATH` に前置しているのはこのためです(devshell の既定 JDK は AGP が必要とする 17)。`firebase` を直接叩く場合も同様に `PATH="$FIREBASE_JAVA_HOME/bin:$PATH" firebase …` としてください。
+- **ポート 8790 が使用中** — 以前の `just db` が残っています。停止するか `firebase.json` のポートを変更します。
+- **Firestore のテストが全部 skip される** — 素の `bun test` を実行しています。エミュレータを用意する `just test` を使ってください。

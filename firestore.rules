@@ -1,0 +1,14 @@
+rules_version = '2';
+
+// The only client is the dashboard's own server process, which reaches
+// Firestore through the Admin SDK and therefore bypasses these rules entirely.
+// They exist so the emulator has a ruleset to load, and they deny everything so
+// that pointing a browser SDK at this project fails loudly rather than
+// exposing run history.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

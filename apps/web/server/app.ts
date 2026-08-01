@@ -11,11 +11,12 @@ import {
   type FrameStream,
   relayFrames,
 } from "./device-stream.ts";
+import type { ModelInfo } from "./models.ts";
 
 /** The slice of Store the dashboard reads; tests inject an in-memory double. */
 export interface StoreReader {
-  listRuns(limit?: number): Run[];
-  getRun(id: string): Run | null;
+  listRuns(limit?: number): Promise<Run[]>;
+  getRun(id: string): Promise<Run | null>;
 }
 
 export interface StartRunInput {
@@ -49,15 +50,19 @@ export interface AppDeps {
   /** Defaults to a no-op so the app tests stay quiet unless they opt in. */
   logger?: Logger | undefined;
   device?: DeviceSource | undefined;
+  /** Backs GET /api/models; omitted, the endpoint reports 503. */
+  listModels?: (() => Promise<ModelInfo[]>) | undefined;
 }
 
 interface CreateRunBody {
   scenarioId?: unknown;
   prompt?: unknown;
   title?: unknown;
+  model?: unknown;
 }
 
 const AD_HOC_SCENARIO_ID = "ad-hoc";
+const AD_HOC_CASE_ID = "ad-hoc";
 const AD_HOC_MAX_STEPS = 20;
 
 function isNonEmptyString(value: unknown): value is string {
@@ -102,6 +107,24 @@ export function createApp(deps: AppDeps) {
     }
   });
 
+  const listModels = deps.listModels;
+  app.get("/api/models", async (c) => {
+    const hasSource = listModels !== undefined;
+    if (!hasSource) {
+      return c.json({ error: "no model endpoint configured" }, 503);
+    }
+
+    try {
+      return c.json({ models: await listModels() });
+    } catch (error) {
+      // 503 rather than 500: a model server that is not running is an expected
+      // state the dashboard renders as guidance, not a fault in this server.
+      log.warn("models.unavailable", errorFields(error));
+      const message = error instanceof Error ? error.message : String(error);
+      return c.json({ error: message }, 503);
+    }
+  });
+
   app.post("/api/runs", async (c) => {
     let body: CreateRunBody;
     try {
@@ -119,7 +142,7 @@ export function createApp(deps: AppDeps) {
     log.info("run.requested", {
       runId,
       scenarioId: scenario.value.id,
-      maxSteps: scenario.value.maxSteps,
+      cases: scenario.value.cases.length,
     });
     deps.startRun({
       runId,
@@ -130,38 +153,66 @@ export function createApp(deps: AppDeps) {
     return c.json({ runId }, 202);
   });
 
-  app.get("/api/runs", (c) => {
-    return c.json({ runs: deps.store.listRuns() });
+  app.get("/api/runs", async (c) => {
+    return c.json({ runs: await deps.store.listRuns() });
   });
 
-  app.get("/api/runs/:id", (c) => {
-    const run = deps.store.getRun(c.req.param("id"));
+  app.get("/api/runs/:id", async (c) => {
+    const run = await deps.store.getRun(c.req.param("id"));
     if (run === null) {
       return c.json({ error: "no such run" }, 404);
     }
     return c.json({ run });
   });
 
-  app.get("/api/runs/:id/events", (c) => {
+  app.get("/api/runs/:id/events", async (c) => {
     const runId = c.req.param("id");
-    const run = deps.store.getRun(runId);
+    const run = await deps.store.getRun(runId);
     if (run === null) {
       return c.json({ error: "no such run" }, 404);
     }
 
+    const replayedSteps = run.cases.reduce((total, one) => total + one.steps.length, 0);
     const sseLog = log.child({ runId });
-    sseLog.info("sse.connected", { replayedSteps: run.steps.length, status: run.status });
+    sseLog.info("sse.connected", { replayedSteps, cases: run.cases.length, status: run.status });
 
     return streamSSE(c, async (stream) => {
       // Replay before subscribing so a client that attaches mid-run (or after
       // it ended) sees the same timeline as one that was there from the start.
       // Events published during the replay are picked up by the subscription
-      // below; a duplicate step is harmless because the client keys by index.
-      for (const step of run.steps) {
+      // below; a duplicate step is harmless because the client keys by
+      // (caseId, index).
+      for (const caseRun of run.cases) {
         await stream.writeSSE({
-          event: "step_recorded",
-          data: JSON.stringify({ type: "step_recorded", runId, step }),
+          event: "case_started",
+          data: JSON.stringify({
+            type: "case_started",
+            runId,
+            caseId: caseRun.caseId,
+            caseRun: { ...caseRun, steps: [] },
+          }),
         });
+
+        for (const step of caseRun.steps) {
+          await stream.writeSSE({
+            event: "step_recorded",
+            data: JSON.stringify({ type: "step_recorded", runId, caseId: caseRun.caseId, step }),
+          });
+        }
+
+        const caseIsOver = caseRun.status !== "running";
+        if (caseIsOver) {
+          await stream.writeSSE({
+            event: "case_finished",
+            data: JSON.stringify({
+              type: "case_finished",
+              runId,
+              caseId: caseRun.caseId,
+              status: caseRun.status,
+              reason: caseRun.verdictReason,
+            }),
+          });
+        }
       }
 
       const isOver = run.status !== "running";
@@ -297,13 +348,23 @@ async function resolveScenario(
 ): Promise<ScenarioResolution> {
   const isAdHoc = isNonEmptyString(body.prompt);
   if (isAdHoc) {
-    const prompt = body.prompt as string;
+    const title = isNonEmptyString(body.title) ? body.title : "Ad-hoc run";
+    // A one-off prompt is a scenario of exactly one case: the runner has a
+    // single shape to execute, and the run's history looks the same whether it
+    // came from a file or the dashboard's form.
     return {
       value: {
         id: AD_HOC_SCENARIO_ID,
-        title: isNonEmptyString(body.title) ? body.title : "Ad-hoc run",
-        prompt,
-        maxSteps: AD_HOC_MAX_STEPS,
+        title,
+        cases: [
+          {
+            id: AD_HOC_CASE_ID,
+            title,
+            prompt: body.prompt as string,
+            maxSteps: AD_HOC_MAX_STEPS,
+            ...(isNonEmptyString(body.model) ? { model: body.model } : {}),
+          },
+        ],
       },
     };
   }

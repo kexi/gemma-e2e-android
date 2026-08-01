@@ -5,6 +5,11 @@
 avd_name := "gemma-e2e-api35"
 system_image := "system-images;android-35;google_apis;arm64-v8a"
 
+# Firestore emulator. The `demo-` prefix is what makes the project id work
+# entirely offline: firebase-tools never contacts Google for such a project.
+firebase_project := "demo-gemma-e2e"
+firestore_host := "127.0.0.1:8790"
+
 # Show available tasks.
 default:
     @just --list
@@ -29,23 +34,44 @@ fmt-check:
 typecheck:
     bun run typecheck
 
+# Tests run against a throwaway Firestore emulator that starts and stops with
+# them, so the suite never touches a developer's `just db` data. Without
+# FIRESTORE_EMULATOR_HOST the store's tests skip themselves instead of failing,
+# which keeps a bare `bun test` usable.
 test:
-    bun test
+    PATH="${FIREBASE_JAVA_HOME:+$FIREBASE_JAVA_HOME/bin:}$PATH" \
+      firebase emulators:exec --only firestore --project {{ firebase_project }} 'bun test'
+
+# Firestore emulator on its own, for a dashboard started by hand.
+db:
+    PATH="${FIREBASE_JAVA_HOME:+$FIREBASE_JAVA_HOME/bin:}$PATH" \
+      firebase emulators:start --only firestore --project {{ firebase_project }}
 
 # Build production artifacts (currently the dashboard SPA; the Android app builds via `just android`).
 build:
     bun run --cwd apps/web build
 
-# Run the dashboard: Hono API on :5175 and the Vite dev server on :5173.
+# Run the dashboard: Firestore emulator on :8790, Hono API on :5175, and the
+# Vite dev server on :5173.
 web:
     #!/usr/bin/env bash
     set -euo pipefail
     # dev:server runs with cwd apps/web, where bun would not see the repo-root
     # .env, so the recipe exports it before either process starts.
     if [ -f .env ]; then set -a; . ./.env; set +a; fi
-    # Both processes share this shell's process group, so one Ctrl-C stops the
-    # pair; the trap covers the case where only one of them dies on its own.
+    export FIRESTORE_EMULATOR_HOST="{{ firestore_host }}"
+    export GOOGLE_CLOUD_PROJECT="{{ firebase_project }}"
+    # All three processes share this shell's process group, so one Ctrl-C stops
+    # the set; the trap covers the case where only one dies on its own.
     trap 'kill 0' EXIT INT TERM
+    PATH="${FIREBASE_JAVA_HOME:+$FIREBASE_JAVA_HOME/bin:}$PATH" \
+      firebase emulators:start --only firestore --project {{ firebase_project }} &
+    # The API refuses to write until Firestore answers, so wait for the port
+    # rather than racing it. 30 x 1s is generous for a local JVM start.
+    for _ in $(seq 30); do
+        if nc -z 127.0.0.1 8790 2>/dev/null; then break; fi
+        sleep 1
+    done
     bun run --cwd apps/web dev:server &
     bun run --cwd apps/web dev &
     wait

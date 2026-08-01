@@ -1,23 +1,42 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import Accordion from "@mui/material/Accordion";
+import AccordionDetails from "@mui/material/AccordionDetails";
+import AccordionSummary from "@mui/material/AccordionSummary";
 import Alert from "@mui/material/Alert";
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
+import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
 import LinearProgress from "@mui/material/LinearProgress";
 import Link from "@mui/material/Link";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import type { Run, RunStatus, Step } from "@gemma-e2e/core/schema";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import type { CaseRun, Run, RunStatus, Step } from "@gemma-e2e/core/schema";
 import { fetchRun, screenshotUrl } from "../api.ts";
 import { actionIcon, describeAction, StatusChip } from "../status.tsx";
 import { DeviceLiveView } from "../DeviceLiveView.tsx";
 
+interface CaseStarted {
+  type: "case_started";
+  caseId: string;
+  caseRun: CaseRun;
+}
+
 interface StepRecorded {
   type: "step_recorded";
+  caseId: string;
   step: Step;
+}
+
+interface CaseFinished {
+  type: "case_finished";
+  caseId: string;
+  status: RunStatus;
+  reason: string | null;
 }
 
 interface RunFinished {
@@ -26,12 +45,66 @@ interface RunFinished {
   reason: string | null;
 }
 
-type LiveEvent = StepRecorded | RunFinished | { type: string };
+type LiveEvent = CaseStarted | StepRecorded | CaseFinished | RunFinished | { type: string };
+
+/** Cases keyed by id so replayed and live copies of one event are idempotent. */
+type CaseMap = Map<string, CaseRun>;
+
+function upsertCase(cases: CaseMap, caseRun: CaseRun): CaseMap {
+  const next = new Map(cases);
+  const existing = next.get(caseRun.caseId);
+  // Steps already received are kept: case_started replays with an empty list,
+  // and a live case_started can arrive after its own first steps.
+  next.set(caseRun.caseId, { ...caseRun, steps: existing?.steps ?? caseRun.steps });
+  return next;
+}
+
+function appendStep(cases: CaseMap, caseId: string, step: Step): CaseMap {
+  const next = new Map(cases);
+  const existing = next.get(caseId);
+  const steps = (existing?.steps ?? []).filter((s) => s.index !== step.index);
+  const merged = [...steps, step].sort((a, b) => a.index - b.index);
+
+  next.set(
+    caseId,
+    existing === undefined ? placeholderCase(caseId, merged) : { ...existing, steps: merged },
+  );
+  return next;
+}
+
+/** A step can outrun its case_started; this keeps the timeline visible anyway. */
+function placeholderCase(caseId: string, steps: Step[]): CaseRun {
+  return {
+    runId: "",
+    caseId,
+    order: Number.MAX_SAFE_INTEGER,
+    title: caseId,
+    prompt: "",
+    model: "",
+    status: "running",
+    verdictReason: null,
+    startedAt: new Date().toISOString(),
+    finishedAt: null,
+    steps,
+  };
+}
+
+function finishCase(
+  cases: CaseMap,
+  caseId: string,
+  status: RunStatus,
+  reason: string | null,
+): CaseMap {
+  const next = new Map(cases);
+  const existing = next.get(caseId) ?? placeholderCase(caseId, []);
+  next.set(caseId, { ...existing, status, verdictReason: reason });
+  return next;
+}
 
 export function RunPage() {
   const { id } = useParams<{ id: string }>();
   const [run, setRun] = useState<Run | null>(null);
-  const [steps, setSteps] = useState<Step[]>([]);
+  const [cases, setCases] = useState<CaseMap>(new Map());
   const [status, setStatus] = useState<RunStatus | null>(null);
   const [reason, setReason] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -58,20 +131,28 @@ export function RunPage() {
         }
       });
 
-    // The stream replays every step already recorded before switching to live
-    // delivery, so it is the single source of the timeline: merging by index
-    // makes the replayed and live copies of a step idempotent.
+    // The stream replays every case and step already recorded before switching
+    // to live delivery, so it is the single source of the timeline.
     const source = new EventSource(`/api/runs/${encodeURIComponent(id)}/events`);
 
     const handle = (message: MessageEvent<string>) => {
       const event = JSON.parse(message.data) as LiveEvent;
 
+      if (event.type === "case_started") {
+        const { caseRun } = event as CaseStarted;
+        setCases((current) => upsertCase(current, caseRun));
+      }
+
       if (event.type === "step_recorded") {
-        const { step } = event as StepRecorded;
-        setSteps((current) => {
-          const rest = current.filter((s) => s.index !== step.index);
-          return [...rest, step].sort((a, b) => a.index - b.index);
-        });
+        const { caseId, step } = event as StepRecorded;
+        setCases((current) => appendStep(current, caseId, step));
+      }
+
+      if (event.type === "case_finished") {
+        const finished = event as CaseFinished;
+        setCases((current) =>
+          finishCase(current, finished.caseId, finished.status, finished.reason),
+        );
       }
 
       if (event.type === "run_finished") {
@@ -84,7 +165,9 @@ export function RunPage() {
 
     // Every frame the server sends carries an `event:` name, so the default
     // "message" listener never fires; each name is registered explicitly.
+    source.addEventListener("case_started", handle);
     source.addEventListener("step_recorded", handle);
+    source.addEventListener("case_finished", handle);
     source.addEventListener("run_finished", handle);
     source.onerror = () => source.close();
 
@@ -102,6 +185,7 @@ export function RunPage() {
   }
 
   const isRunning = status === "running";
+  const ordered = [...cases.values()].sort((a, b) => a.order - b.order);
 
   return (
     <Stack spacing={3}>
@@ -111,9 +195,9 @@ export function RunPage() {
           {status !== null && <StatusChip status={status} />}
         </Stack>
         <Typography variant="caption" color="text.secondary">
-          {run.scenarioId} · started {new Date(run.startedAt).toLocaleString()}
+          {run.scenarioId} · {ordered.length} case{ordered.length === 1 ? "" : "s"} · started{" "}
+          {new Date(run.startedAt).toLocaleString()}
         </Typography>
-        <Typography sx={{ mt: 1 }}>{run.prompt}</Typography>
         {reason !== null && (
           <Alert severity={status === "passed" ? "success" : "warning"} sx={{ mt: 2 }}>
             {reason}
@@ -124,8 +208,70 @@ export function RunPage() {
       {isRunning && <LinearProgress />}
 
       <Stack direction={{ xs: "column", md: "row" }} spacing={3} sx={{ alignItems: "flex-start" }}>
-        <Stack spacing={2} sx={{ flexGrow: 1, minWidth: 0, width: "100%" }}>
-          {steps.map((step) => (
+        <Stack spacing={1} sx={{ flexGrow: 1, minWidth: 0, width: "100%" }}>
+          {ordered.map((caseRun) => (
+            <CaseAccordion key={caseRun.caseId} caseRun={caseRun} />
+          ))}
+          {ordered.length === 0 && !isRunning && (
+            <Typography color="text.secondary">No cases were recorded.</Typography>
+          )}
+        </Stack>
+
+        {/* Unmounted the moment the run ends, which is what closes the socket
+            and releases the emulator-side encoder. The finished timeline keeps
+            each step's stored screenshot, so nothing is lost by dropping it. */}
+        {isRunning && (
+          <Box
+            sx={{
+              width: { xs: "100%", md: 320 },
+              flexShrink: 0,
+              position: { md: "sticky" },
+              top: { md: 16 },
+            }}
+          >
+            <Typography variant="subtitle2" gutterBottom>
+              Live screen
+            </Typography>
+            <DeviceLiveView maxHeight="60vh" showHint={false} />
+          </Box>
+        )}
+      </Stack>
+    </Stack>
+  );
+}
+
+function CaseAccordion({ caseRun }: { caseRun: CaseRun }) {
+  // Open while it is the case being worked on, and after a failure, which are
+  // the two moments the steps are worth reading.
+  const startsOpen = caseRun.status !== "passed";
+
+  return (
+    <Accordion defaultExpanded={startsOpen} variant="outlined" disableGutters>
+      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{ alignItems: "center", flexWrap: "wrap", width: "100%" }}
+        >
+          <StatusChip status={caseRun.status} />
+          <Typography variant="subtitle1">{caseRun.title}</Typography>
+          {caseRun.model !== "" && <Chip size="small" variant="outlined" label={caseRun.model} />}
+          <Typography variant="caption" color="text.secondary">
+            {caseRun.steps.length} step{caseRun.steps.length === 1 ? "" : "s"}
+          </Typography>
+        </Stack>
+      </AccordionSummary>
+
+      <AccordionDetails>
+        <Stack spacing={2}>
+          {caseRun.prompt !== "" && <Typography variant="body2">{caseRun.prompt}</Typography>}
+          {caseRun.verdictReason !== null && (
+            <Alert severity={caseRun.status === "passed" ? "success" : "warning"}>
+              {caseRun.verdictReason}
+            </Alert>
+          )}
+
+          {caseRun.steps.map((step) => (
             <Card key={step.index} variant="outlined">
               <CardContent>
                 <Stack direction="row" spacing={2} sx={{ alignItems: "flex-start" }}>
@@ -163,30 +309,12 @@ export function RunPage() {
               </CardContent>
             </Card>
           ))}
-          {steps.length === 0 && !isRunning && (
-            <Typography color="text.secondary">No steps were recorded.</Typography>
+
+          {caseRun.steps.length === 0 && (
+            <Typography color="text.secondary">No steps yet.</Typography>
           )}
         </Stack>
-
-        {/* Unmounted the moment the run ends, which is what closes the socket
-            and releases the emulator-side encoder. The finished timeline keeps
-            each step's stored screenshot, so nothing is lost by dropping it. */}
-        {isRunning && (
-          <Box
-            sx={{
-              width: { xs: "100%", md: 320 },
-              flexShrink: 0,
-              position: { md: "sticky" },
-              top: { md: 16 },
-            }}
-          >
-            <Typography variant="subtitle2" gutterBottom>
-              Live screen
-            </Typography>
-            <DeviceLiveView maxHeight="60vh" showHint={false} />
-          </Box>
-        )}
-      </Stack>
-    </Stack>
+      </AccordionDetails>
+    </Accordion>
   );
 }

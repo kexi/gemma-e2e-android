@@ -78,16 +78,30 @@
               # Kept as a fallback: `#!/usr/bin/env node` shebang CLIs (Expo CLI)
               # resolve node, and Genkit is not officially supported on Bun yet.
               pkgs.nodejs_22
+              # Firestore emulator (`just db`, `just test`). The emulator is a
+              # JAR firebase-tools downloads on first run, so it needs a JVM of
+              # its own -- see zulu21 below.
+              pkgs.firebase-tools
               # AGP 8.x (Expo prebuild output) requires JDK 17, and Expo
               # recommends Azul Zulu. `jdk17` already resolves to Zulu on
               # darwin but to plain OpenJDK on Linux, so name zulu17 outright
               # to keep every platform on the same JVM.
               pkgs.zulu17
+              # firebase-tools 15 refuses to start the emulator on anything
+              # older than JDK 21, while AGP still requires 17. Both JVMs ship;
+              # 17 stays first on PATH and in JAVA_HOME so Gradle is unaffected,
+              # and only the Firestore emulator recipes prepend 21.
+              pkgs.zulu21
               androidSdk
             ];
 
             shellHook = ''
               export JAVA_HOME="${pkgs.zulu17.home}"
+              # Consumed by the `db`, `web`, and `test` just recipes, which
+              # prepend its bin/ to PATH. firebase-tools resolves `java` from
+              # PATH rather than JAVA_HOME, so overriding JAVA_HOME alone would
+              # not reach it.
+              export FIREBASE_JAVA_HOME="${pkgs.zulu21.home}"
               export ANDROID_HOME="${androidSdk}/share/android-sdk"
               export ANDROID_SDK_ROOT="$ANDROID_HOME"
 

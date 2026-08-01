@@ -10,6 +10,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@gemma-e2e/core": "workspace:*"
+    "@gemma-e2e/core": "workspace:*",
+    "firebase-admin": "^14.2.0",
+    "zod": "^3.25.76"
   }
 }

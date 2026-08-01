@@ -1,10 +1,16 @@
 import { join } from "node:path";
 import { AdbClient } from "@gemma-e2e/adb";
-import { GenkitLlm, runScenario } from "@gemma-e2e/agent";
+import {
+  createGenkitLlmFactory,
+  DEFAULT_BASE_URL,
+  DEFAULT_MODEL,
+  runScenario,
+} from "@gemma-e2e/agent";
 import { createLogger, errorFields, parseLogLevel } from "@gemma-e2e/logger";
 import { Store } from "@gemma-e2e/store";
 import { createApp, type StartRunInput, websocket } from "./app.ts";
 import { DEFAULT_EMULATOR_GRPC_TARGET, EmulatorClient } from "./device-stream.ts";
+import { listModels } from "./models.ts";
 
 const DEFAULT_PORT = 5175;
 
@@ -14,6 +20,10 @@ const scenariosDir = process.env["SCENARIOS_DIR"] ?? join(repoRoot, "scenarios")
 const varDir = process.env["VAR_DIR"] ?? join(repoRoot, "var");
 const screenshotsDir = join(varDir, "screenshots");
 const clientDir = join(import.meta.dir, "..", "dist");
+const llmBaseURL = process.env["LLM_BASE_URL"] ?? DEFAULT_BASE_URL;
+// Last resort in the case → scenario → env chain; a scenario that names no
+// model anywhere still has to run on something.
+const defaultModel = process.env["LLM_MODEL"] ?? DEFAULT_MODEL;
 
 // The one place a logger is actually wired to stderr: every package defaults to
 // a no-op, so the process entrypoint decides that this run writes NDJSON.
@@ -22,28 +32,27 @@ const logger = createLogger({
   bindings: { service: "web" },
 });
 
-const store = Store.open(join(varDir, "runs.db"));
+const store = Store.open();
 
 // Constructed once and shared: both hold only configuration, and a device or
 // model that is missing surfaces as a run with status=error rather than as a
 // startup crash, so the dashboard stays usable without hardware attached.
 const adb = new AdbClient({ serial: process.env["ANDROID_SERIAL"], logger });
-const llm = new GenkitLlm({
-  baseURL: process.env["LLM_BASE_URL"],
-  model: process.env["LLM_MODEL"],
-  logger,
-});
+// A factory rather than a client: the model is chosen per case, and one Genkit
+// instance underneath serves every model a run touches.
+const llm = createGenkitLlmFactory({ baseURL: llmBaseURL, logger });
 
 function startRun({ runId, scenario, onEvent }: StartRunInput): void {
   // Deliberately not awaited: POST /api/runs answers 202 immediately and the
   // client follows progress over SSE. runScenario already converts every
-  // failure into a finished run with status=error, so a rejection here would
+  // failure into a finished case with status=error, so a rejection here would
   // only mean the store itself is broken.
   void runScenario(scenario, {
     adb,
     llm,
     store,
     screenshotDir: screenshotsDir,
+    defaultModel,
     runId,
     onEvent,
     logger,
@@ -67,6 +76,7 @@ const app = createApp({
   screenshotsDir,
   logger,
   device,
+  listModels: () => listModels({ baseURL: llmBaseURL, logger }),
   ...(isProduction ? { clientDir } : {}),
 });
 
@@ -75,6 +85,8 @@ logger.info("server.started", {
   scenariosDir,
   varDir,
   emulatorGrpcTarget,
+  defaultModel,
+  firestoreEmulator: process.env["FIRESTORE_EMULATOR_HOST"] ?? null,
   mode: isProduction ? "prod" : "dev",
 });
 

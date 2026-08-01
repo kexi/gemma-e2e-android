@@ -19,7 +19,7 @@ export class ScenarioLoadError extends Error {
 
 /**
  * Reads one YAML scenario. The filename is the fallback `id` so short scenario
- * files need only a title and a prompt.
+ * files need only a title and a list of cases.
  */
 export async function loadScenario(path: string): Promise<Scenario> {
   const file = Bun.file(path);
@@ -55,6 +55,18 @@ export async function loadScenario(path: string): Promise<Scenario> {
       .map((issue) => `${issue.path.join(".") || "<root>"}: ${issue.message}`)
       .join("; ");
     throw new ScenarioLoadError(path, `is not a valid scenario (${issues})`);
+  }
+
+  // Checked here rather than in the schema: a case id keys a Firestore document
+  // under its run, so a collision would have one case silently overwrite
+  // another's steps.
+  const seen = new Set<string>();
+  for (const testCase of result.data.cases) {
+    const isDuplicate = seen.has(testCase.id);
+    if (isDuplicate) {
+      throw new ScenarioLoadError(path, `contains duplicate case id "${testCase.id}"`);
+    }
+    seen.add(testCase.id);
   }
 
   return result.data;

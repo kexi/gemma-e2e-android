@@ -1,11 +1,16 @@
-import type { Run, Scenario, Step } from "@gemma-e2e/core/schema";
+import type { CaseRun, Run, Scenario, Step, TestCase } from "@gemma-e2e/core/schema";
 
-export type { Run, Scenario, Step };
+export type { CaseRun, Run, Scenario, Step, TestCase };
+
+export interface ModelInfo {
+  id: string;
+}
 
 export interface CreateRunRequest {
   scenarioId?: string;
   prompt?: string;
   title?: string;
+  model?: string;
 }
 
 async function json<T>(input: string, init?: RequestInit): Promise<T> {
@@ -37,7 +42,15 @@ export function createRun(body: CreateRunRequest): Promise<{ runId: string }> {
   });
 }
 
+export function fetchModels(): Promise<{ models: ModelInfo[] }> {
+  return json("/api/models");
+}
+
+/**
+ * Screenshots are served from the run directory, so the URL is the last three
+ * path segments: `<runId>/<caseId>/<index>.png`.
+ */
 export function screenshotUrl(storedPath: string): string {
-  const name = storedPath.split("/").slice(-2).join("/");
+  const name = storedPath.split("/").slice(-3).join("/");
   return `/screenshots/${name}`;
 }

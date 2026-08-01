@@ -1,17 +1,63 @@
-import { Database } from "bun:sqlite";
-import { mkdirSync } from "node:fs";
-import { dirname } from "node:path";
-import { type Action, ActionSchema, type Run, type RunStatus, type Step } from "@gemma-e2e/core";
+import { getApps, initializeApp } from "firebase-admin/app";
+import { type Firestore, getFirestore } from "firebase-admin/firestore";
+import type { z } from "zod";
+import {
+  type Action,
+  type CaseRun,
+  CaseRunSchema,
+  type Run,
+  RunSchema,
+  type RunStatus,
+  type Step,
+  StepSchema,
+} from "@gemma-e2e/core";
+import { zodConverter } from "./converter.ts";
+
+export class StoreError extends Error {
+  override readonly name = "StoreError";
+}
+
+/**
+ * Documents drop the fields their own path already encodes: `runs/{runId}`
+ * carries the run id, `cases/{caseId}` the case id, `steps/{index}` the index.
+ * Storing them twice invites the two copies to disagree; the reader puts them
+ * back from the document id.
+ */
+const RunDocSchema = RunSchema.omit({ id: true, cases: true });
+const CaseDocSchema = CaseRunSchema.omit({ runId: true, caseId: true, steps: true });
+const StepDocSchema = StepSchema.omit({ runId: true, caseId: true, index: true });
+
+const runConverter = zodConverter(RunDocSchema, "run");
+const caseConverter = zodConverter(CaseDocSchema, "case");
+const stepConverter = zodConverter(StepDocSchema, "step");
+
+const RUNS = "runs";
+const CASES = "cases";
+const STEPS = "steps";
+
+/** Zero-padded so Firestore's lexicographic document order matches step order. */
+function stepDocId(index: number): string {
+  return String(index).padStart(6, "0");
+}
 
 export interface CreateRunInput {
   id: string;
   scenarioId: string;
   title: string;
+}
+
+export interface CreateCaseInput {
+  runId: string;
+  caseId: string;
+  order: number;
+  title: string;
   prompt: string;
+  model: string;
 }
 
 export interface AddStepInput {
   runId: string;
+  caseId: string;
   index: number;
   action: Action;
   uiText: string;
@@ -19,243 +65,276 @@ export interface AddStepInput {
   note?: string | null | undefined;
 }
 
-export interface FinishRunInput {
+export interface FinishInput {
   status: RunStatus;
   verdictReason?: string | null | undefined;
 }
 
-interface RunRow {
-  id: string;
-  scenario_id: string;
-  title: string;
-  prompt: string;
-  status: string;
-  verdict_reason: string | null;
-  started_at: string;
-  finished_at: string | null;
+export interface StoreOptions {
+  /** Defaults to GOOGLE_CLOUD_PROJECT, then the emulator's demo project. */
+  projectId?: string | undefined;
+  /** Injection seam: tests and the emulator path share the same class. */
+  firestore?: Firestore | undefined;
 }
 
-interface StepRow {
-  id: number;
-  run_id: string;
-  step_index: number;
-  action: string;
-  ui_text: string;
-  screenshot_path: string | null;
-  note: string | null;
-  created_at: string;
-}
+export const DEFAULT_PROJECT_ID = "demo-gemma-e2e";
 
 /**
- * Applied in order, each exactly once. Appending a statement is the only way to
- * change the schema -- editing an existing one would leave older databases
- * silently different from new ones.
+ * Firestore-backed run history.
+ *
+ * Why timestamps stay ISO 8601 strings rather than Firestore `Timestamp`:
+ * every consumer (the JSON API, the SSE payloads, the dashboard) already speaks
+ * ISO strings, and a Timestamp would have to be converted at each boundary
+ * while gaining nothing — the queries this store runs order by document id or
+ * by a string field, both of which sort correctly on ISO 8601 anyway.
  */
-const MIGRATIONS: readonly string[] = [
-  `CREATE TABLE runs (
-     id             TEXT PRIMARY KEY,
-     scenario_id    TEXT NOT NULL,
-     title          TEXT NOT NULL,
-     prompt         TEXT NOT NULL,
-     status         TEXT NOT NULL,
-     verdict_reason TEXT,
-     started_at     TEXT NOT NULL,
-     finished_at    TEXT
-   )`,
-  `CREATE TABLE steps (
-     id              INTEGER PRIMARY KEY AUTOINCREMENT,
-     run_id          TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
-     step_index      INTEGER NOT NULL,
-     action          TEXT NOT NULL,
-     ui_text         TEXT NOT NULL,
-     screenshot_path TEXT,
-     note            TEXT,
-     created_at      TEXT NOT NULL,
-     UNIQUE (run_id, step_index)
-   )`,
-  `CREATE INDEX idx_steps_run ON steps(run_id, step_index)`,
-  `CREATE INDEX idx_runs_started ON runs(started_at DESC)`,
-];
-
-export class StoreError extends Error {
-  override readonly name = "StoreError";
-}
-
-function toStep(row: StepRow): Step {
-  return {
-    id: row.id,
-    runId: row.run_id,
-    index: row.step_index,
-    // Actions are stored as JSON text; re-validating on read means a
-    // hand-edited or schema-drifted database fails loudly here rather than
-    // somewhere far downstream.
-    action: ActionSchema.parse(JSON.parse(row.action)),
-    uiText: row.ui_text,
-    screenshotPath: row.screenshot_path,
-    note: row.note,
-    createdAt: row.created_at,
-  };
-}
-
-function toRun(row: RunRow, steps: Step[]): Run {
-  return {
-    id: row.id,
-    scenarioId: row.scenario_id,
-    title: row.title,
-    prompt: row.prompt,
-    status: row.status as RunStatus,
-    verdictReason: row.verdict_reason,
-    startedAt: row.started_at,
-    finishedAt: row.finished_at,
-    steps,
-  };
-}
-
 export class Store {
-  readonly #db: Database;
+  readonly #db: Firestore;
 
-  private constructor(db: Database) {
+  private constructor(db: Firestore) {
     this.#db = db;
   }
 
   /**
-   * Opens (creating if absent) a database and brings it to the current schema.
-   * `:memory:` is passed straight through for tests.
+   * Connects to Firestore. With FIRESTORE_EMULATOR_HOST set, the Admin SDK
+   * talks to the emulator and needs no credentials at all, which is what keeps
+   * development and CI fully offline.
    */
-  static open(dbPath: string): Store {
-    const isFile = dbPath !== ":memory:";
-    if (isFile) {
-      mkdirSync(dirname(dbPath), { recursive: true });
+  static open(options: StoreOptions = {}): Store {
+    const injected = options.firestore;
+    if (injected !== undefined) {
+      return new Store(injected);
     }
 
-    const db = new Database(dbPath, { create: true });
-    // WAL keeps the dashboard's reads from blocking the runner's writes.
-    db.run("PRAGMA journal_mode = WAL");
-    db.run("PRAGMA foreign_keys = ON");
+    const projectId =
+      options.projectId ?? process.env["GOOGLE_CLOUD_PROJECT"] ?? DEFAULT_PROJECT_ID;
 
-    Store.#migrate(db);
-    return new Store(db);
+    // getApps() rather than an unconditional initializeApp: the Admin SDK
+    // throws on a duplicate default app, and the dashboard's --watch reload
+    // re-imports this module in the same process.
+    //
+    // No credentials are passed: with FIRESTORE_EMULATOR_HOST set the SDK skips
+    // auth entirely, and against real Firestore it falls back to application
+    // default credentials, so hard-coding a key here would only get in the way.
+    const app = getApps()[0] ?? initializeApp({ projectId });
+
+    return new Store(getFirestore(app));
   }
 
-  static #migrate(db: Database): void {
-    db.run("CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL)");
-
-    const row = db.query<{ version: number }, []>("SELECT version FROM schema_version").get();
-    const isFresh = row === null;
-    if (isFresh) {
-      db.run("INSERT INTO schema_version (version) VALUES (0)");
-    }
-
-    const current = row?.version ?? 0;
-    const pending = MIGRATIONS.slice(current);
-    const isUpToDate = pending.length === 0;
-    if (isUpToDate) {
-      return;
-    }
-
-    db.transaction(() => {
-      for (const statement of pending) {
-        db.run(statement);
-      }
-      db.run("UPDATE schema_version SET version = ?", [MIGRATIONS.length]);
-    })();
+  #run(runId: string) {
+    return this.#db.collection(RUNS).doc(runId).withConverter(runConverter);
   }
 
-  createRun(input: CreateRunInput): Run {
+  #case(runId: string, caseId: string) {
+    return this.#db
+      .collection(RUNS)
+      .doc(runId)
+      .collection(CASES)
+      .doc(caseId)
+      .withConverter(caseConverter);
+  }
+
+  #steps(runId: string, caseId: string) {
+    return this.#db
+      .collection(RUNS)
+      .doc(runId)
+      .collection(CASES)
+      .doc(caseId)
+      .collection(STEPS)
+      .withConverter(stepConverter);
+  }
+
+  async createRun(input: CreateRunInput): Promise<Run> {
     const startedAt = new Date().toISOString();
-
-    this.#db.run(
-      `INSERT INTO runs (id, scenario_id, title, prompt, status, verdict_reason, started_at, finished_at)
-       VALUES (?, ?, ?, ?, 'running', NULL, ?, NULL)`,
-      [input.id, input.scenarioId, input.title, input.prompt, startedAt],
-    );
-
-    return {
+    const run: Run = {
       id: input.id,
       scenarioId: input.scenarioId,
       title: input.title,
+      status: "running",
+      verdictReason: null,
+      startedAt,
+      finishedAt: null,
+      cases: [],
+    };
+
+    // create() rather than set(): a repeated run id is a bug in the caller, and
+    // set() would silently overwrite the earlier run's summary while orphaning
+    // its cases.
+    await this.#run(input.id).create(toRunDoc(run));
+    return run;
+  }
+
+  async createCase(input: CreateCaseInput): Promise<CaseRun> {
+    const startedAt = new Date().toISOString();
+    const caseRun: CaseRun = {
+      runId: input.runId,
+      caseId: input.caseId,
+      order: input.order,
+      title: input.title,
       prompt: input.prompt,
+      model: input.model,
       status: "running",
       verdictReason: null,
       startedAt,
       finishedAt: null,
       steps: [],
     };
+
+    await this.#case(input.runId, input.caseId).create(toCaseDoc(caseRun));
+    return caseRun;
   }
 
-  addStep(input: AddStepInput): Step {
-    const createdAt = new Date().toISOString();
-
-    const inserted = this.#db
-      .query<
-        { id: number },
-        [string, number, string, string, string | null, string | null, string]
-      >(
-        `INSERT INTO steps (run_id, step_index, action, ui_text, screenshot_path, note, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)
-         RETURNING id`,
-      )
-      .get(
-        input.runId,
-        input.index,
-        JSON.stringify(input.action),
-        input.uiText,
-        input.screenshotPath ?? null,
-        input.note ?? null,
-        createdAt,
-      );
-
-    if (inserted === null) {
-      throw new StoreError(`failed to insert step ${input.index} for run ${input.runId}`);
-    }
-
-    return {
-      id: inserted.id,
+  async addStep(input: AddStepInput): Promise<Step> {
+    const step: Step = {
       runId: input.runId,
+      caseId: input.caseId,
       index: input.index,
       action: input.action,
       uiText: input.uiText,
       screenshotPath: input.screenshotPath ?? null,
       note: input.note ?? null,
-      createdAt,
+      createdAt: new Date().toISOString(),
     };
+
+    await this.#steps(input.runId, input.caseId)
+      .doc(stepDocId(input.index))
+      .create(toStepDoc(step));
+    return step;
   }
 
-  finishRun(runId: string, input: FinishRunInput): void {
-    const result = this.#db.run(
-      `UPDATE runs SET status = ?, verdict_reason = ?, finished_at = ? WHERE id = ?`,
-      [input.status, input.verdictReason ?? null, new Date().toISOString(), runId],
-    );
+  async finishCase(runId: string, caseId: string, input: FinishInput): Promise<void> {
+    const ref = this.#case(runId, caseId);
+    const snapshot = await ref.get();
+    const isMissing = !snapshot.exists;
+    if (isMissing) {
+      throw new StoreError(`no such case: ${runId}/${caseId}`);
+    }
 
-    const isMissing = result.changes === 0;
+    await ref.update({
+      status: input.status,
+      verdictReason: input.verdictReason ?? null,
+      finishedAt: new Date().toISOString(),
+    });
+  }
+
+  async finishRun(runId: string, input: FinishInput): Promise<void> {
+    const ref = this.#run(runId);
+    const snapshot = await ref.get();
+    const isMissing = !snapshot.exists;
     if (isMissing) {
       throw new StoreError(`no such run: ${runId}`);
     }
+
+    await ref.update({
+      status: input.status,
+      verdictReason: input.verdictReason ?? null,
+      finishedAt: new Date().toISOString(),
+    });
   }
 
-  /** Newest first. Steps are omitted; the list view does not need them. */
-  listRuns(limit = 50): Run[] {
-    const rows = this.#db
-      .query<RunRow, [number]>("SELECT * FROM runs ORDER BY started_at DESC, rowid DESC LIMIT ?")
-      .all(limit);
+  /** Newest first. Cases are omitted; the list view does not need them. */
+  async listRuns(limit = 50): Promise<Run[]> {
+    const snapshot = await this.#db
+      .collection(RUNS)
+      .withConverter(runConverter)
+      .orderBy("startedAt", "desc")
+      .limit(limit)
+      .get();
 
-    return rows.map((row) => toRun(row, []));
+    return snapshot.docs.map((doc) => fromRunDoc(doc.id, doc.data()));
   }
 
-  getRun(id: string): Run | null {
-    const row = this.#db.query<RunRow, [string]>("SELECT * FROM runs WHERE id = ?").get(id);
-    if (row === null) {
+  /** The full run: every case in declaration order, each with its steps. */
+  async getRun(id: string): Promise<Run | null> {
+    const runDoc = await this.#run(id).get();
+    const data = runDoc.data();
+    if (data === undefined) {
       return null;
     }
 
-    const stepRows = this.#db
-      .query<StepRow, [string]>("SELECT * FROM steps WHERE run_id = ? ORDER BY step_index")
-      .all(id);
+    const caseDocs = await this.#db
+      .collection(RUNS)
+      .doc(id)
+      .collection(CASES)
+      .withConverter(caseConverter)
+      .orderBy("order")
+      .get();
 
-    return toRun(row, stepRows.map(toStep));
+    // Steps are fetched per case in parallel: a run has a handful of cases, so
+    // the round trips are worth avoiding a collection-group query that would
+    // need its own composite index in the emulator and in production.
+    const cases = await Promise.all(
+      caseDocs.docs.map(async (doc) => {
+        const stepDocs = await this.#steps(id, doc.id).orderBy("__name__").get();
+        const steps = stepDocs.docs.map((stepDoc) =>
+          fromStepDoc(id, doc.id, Number(stepDoc.id), stepDoc.data()),
+        );
+        return fromCaseDoc(id, doc.id, doc.data(), steps);
+      }),
+    );
+
+    return { ...fromRunDoc(id, data), cases };
   }
 
-  close(): void {
-    this.#db.close();
+  /** Deletes a run and everything beneath it. Used by tests to stay isolated. */
+  async deleteRun(id: string): Promise<void> {
+    await this.#db.recursiveDelete(this.#db.collection(RUNS).doc(id));
   }
+
+  /**
+   * No-op: the Firestore client pools connections for the process lifetime and
+   * closing it would break the next run. Kept so callers written against the
+   * previous SQLite store need no change.
+   */
+  close(): void {}
+}
+
+type RunDoc = z.output<typeof RunDocSchema>;
+type CaseDoc = z.output<typeof CaseDocSchema>;
+type StepDoc = z.output<typeof StepDocSchema>;
+
+function toRunDoc(run: Run): RunDoc {
+  return {
+    scenarioId: run.scenarioId,
+    title: run.title,
+    status: run.status,
+    verdictReason: run.verdictReason,
+    startedAt: run.startedAt,
+    finishedAt: run.finishedAt,
+  };
+}
+
+function fromRunDoc(id: string, doc: RunDoc): Run {
+  return { id, ...doc, cases: [] };
+}
+
+function toCaseDoc(caseRun: CaseRun): CaseDoc {
+  return {
+    order: caseRun.order,
+    title: caseRun.title,
+    prompt: caseRun.prompt,
+    model: caseRun.model,
+    status: caseRun.status,
+    verdictReason: caseRun.verdictReason,
+    startedAt: caseRun.startedAt,
+    finishedAt: caseRun.finishedAt,
+  };
+}
+
+function fromCaseDoc(runId: string, caseId: string, doc: CaseDoc, steps: Step[]): CaseRun {
+  return { runId, caseId, ...doc, steps };
+}
+
+function toStepDoc(step: Step): StepDoc {
+  return {
+    action: step.action,
+    uiText: step.uiText,
+    screenshotPath: step.screenshotPath,
+    note: step.note,
+    createdAt: step.createdAt,
+  };
+}
+
+function fromStepDoc(runId: string, caseId: string, index: number, doc: StepDoc): Step {
+  return { runId, caseId, index, ...doc };
 }

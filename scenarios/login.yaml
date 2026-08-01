@@ -1,11 +1,25 @@
-# A scenario is a natural-language goal; the agent decides the steps.
-# `id` defaults to the filename when omitted.
+# A scenario bundles test cases; each case is one natural-language goal that
+# gets its own verdict. `id` defaults to the filename when omitted.
 title: Login
-prompt: >-
-  Check that a user can log in. Enter the email "demo@example.com" and the
-  password "demo1234", submit the form, and confirm that the app reaches a
-  logged-in screen showing a greeting.
 app:
   package: dev.kexi.gemmae2e.example
   activity: .MainActivity
-maxSteps: 15
+# Every case may name its own `model:`; without one it falls back to this
+# scenario-level default, and then to the server's LLM_MODEL.
+cases:
+  - id: valid-credentials
+    title: Logs in with valid credentials
+    prompt: >-
+      Check that a user can log in. Enter the email "demo@example.com" and the
+      password "demo1234", submit the form, and confirm that the app reaches a
+      logged-in screen showing a greeting.
+    maxSteps: 15
+
+  - id: invalid-password
+    title: Shows an error for a wrong password
+    prompt: >-
+      Check that logging in with a wrong password fails visibly. Enter the email
+      "demo@example.com" and the password "wrongpass", submit the form, and
+      confirm that the screen shows the error message "Invalid email or
+      password". Finish with verdict "passed" once that message is visible.
+    maxSteps: 15

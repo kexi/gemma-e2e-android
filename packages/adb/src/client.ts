@@ -55,8 +55,10 @@ export class AdbError extends Error {
     // undecoded on the success path, where they are the file being written.
     const stdout =
       typeof result.stdout === "string" ? result.stdout : new TextDecoder().decode(result.stdout);
+    // argv[0] is already the adb binary, so no "adb " prefix is added here --
+    // doing so produced messages reading "adb adb shell ...".
     super(
-      `adb ${argv.join(" ")} failed (exit ${result.exitCode}): ${
+      `${argv.join(" ")} failed (exit ${result.exitCode}): ${
         result.stderr.trim() || stdout.trim()
       }`,
     );

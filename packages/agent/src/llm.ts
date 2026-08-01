@@ -14,7 +14,15 @@ export interface Llm {
   decide(input: DecideInput): Promise<Action>;
 }
 
+/**
+ * Builds a client for one specific model. The loop takes a factory rather than
+ * a client because the model is chosen per case, and a client fixed at
+ * construction time could not vary within a single run.
+ */
+export type LlmFactory = (model: string) => Llm;
+
 export const DEFAULT_BASE_URL = "http://localhost:1234/v1";
+/** Only a last resort: `.env` (LLM_MODEL) is where a machine states its model. */
 export const DEFAULT_MODEL = "gemma-4-12b";
 const PLUGIN_NAME = "lmstudio";
 const MAX_ATTEMPTS = 3;
@@ -86,6 +94,41 @@ export function buildDecisionPrompt(input: DecideInput): string {
 }
 
 /**
+ * Opens one Genkit instance against the configured endpoint. The model is *not*
+ * baked in here — it travels on each request — so a single instance serves
+ * every model a run touches instead of one per case.
+ */
+function genkitGenerate(options: GenkitLlmOptions): GenerateFn {
+  const baseURL = options.baseURL ?? process.env["LLM_BASE_URL"] ?? DEFAULT_BASE_URL;
+
+  const ai = genkit({
+    plugins: [
+      openAICompatible({
+        name: PLUGIN_NAME,
+        baseURL,
+        // LM Studio ignores the key but the OpenAI client requires one.
+        apiKey: options.apiKey ?? process.env["LLM_API_KEY"] ?? "lm-studio",
+      }),
+    ],
+  }) as Genkit;
+
+  return async (request) => await ai.generate(request);
+}
+
+/**
+ * Builds the {@link LlmFactory} the agent loop takes, sharing one Genkit
+ * instance (and therefore one HTTP client) across every model in a run.
+ *
+ * Why a factory instead of a mutable `setModel`: a case's model must be fixed
+ * for the whole case, and a shared client whose model can be reassigned would
+ * silently misroute a decision if runs ever overlap.
+ */
+export function createGenkitLlmFactory(options: GenkitLlmOptions = {}): LlmFactory {
+  const generate = options.generate ?? genkitGenerate(options);
+  return (model) => new GenkitLlm({ ...options, model, generate });
+}
+
+/**
  * Genkit-backed model client.
  *
  * Structured output rather than native tool calls: the tool-call parsers in
@@ -101,25 +144,8 @@ export class GenkitLlm implements Llm {
   constructor(options: GenkitLlmOptions = {}) {
     this.#model = options.model ?? process.env["LLM_MODEL"] ?? DEFAULT_MODEL;
     this.#maxAttempts = options.maxAttempts ?? MAX_ATTEMPTS;
-    this.#generate = options.generate ?? GenkitLlm.#genkitGenerate(options);
+    this.#generate = options.generate ?? genkitGenerate(options);
     this.#log = options.logger ?? noopLogger;
-  }
-
-  static #genkitGenerate(options: GenkitLlmOptions): GenerateFn {
-    const baseURL = options.baseURL ?? process.env["LLM_BASE_URL"] ?? DEFAULT_BASE_URL;
-
-    const ai = genkit({
-      plugins: [
-        openAICompatible({
-          name: PLUGIN_NAME,
-          baseURL,
-          // LM Studio ignores the key but the OpenAI client requires one.
-          apiKey: options.apiKey ?? process.env["LLM_API_KEY"] ?? "lm-studio",
-        }),
-      ],
-    }) as Genkit;
-
-    return async (request) => await ai.generate(request);
   }
 
   async decide(input: DecideInput): Promise<Action> {

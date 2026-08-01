@@ -6,11 +6,48 @@ code lands in later work.
 
 日本語版: [ja/ARCHITECTURE.md](ja/ARCHITECTURE.md)
 
+## The domain: scenarios bundle test cases
+
+A **test case** is one natural-language goal that earns one verdict ("check that
+a wrong password shows an error"). A **scenario** is a bundle of cases that
+share an app and, usually, a model. Cases are what get verdicts; the scenario
+only groups and orders them.
+
+```
+   Scenario (scenarios/login.yaml)
+   ├─ id, title, app?, model?
+   └─ cases: TestCase[]            (at least one, run in order)
+      ├─ TestCase { id (slug), title?, prompt, model?, maxSteps=20 }
+      └─ TestCase { … }
+
+   One execution of a scenario:
+
+   Run  { id, scenarioId, title, status, verdictReason, startedAt, finishedAt }
+   └─ CaseRun { caseId, order, title, prompt, model, status, verdictReason, … }
+      └─ Step { index, action, uiText, screenshotPath, note, createdAt }
+```
+
+**Model resolution** is `case.model ?? scenario.model ?? LLM_MODEL`, computed by
+`resolveModel` in `packages/core` and stored on the `CaseRun`, so history records
+the model that actually ran rather than the one configured later.
+
+*Why per-case models:* a cheap model is enough to drive an obvious happy path,
+while a harder assertion may need a larger one. Fixing the model per run would
+force the whole bundle onto the slowest choice.
+
+*Why cases run sequentially:* they share one device, so two cases driving the
+same screen would interleave taps. Each case force-stops and relaunches the app
+first, because `am start` on a live process resumes whatever screen the previous
+case left behind — a case would otherwise inherit the last one's navigation
+stack and login session.
+
+*Why one failure does not stop the rest:* the point of bundling cases is to
+learn about all of them from one run. A run is `passed` only when every case is.
+
 ## The E2E loop
 
-A test is a natural-language goal ("check that the user can log in"). The agent
-runs a perceive → decide → act → judge loop until the goal is met or a step
-budget is exhausted.
+Each case runs a perceive → decide → act → judge loop until its goal is met or
+its step budget is exhausted.
 
 ```
                   ┌──────────────────────────────────────────┐
@@ -37,9 +74,9 @@ budget is exhausted.
                   │ step log + screenshot path + verdict
                   ▼
    ┌──────────────────────────────┐      ┌────────────────────┐
-   │ SQLite run history           │◄─────┤ Hono server + SSE  │
-   └──────────────────────────────┘      └─────────┬──────────┘
-                                                   │
+   │ Firestore run history        │◄─────┤ Hono server + SSE  │
+   │ runs/{id}/cases/{id}/steps   │      └─────────┬──────────┘
+   └──────────────────────────────┘                │
                                          ┌─────────▼──────────┐
                                          │ Web dashboard      │
                                          │ (Vite + React+ MUI)│
@@ -76,6 +113,12 @@ devshell — a managed-workflow-only setup would not need them.
 *Why `zulu17` and not `jdk17`:* nixpkgs' `jdk17` already resolves to Zulu on
 darwin but to plain OpenJDK on Linux. Naming `zulu17` outright states the
 intent and keeps every platform on the same JVM.
+
+*Why two JVMs in one devshell:* AGP still requires JDK 17, while firebase-tools
+15 refuses to start the Firestore emulator on anything older than 21. Both ship;
+17 stays first on `PATH` and in `JAVA_HOME` so Gradle is untouched, and the
+emulator recipes prepend `$FIREBASE_JAVA_HOME/bin` instead. It has to be `PATH`
+rather than `JAVA_HOME` because firebase-tools resolves `java` from `PATH`.
 
 *Why not Expo Go:* the agent needs a real dev build to exercise native modules
 and realistic UI, and Go cannot host custom native code.
@@ -208,13 +251,64 @@ carries the resource IDs and accessibility labels needed to act.
 *Why not vision:* Gemma 4 accepts images, and that can be enabled if accuracy
 demands it — at a real cost in tokens and latency.
 
-### Run history: SQLite plus files
+### Run history: Firestore plus files
 
-Step logs and verdicts go in SQLite (queryable, single file, zero setup);
-screenshots go on disk with paths stored in the database.
+Step logs and verdicts go in Firestore, mirroring the domain as a document
+hierarchy — `runs/{runId}` → `cases/{caseId}` → `steps/{index}`. Screenshots
+stay on disk with their paths stored in the documents. Development and CI run
+against the Firestore emulator on port 8790 under the project id
+`demo-gemma-e2e`; the `demo-` prefix is what makes firebase-tools work fully
+offline, never contacting Google.
 
-*Why not blobs in the DB:* large binaries bloat the file and slow every query
-that does not need them.
+Nesting matches the domain, so reading one case's timeline is one query on one
+subcollection rather than a filter over a flat table. Step documents are named
+by zero-padded index (`000007`) so Firestore's lexicographic document order is
+also step order, with no `orderBy` field to keep in sync.
+
+*Why not SQLite (which this replaced):* a single local file cannot be shared
+between machines or a future hosted dashboard, and its history would stay
+trapped on whichever laptop ran the tests. Firestore keeps the same
+zero-configuration local development story through the emulator while leaving
+the door open to a shared deployment — nothing in the store code changes, only
+`FIRESTORE_EMULATOR_HOST` going away.
+
+*Why not blobs in the DB:* Firestore documents cap at 1 MiB and charge by read;
+a screenshot would blow the budget on both counts.
+
+### A generic Zod converter, validating in both directions
+
+`zodConverter(schema, label)` in `packages/store` turns any Zod schema into a
+Firestore `FirestoreDataConverter`, and every collection goes through one.
+Crucially it parses on **write** as well as on read.
+
+*Why validate on write:* Firestore is schemaless, so a field the type system
+believes exists is only actually guaranteed by a runtime check. Rejecting a
+malformed document at write time is what lets the read side treat a validation
+failure as genuine corruption rather than a routine occurrence. Zod's output is
+what gets stored, so unknown keys are stripped and defaults applied — the
+document on disk matches the schema exactly.
+
+Documents omit the fields their own path already encodes (`runId`, `caseId`,
+`index`); the reader restores them from the document id. *Why not store them
+twice:* two copies of the same fact can disagree.
+
+*Why timestamps stay ISO 8601 strings and not Firestore `Timestamp`:* every
+consumer — the JSON API, the SSE payloads, the dashboard — already speaks ISO
+strings, so a `Timestamp` would need converting at each boundary while gaining
+nothing. The queries this store runs order by document id or by a string field,
+and ISO 8601 sorts correctly either way.
+
+### SSE stays; Firestore listeners are a later option
+
+The dashboard still follows a run over server-sent events published by the
+in-process `RunEventBus`, with Firestore used purely for persistence. Events now
+carry a `caseId` so the client can file each step under the right case.
+
+*Why not point the browser at Firestore's own realtime listeners:* that would
+mean shipping Firebase credentials to the client and opening security rules that
+are currently deny-all, in exchange for removing a bus that is a few dozen lines.
+Worth revisiting if the dashboard ever needs to follow runs started by a
+different process — which is exactly what the move to Firestore makes possible.
 
 ### Structured logs: NDJSON on stderr, validated by Zod
 
@@ -242,9 +336,19 @@ harmless in production.
 
 ### Scenarios: files plus ad-hoc runs
 
-Test scenarios live in the repo as YAML/Markdown so they can be reviewed,
-versioned, and replayed in CI. The dashboard can also run one-off prompts that
-were never committed.
+Test scenarios live in the repo as YAML so they can be reviewed, versioned, and
+replayed in CI. The dashboard can also run one-off prompts that were never
+committed, optionally against a model picked from a dropdown that
+`GET /api/models` fills from the LLM endpoint's `/v1/models`.
+
+*Why the model list is proxied through the server:* LM Studio sends no CORS
+headers, so the browser cannot call it directly. Embedding models are filtered
+out of the listing by id, since one cannot produce a decision and choosing it
+would only yield a failed run.
+
+An ad-hoc prompt becomes a scenario of exactly one case, so the runner has a
+single shape to execute and the resulting history looks the same whether it came
+from a file or the form.
 
 ### Tooling and process
 

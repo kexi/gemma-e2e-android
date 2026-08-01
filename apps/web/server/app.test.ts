@@ -2,15 +2,19 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Run, Step } from "@gemma-e2e/core";
+import type { CaseRun, Run, Step } from "@gemma-e2e/core";
 import { createLogger, type LogEvent } from "@gemma-e2e/logger";
 import type { RunEvent } from "@gemma-e2e/agent";
 import { RunEventBus } from "./bus.ts";
 import { createApp, type StartRunInput, type StoreReader } from "./app.ts";
 
 const LOGIN_YAML = `title: Login
-prompt: Check that a user can log in.
-maxSteps: 5
+cases:
+  - id: valid
+    prompt: Check that a user can log in.
+    maxSteps: 5
+  - id: invalid
+    prompt: Check that a wrong password is rejected.
 `;
 
 class FakeStore implements StoreReader {
@@ -21,19 +25,19 @@ class FakeStore implements StoreReader {
     return run;
   }
 
-  listRuns(): Run[] {
+  async listRuns(): Promise<Run[]> {
     return [...this.runs.values()].sort((a, b) => b.startedAt.localeCompare(a.startedAt));
   }
 
-  getRun(id: string): Run | null {
+  async getRun(id: string): Promise<Run | null> {
     return this.runs.get(id) ?? null;
   }
 }
 
 function step(index: number, overrides: Partial<Step> = {}): Step {
   return {
-    id: index + 1,
     runId: "run-1",
+    caseId: "valid",
     index,
     action: { type: "tap", ref: index },
     uiText: `[${index}] Button`,
@@ -44,17 +48,33 @@ function step(index: number, overrides: Partial<Step> = {}): Step {
   };
 }
 
-function run(overrides: Partial<Run> = {}): Run {
+function caseRun(overrides: Partial<CaseRun> = {}): CaseRun {
   return {
-    id: "run-1",
-    scenarioId: "login",
-    title: "Login",
+    runId: "run-1",
+    caseId: "valid",
+    order: 0,
+    title: "Logs in",
     prompt: "Check that a user can log in.",
+    model: "gemma-4-12b",
     status: "passed",
     verdictReason: "greeting is visible",
     startedAt: "2026-01-01T00:00:00.000Z",
     finishedAt: "2026-01-01T00:01:00.000Z",
     steps: [],
+    ...overrides,
+  };
+}
+
+function run(overrides: Partial<Run> = {}): Run {
+  return {
+    id: "run-1",
+    scenarioId: "login",
+    title: "Login",
+    status: "passed",
+    verdictReason: "all 1 cases passed",
+    startedAt: "2026-01-01T00:00:00.000Z",
+    finishedAt: "2026-01-01T00:01:00.000Z",
+    cases: [],
     ...overrides,
   };
 }
@@ -84,14 +104,16 @@ function harness(bus?: RunEventBus) {
 }
 
 describe("GET /api/scenarios", () => {
-  test("lists the scenarios on disk with their prompts", async () => {
+  test("lists the scenarios on disk with their cases", async () => {
     const res = await harness().request("/api/scenarios");
 
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { scenarios: { id: string; title: string }[] };
+    const body = (await res.json()) as {
+      scenarios: { id: string; title: string; cases: { id: string }[] }[];
+    };
     expect(body.scenarios).toHaveLength(1);
     expect(body.scenarios[0]?.id).toBe("login");
-    expect(body.scenarios[0]?.title).toBe("Login");
+    expect(body.scenarios[0]?.cases.map((c) => c.id)).toEqual(["valid", "invalid"]);
   });
 
   test("reports a missing directory as a server error rather than crashing", async () => {
@@ -107,8 +129,47 @@ describe("GET /api/scenarios", () => {
   });
 });
 
+describe("GET /api/models", () => {
+  test("returns the models the endpoint offers", async () => {
+    const app = createApp({
+      store,
+      scenariosDir,
+      startRun: () => {},
+      listModels: async () => [{ id: "gemma-4-12b" }, { id: "gemma-4-e4b" }],
+    });
+
+    const res = await app.request("/api/models");
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { models: { id: string }[] };
+    expect(body.models.map((m) => m.id)).toEqual(["gemma-4-12b", "gemma-4-e4b"]);
+  });
+
+  test("reports 503 when no model source is configured", async () => {
+    const res = await harness().request("/api/models");
+
+    expect(res.status).toBe(503);
+  });
+
+  test("reports 503 when the model server is unreachable", async () => {
+    const app = createApp({
+      store,
+      scenariosDir,
+      startRun: () => {},
+      listModels: async () => {
+        throw new Error("connection refused");
+      },
+    });
+
+    const res = await app.request("/api/models");
+
+    expect(res.status).toBe(503);
+    expect((await res.json()) as { error: string }).toMatchObject({ error: "connection refused" });
+  });
+});
+
 describe("POST /api/runs", () => {
-  test("accepts a scenario id and schedules that scenario", async () => {
+  test("accepts a scenario id and schedules every case in that scenario", async () => {
     const res = await harness().request("/api/runs", {
       method: "POST",
       body: JSON.stringify({ scenarioId: "login" }),
@@ -122,10 +183,10 @@ describe("POST /api/runs", () => {
     expect(started).toHaveLength(1);
     expect(started[0]?.runId).toBe(body.runId);
     expect(started[0]?.scenario.id).toBe("login");
-    expect(started[0]?.scenario.prompt).toBe("Check that a user can log in.");
+    expect(started[0]?.scenario.cases.map((c) => c.id)).toEqual(["valid", "invalid"]);
   });
 
-  test("accepts an ad-hoc prompt and schedules a synthetic scenario", async () => {
+  test("accepts an ad-hoc prompt and schedules a one-case scenario", async () => {
     const res = await harness().request("/api/runs", {
       method: "POST",
       body: JSON.stringify({ prompt: "open settings", title: "Settings smoke" }),
@@ -134,8 +195,29 @@ describe("POST /api/runs", () => {
 
     expect(res.status).toBe(202);
     expect(started[0]?.scenario.title).toBe("Settings smoke");
-    expect(started[0]?.scenario.prompt).toBe("open settings");
-    expect(started[0]?.scenario.maxSteps).toBeGreaterThan(0);
+    expect(started[0]?.scenario.cases).toHaveLength(1);
+    expect(started[0]?.scenario.cases[0]?.prompt).toBe("open settings");
+    expect(started[0]?.scenario.cases[0]?.maxSteps).toBeGreaterThan(0);
+  });
+
+  test("carries an ad-hoc model choice onto the case", async () => {
+    await harness().request("/api/runs", {
+      method: "POST",
+      body: JSON.stringify({ prompt: "open settings", model: "gemma-4-e4b" }),
+      headers: { "content-type": "application/json" },
+    });
+
+    expect(started[0]?.scenario.cases[0]?.model).toBe("gemma-4-e4b");
+  });
+
+  test("leaves the model unset when the ad-hoc body names none", async () => {
+    await harness().request("/api/runs", {
+      method: "POST",
+      body: JSON.stringify({ prompt: "open settings" }),
+      headers: { "content-type": "application/json" },
+    });
+
+    expect(started[0]?.scenario.cases[0]?.model).toBeUndefined();
   });
 
   test("rejects a body with neither a scenario id nor a prompt", async () => {
@@ -185,15 +267,16 @@ describe("GET /api/runs", () => {
 });
 
 describe("GET /api/runs/:id", () => {
-  test("returns the run with its steps", async () => {
-    store.add(run({ steps: [step(0), step(1)] }));
+  test("returns the run with its cases and their steps", async () => {
+    store.add(run({ cases: [caseRun({ steps: [step(0), step(1)] })] }));
 
     const res = await harness().request("/api/runs/run-1");
 
     expect(res.status).toBe(200);
     const body = (await res.json()) as { run: Run };
     expect(body.run.status).toBe("passed");
-    expect(body.run.steps.map((s) => s.index)).toEqual([0, 1]);
+    expect(body.run.cases).toHaveLength(1);
+    expect(body.run.cases[0]?.steps.map((s) => s.index)).toEqual([0, 1]);
   });
 
   test("returns 404 for an unknown run", async () => {
@@ -204,12 +287,12 @@ describe("GET /api/runs/:id", () => {
 });
 
 /** Reads an SSE body until the stream closes, returning the parsed payloads. */
-async function collectSse(res: Response): Promise<{ type: string }[]> {
+async function collectSse(res: Response): Promise<{ type: string; caseId?: string }[]> {
   const text = await res.text();
   return text
     .split("\n")
     .filter((line) => line.startsWith("data: "))
-    .map((line) => JSON.parse(line.slice("data: ".length)) as { type: string });
+    .map((line) => JSON.parse(line.slice("data: ".length)) as { type: string; caseId?: string });
 }
 
 describe("GET /api/runs/:id/events", () => {
@@ -219,8 +302,14 @@ describe("GET /api/runs/:id/events", () => {
     expect(res.status).toBe(404);
   });
 
-  test("replays recorded steps and a terminal event for a finished run", async () => {
-    store.add(run({ status: "failed", verdictReason: "no greeting", steps: [step(0), step(1)] }));
+  test("replays each case with its steps and a terminal event", async () => {
+    store.add(
+      run({
+        status: "failed",
+        verdictReason: "1 of 1 cases did not pass",
+        cases: [caseRun({ status: "failed", verdictReason: "no greeting", steps: [step(0)] })],
+      }),
+    );
 
     const res = await harness().request("/api/runs/run-1/events");
 
@@ -228,13 +317,62 @@ describe("GET /api/runs/:id/events", () => {
     expect(res.headers.get("content-type")).toContain("text/event-stream");
 
     const events = await collectSse(res);
-    expect(events.map((e) => e.type)).toEqual(["step_recorded", "step_recorded", "run_finished"]);
-    expect(events[2]).toMatchObject({ status: "failed", reason: "no greeting" });
+    expect(events.map((e) => e.type)).toEqual([
+      "case_started",
+      "step_recorded",
+      "case_finished",
+      "run_finished",
+    ]);
+    expect(events[3]).toMatchObject({ status: "failed" });
+  });
+
+  test("tags every replayed per-case event with its caseId", async () => {
+    store.add(
+      run({
+        cases: [
+          caseRun({ caseId: "valid", order: 0, steps: [step(0)] }),
+          caseRun({ caseId: "invalid", order: 1, steps: [step(0, { caseId: "invalid" })] }),
+        ],
+      }),
+    );
+
+    const events = await collectSse(await harness().request("/api/runs/run-1/events"));
+
+    const stepEvents = events.filter((e) => e.type === "step_recorded");
+    expect(stepEvents.map((e) => e.caseId)).toEqual(["valid", "invalid"]);
+  });
+
+  test("omits case_finished for a case still running", async () => {
+    store.add(
+      run({
+        status: "running",
+        finishedAt: null,
+        cases: [caseRun({ status: "running", finishedAt: null, verdictReason: null })],
+      }),
+    );
+    const bus = new RunEventBus();
+
+    const res = await harness(bus).request("/api/runs/run-1/events");
+    void (async () => {
+      while (bus.listenerCount("run-1") === 0) {
+        await Bun.sleep(1);
+      }
+      bus.publish({ type: "run_finished", runId: "run-1", status: "passed", reason: "done" });
+    })();
+
+    const events = await collectSse(res);
+    expect(events.map((e) => e.type)).toEqual(["case_started", "run_finished"]);
   });
 
   test("replays existing steps then streams live events until the run finishes", async () => {
     const bus = new RunEventBus();
-    store.add(run({ status: "running", finishedAt: null, steps: [step(0)] }));
+    store.add(
+      run({
+        status: "running",
+        finishedAt: null,
+        cases: [caseRun({ status: "running", finishedAt: null, steps: [step(0)] })],
+      }),
+    );
 
     const res = await harness(bus).request("/api/runs/run-1/events");
     expect(res.status).toBe(200);
@@ -243,8 +381,9 @@ describe("GET /api/runs/:id/events", () => {
     // live events have to be published from a task that runs concurrently with
     // the read below rather than before it.
     const live: RunEvent[] = [
-      { type: "step_recorded", runId: "run-1", step: step(1) },
-      { type: "run_finished", runId: "run-1", status: "passed", reason: "done" },
+      { type: "step_recorded", runId: "run-1", caseId: "valid", step: step(1) },
+      { type: "case_finished", runId: "run-1", caseId: "valid", status: "passed", reason: "done" },
+      { type: "run_finished", runId: "run-1", status: "passed", reason: "all 1 cases passed" },
     ];
     void (async () => {
       while (bus.listenerCount("run-1") === 0) {
@@ -256,7 +395,13 @@ describe("GET /api/runs/:id/events", () => {
     })();
 
     const events = await collectSse(res);
-    expect(events.map((e) => e.type)).toEqual(["step_recorded", "step_recorded", "run_finished"]);
+    expect(events.map((e) => e.type)).toEqual([
+      "case_started",
+      "step_recorded",
+      "step_recorded",
+      "case_finished",
+      "run_finished",
+    ]);
   });
 });
 
@@ -321,6 +466,25 @@ describe("structured logging", () => {
 
     expect(log.events().find((e) => e.event === "http.scenarios_failed")).toMatchObject({
       level: "error",
+    });
+  });
+
+  test("warns when the model endpoint cannot be reached", async () => {
+    const log = capture();
+    const app = createApp({
+      store: new FakeStore(),
+      scenariosDir,
+      startRun: () => {},
+      logger: log.logger,
+      listModels: async () => {
+        throw new Error("connection refused");
+      },
+    });
+
+    await app.request("/api/models");
+
+    expect(log.events().find((e) => e.event === "models.unavailable")).toMatchObject({
+      level: "warn",
     });
   });
 

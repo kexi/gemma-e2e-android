@@ -302,4 +302,18 @@ describe("failures", () => {
     await expect(promise).rejects.toBeInstanceOf(AdbError);
     await expect(promise).rejects.toThrow(/device not found/);
   });
+
+  test("names the command once, without doubling the adb binary", async () => {
+    const { run } = recorder([{ exitCode: 1, stdout: "", stderr: "device not found" }]);
+    const promise = new AdbClient({ run }).tap(1, 1);
+
+    await expect(promise).rejects.toThrow(/^adb shell input tap 1 1 failed/);
+  });
+
+  test("keeps a custom adb path in the message", async () => {
+    const { run } = recorder([{ exitCode: 1, stdout: "", stderr: "boom" }]);
+    const promise = new AdbClient({ run, adbPath: "/opt/adb" }).tap(1, 1);
+
+    await expect(promise).rejects.toThrow(/^\/opt\/adb shell input tap 1 1 failed/);
+  });
 });
