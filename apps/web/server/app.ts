@@ -251,6 +251,39 @@ export function createApp(deps: AppDeps) {
     return c.json({ scenario, path });
   });
 
+  // Removes the file and nothing else. Past runs of this scenario stay in
+  // Firestore: a run is a record of what happened, and deleting the scenario it
+  // came from does not make that history untrue.
+  app.delete("/api/scenarios/:id", async (c) => {
+    const id = c.req.param("id");
+    // Same slug rule as POST and PUT, and for the same reason: the id is the
+    // filename, so anything with a separator in it could unlink a file outside
+    // `scenarios/`.
+    const isSlug = SCENARIO_ID_PATTERN.test(id);
+    if (!isSlug) {
+      return c.json({ error: "id must be a lowercase slug (a-z, 0-9, hyphen)" }, 400);
+    }
+
+    const path = join(deps.scenariosDir, `${id}.yaml`);
+    const exists = await Bun.file(path).exists();
+    if (!exists) {
+      return c.json({ error: `no such scenario: ${id}` }, 404);
+    }
+
+    try {
+      await Bun.file(path).delete();
+    } catch (error) {
+      log.error("http.scenario_delete_failed", { path, ...errorFields(error) });
+      const message = error instanceof Error ? error.message : String(error);
+      return c.json({ error: message }, 500);
+    }
+
+    log.info("scenario.deleted", { scenarioId: id, path });
+    // 204 rather than the deleted scenario: the client's next move is to
+    // refetch the listing, and there is nothing left to describe.
+    return c.body(null, 204);
+  });
+
   const listModels = deps.listModels;
   app.get("/api/models", async (c) => {
     const hasSource = listModels !== undefined;

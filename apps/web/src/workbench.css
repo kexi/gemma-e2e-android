@@ -339,6 +339,7 @@ html:active-view-transition-type(backward)::view-transition-new(workbench-main) 
 .builder-add,
 .builder-cancel,
 .builder-save,
+.builder-delete,
 .builder-remove {
   font: inherit;
   border-radius: 4px;
@@ -408,12 +409,23 @@ html:active-view-transition-type(backward)::view-transition-new(workbench-main) 
   font-weight: 500;
 }
 
-.builder-save:disabled {
+/* Red rather than the save blue: the confirming button of a destructive dialog
+   should not look like the one that means "keep going". */
+.builder-delete {
+  border: none;
+  background: #b3261e;
+  color: #fff;
+  font-weight: 500;
+}
+
+.builder-save:disabled,
+.builder-delete:disabled {
   opacity: 0.6;
   cursor: default;
 }
 
-.builder-form :is(button):focus-visible {
+.builder-form :is(button):focus-visible,
+.builder-dialog :is(button):focus-visible {
   outline: 2px solid var(--workbench-focus, #1976d2);
   outline-offset: 2px;
 }

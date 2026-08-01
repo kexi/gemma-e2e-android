@@ -27,6 +27,7 @@ import {
   type Scenario,
 } from "./api.ts";
 import { ScenarioBuilder } from "./ScenarioBuilder.tsx";
+import { ScenarioDelete } from "./ScenarioDelete.tsx";
 import { StatusChip } from "./status.tsx";
 import { useDirectionalNavigate } from "./viewTransition.ts";
 
@@ -157,6 +158,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                   </Typography>
                 </Box>
                 <ScenarioBuilder models={models} scenario={scenario} onSaved={reloadScenarios} />
+                <ScenarioDelete scenario={scenario} onDeleted={reloadScenarios} />
                 <Tooltip title={`Run ${scenario.id}`}>
                   <span>
                     <IconButton

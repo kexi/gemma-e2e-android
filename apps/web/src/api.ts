@@ -63,6 +63,18 @@ export function updateScenario(
   });
 }
 
+/**
+ * Deletes `scenarios/<id>.yaml`. Answers 204 with no body, so this reads the
+ * status directly rather than going through `json`, which expects one.
+ */
+export async function deleteScenario(id: string): Promise<void> {
+  const res = await fetch(`/api/scenarios/${encodeURIComponent(id)}`, { method: "DELETE" });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? `DELETE /api/scenarios/${id} failed (${res.status})`);
+  }
+}
+
 export function fetchRuns(): Promise<{ runs: Run[] }> {
   return json("/api/runs");
 }

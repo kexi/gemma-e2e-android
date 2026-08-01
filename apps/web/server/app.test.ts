@@ -222,6 +222,39 @@ describe("POST /api/scenarios", () => {
   });
 });
 
+describe("DELETE /api/scenarios/:id", () => {
+  function del(id: string) {
+    return harness().request(`/api/scenarios/${id}`, { method: "DELETE" });
+  }
+
+  test("removes the file so the listing no longer reports the scenario", async () => {
+    const res = await del("login");
+
+    expect(res.status).toBe(204);
+    const listed = (await (await harness().request("/api/scenarios")).json()) as {
+      scenarios: { id: string }[];
+    };
+    expect(listed.scenarios.map((one) => one.id)).not.toContain("login");
+    expect(await Bun.file(join(scenariosDir, "login.yaml")).exists()).toBe(false);
+  });
+
+  test("reports a scenario that is not on disk as 404", async () => {
+    const res = await del("nope");
+
+    expect(res.status).toBe(404);
+  });
+
+  test("rejects an id that would escape the scenarios directory", async () => {
+    await writeFile(join(scenariosDir, "..", "escape.yaml"), LOGIN_YAML, "utf8");
+
+    const res = await del("..%2Fescape");
+
+    expect(res.status).toBe(400);
+    expect(await Bun.file(join(scenariosDir, "../escape.yaml")).exists()).toBe(true);
+    await rm(join(scenariosDir, "..", "escape.yaml"), { force: true });
+  });
+});
+
 describe("PUT /api/scenarios/:id", () => {
   function put(id: string, body: unknown) {
     return harness().request(`/api/scenarios/${id}`, {
