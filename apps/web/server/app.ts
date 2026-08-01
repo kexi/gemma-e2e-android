@@ -2,7 +2,18 @@ import { join } from "node:path";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { serveStatic, upgradeWebSocket, websocket } from "hono/bun";
-import { Document as YamlDocument, isScalar, Scalar, visit } from "yaml";
+import {
+  Document as YamlDocument,
+  isMap,
+  isScalar,
+  isSeq as isSequence,
+  type Node as YamlNode,
+  parse as parseYaml,
+  parseDocument,
+  Scalar,
+  visit,
+  type YAMLMap as YamlMap,
+} from "yaml";
 import { loadScenariosDir, type Run, type Scenario, ScenarioSchema } from "@gemma-e2e/core";
 import { errorFields, type Logger, noopLogger } from "@gemma-e2e/logger";
 import type { RunEvent } from "@gemma-e2e/agent";
@@ -164,8 +175,10 @@ export function createApp(deps: AppDeps) {
     return c.json({ scenario, path }, 201);
   });
 
-  // The edit counterpart of POST: same validation, same serialiser, so a
-  // scenario keeps the house style whether it was written once or ten times.
+  // The edit counterpart of POST, but it updates the file in place rather than
+  // re-serialising from scratch: scenarios are hand-edited, git-managed files
+  // whose comments explain the cases, and rebuilding the document would delete
+  // that prose without anyone asking.
   app.put("/api/scenarios/:id", async (c) => {
     const targetId = c.req.param("id");
 
@@ -216,8 +229,18 @@ export function createApp(deps: AppDeps) {
       return c.json({ error: `no such scenario: ${scenario.id}` }, 404);
     }
 
+    let updated: string;
     try {
-      await Bun.write(path, toScenarioYaml(scenario));
+      const current = await Bun.file(path).text();
+      updated = editScenarioYaml(current, scenario);
+    } catch (error) {
+      log.error("http.scenario_edit_failed", { path, ...errorFields(error) });
+      const message = error instanceof Error ? error.message : String(error);
+      return c.json({ error: message }, 500);
+    }
+
+    try {
+      await Bun.write(path, updated);
     } catch (error) {
       log.error("http.scenario_write_failed", { path, ...errorFields(error) });
       const message = error instanceof Error ? error.message : String(error);
@@ -474,10 +497,16 @@ export function createApp(deps: AppDeps) {
 function toScenarioYaml(scenario: Scenario): string {
   const { id: _id, ...rest } = scenario;
   const doc = new YamlDocument(rest);
+  foldPrompts(doc);
+  return doc.toString({ lineWidth: 80 });
+}
 
-  // Only prompts are folded, not every string: a global block-scalar default
-  // would turn `id: login` into a three-line scalar as well.
-  visit(doc, {
+/**
+ * Only prompts are folded, not every string: a global block-scalar default
+ * would turn `id: login` into a three-line scalar as well.
+ */
+function foldPrompts(node: YamlDocument | YamlNode): void {
+  visit(node, {
     Pair(_index, pair) {
       const key = pair.key;
       const isPrompt = isScalar(key) && key.value === "prompt";
@@ -491,8 +520,162 @@ function toScenarioYaml(scenario: Scenario): string {
       }
     },
   });
+}
 
-  return doc.toString({ lineWidth: 80 });
+/** The scenario keys, in the order `toScenarioYaml` emits them. */
+const SCENARIO_KEYS = ["title", "app", "model", "cases"] as const;
+
+/**
+ * Rewrites `current` so it describes `scenario`, reusing the existing nodes
+ * wherever the edit left them addressable. Reuse is what preserves comments:
+ * the `yaml` parser hangs each one off the node it precedes, so an untouched
+ * node carries its prose through to the output. Cases are matched by `id`
+ * rather than by position, so reordering and inserting move comments with the
+ * case they document; a deleted case takes its own comment with it.
+ *
+ * Throws if the result would not load back as a scenario, so a merge bug
+ * cannot quietly corrupt a git-managed file.
+ */
+function editScenarioYaml(current: string, scenario: Scenario): string {
+  // Widened from the parser's ParsedNode tree: every node it hands back carries
+  // source ranges that nodes built by `createNode` cannot have, so the narrow
+  // type rejects the very substitution this merge exists to perform.
+  const doc = parseDocument(current) as YamlDocument;
+  const root = doc.contents;
+  const isMapping = isMap(root);
+  if (!isMapping) {
+    // Nothing addressable to merge into, so fall back to a clean rebuild --
+    // there are no comments worth saving in a file this broken anyway.
+    return toScenarioYaml(scenario);
+  }
+
+  // The file's leading comment documents the scenario, not whichever key
+  // happens to sort first, so it is detached before the keys are reordered and
+  // reattached to the new first key afterwards.
+  const head = takeHeadComment(root);
+
+  const { id: _id, ...rest } = scenario;
+  const previous = new Map(root.items.map((pair) => [scalarKeyOf(pair), pair] as const));
+  root.items = SCENARIO_KEYS.filter((key) => rest[key] !== undefined).map((key) => {
+    const existing = previous.get(key);
+    const isNew = existing === undefined;
+    if (isNew) {
+      return doc.createPair(key, rest[key]);
+    }
+    const isCases = key === "cases";
+    existing.value = isCases
+      ? mergeCases(doc, existing.value, scenario.cases)
+      : doc.createNode(rest[key]);
+    return existing;
+  });
+
+  restoreHeadComment(root, head);
+  foldPrompts(doc);
+
+  const updated = doc.toString({ lineWidth: 80 });
+  assertLoadsBack(updated, scenario);
+  return updated;
+}
+
+/**
+ * Rebuilds the `cases` sequence around the edited list, keeping each surviving
+ * case's own node so its comments and the blank line before it survive. The
+ * per-case fields are replaced wholesale: a comment inside a case body is tied
+ * to a field the edit may have dropped, and tracking that is not worth the
+ * complexity for the value it returns.
+ */
+function mergeCases(doc: YamlDocument, existing: unknown, cases: Scenario["cases"]): YamlNode {
+  const isSeq = isSequence(existing);
+  if (!isSeq) {
+    return doc.createNode(cases) as YamlNode;
+  }
+
+  // A comment before the very first item is parsed as the sequence's own, but
+  // it describes that first case, so it moves onto the item before any
+  // reordering can strand it above a case it was never about.
+  const first = existing.items[0];
+  const hasLeadIn = existing.commentBefore !== undefined && isMap(first);
+  if (hasLeadIn) {
+    first.commentBefore = (existing.commentBefore ?? "") + (first.commentBefore ?? "");
+    delete existing.commentBefore;
+  }
+
+  const previous = new Map<string, YamlMap>();
+  for (const item of existing.items) {
+    const isCaseMap = isMap(item);
+    if (!isCaseMap) {
+      continue;
+    }
+    const id = item.get("id");
+    const hasId = typeof id === "string" && !previous.has(id);
+    if (hasId) {
+      previous.set(id, item);
+    }
+  }
+
+  existing.items = cases.map((testCase) => {
+    const reused = previous.get(testCase.id);
+    const isNew = reused === undefined;
+    if (isNew) {
+      return doc.createNode(testCase);
+    }
+    reused.items = (doc.createNode(testCase) as YamlMap).items;
+    return reused;
+  });
+
+  // The house style separates cases with a blank line and starts the block
+  // flush against `cases:`, which a reused node's own spacing may contradict.
+  existing.items.forEach((item, index) => {
+    const isNode = isMap(item) || isScalar(item);
+    if (isNode) {
+      item.spaceBefore = index > 0;
+    }
+  });
+
+  return existing;
+}
+
+/** Detaches the comment sitting above the first key, if there is one. */
+function takeHeadComment(root: YamlMap): string | null {
+  const first = root.items[0];
+  const key = first?.key;
+  const hasHead = isScalar(key) && key.commentBefore !== undefined;
+  if (!hasHead) {
+    return null;
+  }
+  const head = key.commentBefore ?? null;
+  delete key.commentBefore;
+  return head;
+}
+
+function restoreHeadComment(root: YamlMap, head: string | null): void {
+  const key = root.items[0]?.key;
+  const canRestore = head !== null && isScalar(key);
+  if (!canRestore) {
+    return;
+  }
+  key.commentBefore = head + (key.commentBefore ?? "");
+}
+
+function scalarKeyOf(pair: { key: unknown }): string | null {
+  const key = pair.key;
+  return isScalar(key) && typeof key.value === "string" ? key.value : null;
+}
+
+/**
+ * Guards the write: the merge edits a parsed document by hand, so the only
+ * honest proof that it stayed a scenario is reading the text back the way the
+ * loader will.
+ */
+function assertLoadsBack(yaml: string, scenario: Scenario): void {
+  const parsed = parseYaml(yaml) as unknown;
+  const result = ScenarioSchema.safeParse({ id: scenario.id, ...(parsed as object) });
+  if (!result.success) {
+    const issues = result.error.issues
+      .map((issue) => `${issue.path.join(".") || "<root>"}: ${issue.message}`)
+      .join("; ");
+    throw new Error(`edited scenario would not load back (${issues})`);
+  }
 }
 
 function findDuplicateCaseId(scenario: Scenario): string | null {

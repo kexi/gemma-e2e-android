@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { CaseRun, Run, Step } from "@gemma-e2e/core";
+import type { CaseRun, Run, Scenario, Step } from "@gemma-e2e/core";
 import { createLogger, type LogEvent } from "@gemma-e2e/logger";
 import type { RunEvent } from "@gemma-e2e/agent";
 import { RunEventBus } from "./bus.ts";
@@ -328,6 +328,115 @@ describe("PUT /api/scenarios/:id", () => {
     });
 
     expect(res.status).toBe(400);
+  });
+
+  describe("comments in the edited file", () => {
+    // Mirrors the shape of the committed scenarios: a header explaining the
+    // file, a comment introducing a key, and one per case.
+    const COMMENTED_YAML = `# What this scenario covers, in the author's words.
+# A second header line, so multi-line prose is covered too.
+title: Login
+# Cases fall back to the scenario model.
+cases:
+  # The happy path.
+  - id: valid
+    prompt: Check that a user can log in.
+    maxSteps: 5
+
+  # The failure path.
+  - id: invalid
+    prompt: Check that a wrong password is rejected.
+`;
+
+    async function editCommented(body: (current: Scenario) => unknown): Promise<string> {
+      await writeFile(join(scenariosDir, "login.yaml"), COMMENTED_YAML, "utf8");
+      const listed = (await (await harness().request("/api/scenarios")).json()) as {
+        scenarios: Scenario[];
+      };
+      const current = listed.scenarios.find((one) => one.id === "login");
+      if (current === undefined) {
+        throw new Error("fixture did not load");
+      }
+
+      const res = await put("login", body(current));
+      expect(res.status).toBe(200);
+      return await readFile(join(scenariosDir, "login.yaml"), "utf8");
+    }
+
+    test("keeps every comment when only the title changes", async () => {
+      const written = await editCommented((current) => ({
+        ...current,
+        title: "Login (revised)",
+      }));
+
+      expect(written).toContain("# What this scenario covers, in the author's words.");
+      expect(written).toContain("# A second header line, so multi-line prose is covered too.");
+      expect(written).toContain("# Cases fall back to the scenario model.");
+      expect(written).toContain("# The happy path.");
+      expect(written).toContain("# The failure path.");
+      expect(written).toContain("title: Login (revised)");
+      expect(written).not.toContain("title: Login\n");
+    });
+
+    test("keeps the header comment anchored to the top of the file", async () => {
+      const written = await editCommented((current) => ({
+        ...current,
+        title: "Login (revised)",
+      }));
+
+      expect(written.startsWith("# What this scenario covers, in the author's words.\n")).toBe(
+        true,
+      );
+    });
+
+    test("keeps the surviving comments when a case is added", async () => {
+      const written = await editCommented((current) => ({
+        ...current,
+        cases: [...current.cases, { id: "locked-out", prompt: "Check the lockout message." }],
+      }));
+
+      expect(written).toContain("# The happy path.");
+      expect(written).toContain("# The failure path.");
+      expect(written).toContain("id: locked-out");
+    });
+
+    test("keeps the remaining case's comment when the first case is deleted", async () => {
+      const written = await editCommented((current) => ({
+        ...current,
+        cases: current.cases.filter((one) => one.id !== "valid"),
+      }));
+
+      // The deleted case takes its own comment with it; the survivor keeps hers.
+      expect(written).toContain("# The failure path.");
+      expect(written).not.toContain("# The happy path.");
+      expect(written).not.toContain("id: valid");
+    });
+
+    test("moves a case's comment with it when the cases are reordered", async () => {
+      const written = await editCommented((current) => ({
+        ...current,
+        cases: [...current.cases].reverse(),
+      }));
+
+      const failureAt = written.indexOf("# The failure path.");
+      const happyAt = written.indexOf("# The happy path.");
+      expect(failureAt).toBeGreaterThanOrEqual(0);
+      expect(happyAt).toBeGreaterThan(failureAt);
+      // Each comment still sits directly above the case it describes.
+      expect(written.indexOf("id: invalid")).toBeGreaterThan(failureAt);
+      expect(written.indexOf("id: invalid")).toBeLessThan(happyAt);
+    });
+
+    test("leaves an edited file loadable, comments and all", async () => {
+      await editCommented((current) => ({ ...current, title: "Login (revised)" }));
+
+      const listed = (await (await harness().request("/api/scenarios")).json()) as {
+        scenarios: { id: string; title: string; cases: { id: string }[] }[];
+      };
+      const reloaded = listed.scenarios.find((one) => one.id === "login");
+      expect(reloaded).toMatchObject({ title: "Login (revised)" });
+      expect(reloaded?.cases.map((one) => one.id)).toEqual(["valid", "invalid"]);
+    });
   });
 });
 
