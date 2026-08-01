@@ -39,9 +39,19 @@
             [
               cmdline-tools-latest
               platform-tools
+              # 35 is what the emulator image runs; 36 is what Expo SDK 57's
+              # Gradle toolchain compiles against. Both must be present because
+              # Gradle cannot auto-install into the read-only nix store.
               build-tools-35-0-0
+              build-tools-36-0-0
               platforms-android-35
+              platforms-android-36
               emulator
+              # React Native pins this exact NDK and CMake; Gradle cannot
+              # auto-install into the read-only nix store, so both must ship
+              # with the SDK.
+              ndk-27-1-12297006
+              cmake-3-22-1
             ]
             # Emulator system images are multi-GB. Only the Apple Silicon dev
             # machines actually boot an emulator; Linux CI only evaluates the
