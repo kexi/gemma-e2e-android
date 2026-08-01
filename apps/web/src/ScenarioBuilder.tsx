@@ -383,9 +383,16 @@ export function ScenarioBuilder({ models, onCreated }: ScenarioBuilderProps) {
           </button>
 
           <div className="builder-actions">
-            {/* formMethod="dialog" closes without submitting, so Cancel needs no
-                handler of its own; `close` clears the draft. */}
-            <button type="submit" formMethod="dialog" className="builder-cancel">
+            {/* Not formMethod="dialog": a submit-typed button still runs
+                constraint validation (an empty draft blocks the close), and the
+                form's React onSubmit cannot tell the submitter apart, so a
+                filled draft would save instead of cancel. A plain button that
+                closes directly has neither trap; `close` clears the draft. */}
+            <button
+              type="button"
+              className="builder-cancel"
+              onClick={() => dialogRef.current?.close()}
+            >
               Cancel
             </button>
             {/* Left enabled while incomplete: the browser then reports the first
