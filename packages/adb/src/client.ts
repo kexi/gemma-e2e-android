@@ -95,6 +95,16 @@ export function escapeInputText(text: string): string {
 }
 
 /**
+ * Builds the `pkg/activity` component `am start -n` expects. A leading dot is
+ * the platform's shorthand for "relative to the package", which is expanded
+ * here so callers may write either form.
+ */
+function componentName(pkg: string, activity: string): string {
+  const isRelative = activity.startsWith(".");
+  return isRelative ? `${pkg}/${pkg}${activity}` : `${pkg}/${activity}`;
+}
+
+/**
  * Spawns `argv`, killing it after `timeoutMs`, and hands stdout to `collect`.
  * `stdout: "pipe"` guarantees a stream, but Bun's overload-free signature types
  * it as the union of every mode, so the cast states what the options already
@@ -270,21 +280,50 @@ export class AdbClient {
   }
 
   /**
-   * Launches by package, or by explicit component when an activity is given.
-   * `monkey` is the reliable way to start an app whose launcher activity is not
-   * known; `am start` is used when the caller names the component.
+   * Launches by explicit component, resolving the LAUNCHER activity first when
+   * the caller does not name one.
+   *
+   * Why not `monkey -c android.intent.category.LAUNCHER`: it drives the app
+   * through the event injector, which refuses to run on devices whose keypad
+   * profile has no physical keys ("SYS_KEYS has no physical keys but with
+   * factor 2.0%", exit 251) — the case on the project's own emulator. Resolving
+   * the component and using `am start` reaches the same activity with no
+   * dependency on monkey being usable.
    */
   async launchApp(pkg: string, activity?: string): Promise<void> {
-    const hasActivity = activity !== undefined;
-    if (hasActivity) {
-      const component = activity.startsWith(".")
-        ? `${pkg}/${pkg}${activity}`
-        : `${pkg}/${activity}`;
-      await this.exec(["shell", "am", "start", "-n", component]);
-      return;
+    const component =
+      activity === undefined ? await this.#resolveLauncher(pkg) : componentName(pkg, activity);
+    await this.exec(["shell", "am", "start", "-n", component]);
+  }
+
+  /**
+   * Asks the package manager for the component an app launches with.
+   *
+   * `resolve-activity` exits 0 whether or not it found anything, printing
+   * "No activity found" on the miss, so the output — not the exit code — is
+   * what decides. With `--brief` a hit prints a metadata line followed by the
+   * `pkg/activity` component on its own line, which is the last non-empty line.
+   */
+  async #resolveLauncher(pkg: string): Promise<string> {
+    const args = ["shell", "cmd", "package", "resolve-activity", "--brief", pkg];
+    const stdout = await this.exec(args);
+
+    const component = stdout
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line !== "")
+      .at(-1);
+
+    const resolved = component !== undefined && component.startsWith(`${pkg}/`);
+    if (!resolved) {
+      throw this.#fail(this.buildArgv(args), {
+        exitCode: 0,
+        stdout,
+        stderr: `no launcher activity found for ${pkg}`,
+      });
     }
 
-    await this.exec(["shell", "monkey", "-p", pkg, "-c", "android.intent.category.LAUNCHER", "1"]);
+    return component;
   }
 
   async stopApp(pkg: string): Promise<void> {

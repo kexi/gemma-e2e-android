@@ -147,25 +147,56 @@ describe("escapeInputText", () => {
 });
 
 describe("app lifecycle", () => {
-  test("launchApp without an activity uses monkey", async () => {
-    const { calls, run } = recorder();
+  test("launchApp without an activity resolves the launcher then starts it", async () => {
+    const { calls, run } = recorder([
+      [
+        "priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=false",
+        "com.example.app/.MainActivity",
+        "",
+      ].join("\n"),
+    ]);
+
     await new AdbClient({ run }).launchApp("com.example.app");
+
     expect(calls[0]).toEqual([
       "adb",
       "shell",
-      "monkey",
-      "-p",
+      "cmd",
+      "package",
+      "resolve-activity",
+      "--brief",
       "com.example.app",
-      "-c",
-      "android.intent.category.LAUNCHER",
-      "1",
     ]);
+    expect(calls[1]).toEqual([
+      "adb",
+      "shell",
+      "am",
+      "start",
+      "-n",
+      "com.example.app/.MainActivity",
+    ]);
+  });
+
+  test("launchApp throws when the package has no launcher activity", async () => {
+    const { calls, run } = recorder(["No activity found\n"]);
+
+    await expect(new AdbClient({ run }).launchApp("com.example.app")).rejects.toBeInstanceOf(
+      AdbError,
+    );
+    expect(calls).toHaveLength(1);
   });
 
   test("launchApp expands a relative activity into a full component", async () => {
     const { calls, run } = recorder();
     await new AdbClient({ run }).launchApp("com.example.app", ".MainActivity");
-    expect(calls[0]?.at(-1)).toBe("com.example.app/com.example.app.MainActivity");
+    expect(calls[0]).toEqual([
+      "adb",
+      "shell",
+      "am",
+      "start",
+      "-n",
+      "com.example.app/com.example.app.MainActivity",
+    ]);
   });
 
   test("launchApp passes an absolute activity through", async () => {

@@ -62,8 +62,10 @@ pin:
 pin-check:
     pinact run -fix=false -no-api
 
-# Local equivalent of CI.
-check: lint fmt-check typecheck secrets pin-check
+# Every gate a change has to clear, run locally. A superset of CI: it adds the
+# typecheck, tests and action-pin check that CI does not have jobs for yet, so a
+# green `just check` implies a green CI but not the reverse.
+check: lint fmt-check typecheck test secrets pin-check
 
 # Create the development AVD (AVDs live in ~/.android/avd, outside nix; this recipe is the reproducible part).
 avd-create:
