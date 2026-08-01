@@ -70,8 +70,13 @@ avd-create:
     avdmanager create avd --force --name {{ avd_name }} --package "{{ system_image }}" --device pixel_7
 
 # Boot the AVD headless. Drop --no-window to watch the screen.
+# -grpc 8554 exposes the EmulatorController service the dashboard's Device page
+# streams frames from. It binds to localhost only and, without -grpc-use-token
+# or -grpc-use-jwt, takes no authentication -- acceptable because the port never
+# leaves the machine. Nothing else in the repo depends on it, so dropping the
+# flag only costs the live view.
 emu:
-    emulator -avd {{ avd_name }} -no-window -no-audio -no-boot-anim
+    emulator -avd {{ avd_name }} -no-window -no-audio -no-boot-anim -grpc 8554
 
 # Mirror the connected device/emulator screen in a window (works while emu runs headless).
 mirror:

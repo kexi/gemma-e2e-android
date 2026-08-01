@@ -18,6 +18,8 @@
     "@gemma-e2e/core": "workspace:*",
     "@gemma-e2e/logger": "workspace:*",
     "@gemma-e2e/store": "workspace:*",
+    "@grpc/grpc-js": "^1.14.4",
+    "@grpc/proto-loader": "^0.8.1",
     "@mui/icons-material": "9.1.1",
     "@mui/material": "9.1.2",
     "hono": "4.12.32",

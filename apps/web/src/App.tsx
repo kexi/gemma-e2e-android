@@ -24,6 +24,14 @@ export function App() {
           <Button color="inherit" component={RouterLink} to="/runs" startIcon={<HistoryIcon />}>
             History
           </Button>
+          <Button
+            color="inherit"
+            component={RouterLink}
+            to="/device"
+            startIcon={<SmartphoneIcon />}
+          >
+            Device
+          </Button>
         </Toolbar>
       </AppBar>
       <Container maxWidth="lg" sx={{ py: 4, flexGrow: 1 }}>

@@ -10,7 +10,9 @@ export default defineConfig({
     // /api and /screenshots are proxied instead of served: that keeps the
     // browser on one origin and makes SSE work without any CORS handling.
     proxy: {
-      "/api": { target: API_TARGET, changeOrigin: true },
+      // ws:true is required for the Device page's frame stream; without it the
+      // upgrade request is proxied as plain HTTP and the socket never opens.
+      "/api": { target: API_TARGET, changeOrigin: true, ws: true },
       "/screenshots": { target: API_TARGET, changeOrigin: true },
     },
   },

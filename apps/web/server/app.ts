@@ -1,10 +1,16 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { serveStatic } from "hono/bun";
+import { serveStatic, upgradeWebSocket, websocket } from "hono/bun";
 import { loadScenariosDir, type Run, type Scenario } from "@gemma-e2e/core";
 import { errorFields, type Logger, noopLogger } from "@gemma-e2e/logger";
 import type { RunEvent } from "@gemma-e2e/agent";
 import { RunEventBus } from "./bus.ts";
+import {
+  type DeviceStatus,
+  type FrameSink,
+  type FrameStream,
+  relayFrames,
+} from "./device-stream.ts";
 
 /** The slice of Store the dashboard reads; tests inject an in-memory double. */
 export interface StoreReader {
@@ -24,6 +30,15 @@ export interface StartRunInput {
  */
 export type StartRun = (input: StartRunInput) => void;
 
+/**
+ * The emulator-facing half of the Device page. Optional so the dashboard still
+ * boots with no emulator attached, and so tests can leave it out entirely.
+ */
+export interface DeviceSource {
+  getStatus(): Promise<DeviceStatus>;
+  openFrameStream(): FrameStream;
+}
+
 export interface AppDeps {
   store: StoreReader;
   scenariosDir: string;
@@ -33,6 +48,7 @@ export interface AppDeps {
   bus?: RunEventBus | undefined;
   /** Defaults to a no-op so the app tests stay quiet unless they opt in. */
   logger?: Logger | undefined;
+  device?: DeviceSource | undefined;
 }
 
 interface CreateRunBody {
@@ -47,6 +63,11 @@ const AD_HOC_MAX_STEPS = 20;
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim() !== "";
 }
+
+// Bun needs the websocket handler at serve() time, so the entrypoint gets it
+// from here alongside the app. Imported directly from hono/bun rather than
+// built with createBunWebSocket(), which is deprecated in favour of this.
+export { websocket };
 
 export function createApp(deps: AppDeps) {
   const bus = deps.bus ?? new RunEventBus();
@@ -191,6 +212,58 @@ export function createApp(deps: AppDeps) {
       sseLog.info("sse.disconnected", {});
     });
   });
+
+  const device = deps.device;
+  const hasDevice = device !== undefined;
+  if (hasDevice) {
+    app.get("/api/device/status", async (c) => {
+      try {
+        return c.json({ device: await device.getStatus() });
+      } catch (error) {
+        // An emulator that is down is an expected state for this page, not a
+        // server fault: 503 lets the client say "start the emulator" rather
+        // than render a crash.
+        log.warn("device.status_unavailable", errorFields(error));
+        const message = error instanceof Error ? error.message : String(error);
+        return c.json({ error: message }, 503);
+      }
+    });
+
+    app.get(
+      "/api/device/stream",
+      upgradeWebSocket(() => {
+        let stop: (() => void) | null = null;
+        return {
+          onOpen(_event, ws) {
+            const sink: FrameSink = {
+              send: (data) => {
+                ws.send(data);
+              },
+              close: (code, reason) => {
+                ws.close(code, reason);
+              },
+            };
+            // Throttled to ~20 fps: streamScreenshot only emits on change, so
+            // this caps a busy animation without adding latency to an idle
+            // screen, where frames are already rare.
+            stop = relayFrames(() => device.openFrameStream(), sink, {
+              minFrameIntervalMs: 50,
+              logger: log,
+            });
+          },
+          onClose() {
+            stop?.();
+            stop = null;
+          },
+          onError(event) {
+            log.warn("device.socket_failed", { event: String(event) });
+            stop?.();
+            stop = null;
+          },
+        };
+      }),
+    );
+  }
 
   const hasScreenshots = deps.screenshotsDir !== undefined;
   if (hasScreenshots) {

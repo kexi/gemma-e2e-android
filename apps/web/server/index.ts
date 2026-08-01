@@ -3,7 +3,8 @@ import { AdbClient } from "@gemma-e2e/adb";
 import { GenkitLlm, runScenario } from "@gemma-e2e/agent";
 import { createLogger, errorFields, parseLogLevel } from "@gemma-e2e/logger";
 import { Store } from "@gemma-e2e/store";
-import { createApp, type StartRunInput } from "./app.ts";
+import { createApp, type StartRunInput, websocket } from "./app.ts";
+import { DEFAULT_EMULATOR_GRPC_TARGET, EmulatorClient } from "./device-stream.ts";
 
 const DEFAULT_PORT = 5175;
 
@@ -53,15 +54,28 @@ function startRun({ runId, scenario, onEvent }: StartRunInput): void {
 
 const isProduction = await Bun.file(join(clientDir, "index.html")).exists();
 
+// Constructed unconditionally: grpc-js connects lazily, so an emulator that is
+// absent (or started without -grpc) costs nothing here and instead surfaces as
+// a 503 on /api/device/status, which the Device page renders as guidance.
+const emulatorGrpcTarget = process.env["EMULATOR_GRPC"] ?? DEFAULT_EMULATOR_GRPC_TARGET;
+const device = new EmulatorClient(emulatorGrpcTarget, { logger });
+
 const app = createApp({
   store,
   scenariosDir,
   startRun,
   screenshotsDir,
   logger,
+  device,
   ...(isProduction ? { clientDir } : {}),
 });
 
-logger.info("server.started", { port, scenariosDir, varDir, mode: isProduction ? "prod" : "dev" });
+logger.info("server.started", {
+  port,
+  scenariosDir,
+  varDir,
+  emulatorGrpcTarget,
+  mode: isProduction ? "prod" : "dev",
+});
 
-export default { port, fetch: app.fetch };
+export default { port, fetch: app.fetch, websocket };

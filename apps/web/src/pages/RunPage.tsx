@@ -13,6 +13,7 @@ import Typography from "@mui/material/Typography";
 import type { Run, RunStatus, Step } from "@gemma-e2e/core/schema";
 import { fetchRun, screenshotUrl } from "../api.ts";
 import { actionIcon, describeAction, StatusChip } from "../status.tsx";
+import { DeviceLiveView } from "../DeviceLiveView.tsx";
 
 interface StepRecorded {
   type: "step_recorded";
@@ -122,43 +123,68 @@ export function RunPage() {
 
       {isRunning && <LinearProgress />}
 
-      <Stack spacing={2}>
-        {steps.map((step) => (
-          <Card key={step.index} variant="outlined">
-            <CardContent>
-              <Stack direction="row" spacing={2} sx={{ alignItems: "flex-start" }}>
-                <Avatar sx={{ bgcolor: step.note === null ? "primary.main" : "error.main" }}>
-                  {actionIcon(step.action)}
-                </Avatar>
-                <Box sx={{ flexGrow: 1 }}>
-                  <Typography variant="subtitle1">
-                    {step.index + 1}. {describeAction(step.action)}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {new Date(step.createdAt).toLocaleTimeString()}
-                  </Typography>
-                  {step.note !== null && (
-                    <Alert severity="warning" sx={{ mt: 1 }}>
-                      {step.note}
-                    </Alert>
+      <Stack direction={{ xs: "column", md: "row" }} spacing={3} sx={{ alignItems: "flex-start" }}>
+        <Stack spacing={2} sx={{ flexGrow: 1, minWidth: 0, width: "100%" }}>
+          {steps.map((step) => (
+            <Card key={step.index} variant="outlined">
+              <CardContent>
+                <Stack direction="row" spacing={2} sx={{ alignItems: "flex-start" }}>
+                  <Avatar sx={{ bgcolor: step.note === null ? "primary.main" : "error.main" }}>
+                    {actionIcon(step.action)}
+                  </Avatar>
+                  <Box sx={{ flexGrow: 1 }}>
+                    <Typography variant="subtitle1">
+                      {step.index + 1}. {describeAction(step.action)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {new Date(step.createdAt).toLocaleTimeString()}
+                    </Typography>
+                    {step.note !== null && (
+                      <Alert severity="warning" sx={{ mt: 1 }}>
+                        {step.note}
+                      </Alert>
+                    )}
+                  </Box>
+                  {step.screenshotPath !== null && (
+                    <Link
+                      href={screenshotUrl(step.screenshotPath)}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <Box
+                        component="img"
+                        src={screenshotUrl(step.screenshotPath)}
+                        alt={`step ${step.index + 1}`}
+                        sx={{ width: 96, borderRadius: 1, display: "block" }}
+                      />
+                    </Link>
                   )}
-                </Box>
-                {step.screenshotPath !== null && (
-                  <Link href={screenshotUrl(step.screenshotPath)} target="_blank" rel="noreferrer">
-                    <Box
-                      component="img"
-                      src={screenshotUrl(step.screenshotPath)}
-                      alt={`step ${step.index + 1}`}
-                      sx={{ width: 96, borderRadius: 1, display: "block" }}
-                    />
-                  </Link>
-                )}
-              </Stack>
-            </CardContent>
-          </Card>
-        ))}
-        {steps.length === 0 && !isRunning && (
-          <Typography color="text.secondary">No steps were recorded.</Typography>
+                </Stack>
+              </CardContent>
+            </Card>
+          ))}
+          {steps.length === 0 && !isRunning && (
+            <Typography color="text.secondary">No steps were recorded.</Typography>
+          )}
+        </Stack>
+
+        {/* Unmounted the moment the run ends, which is what closes the socket
+            and releases the emulator-side encoder. The finished timeline keeps
+            each step's stored screenshot, so nothing is lost by dropping it. */}
+        {isRunning && (
+          <Box
+            sx={{
+              width: { xs: "100%", md: 320 },
+              flexShrink: 0,
+              position: { md: "sticky" },
+              top: { md: 16 },
+            }}
+          >
+            <Typography variant="subtitle2" gutterBottom>
+              Live screen
+            </Typography>
+            <DeviceLiveView maxHeight="60vh" showHint={false} />
+          </Box>
         )}
       </Stack>
     </Stack>

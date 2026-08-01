@@ -126,6 +126,20 @@ This starts the Hono API on `http://localhost:5175` and the Vite dev server on
 committed scenario, submit a one-off prompt, watch steps stream in live, and
 browse the run history.
 
+### Live device view
+
+The **Device** page shows the emulator screen live, and a run in progress
+embeds the same view next to its step timeline so you can watch the agent act.
+Frames come off the emulator's gRPC bridge, so the emulator has to be started
+with it — `just emu` passes `-grpc 8554` for exactly this reason. An emulator
+booted without that flag still serves adb and runs scenarios; only the live
+view goes dark, and the page says so.
+
+Frames are delivered only when the screen changes, so a still device shows a
+static image rather than a stalled one. The view is read-only. If it will not
+connect, `just mirror` opens the same screen in scrcpy independently of the
+dashboard. Point the server at a different bridge with `EMULATOR_GRPC=host:port`.
+
 ## 7. Verify
 
 ```sh
