@@ -16,5 +16,8 @@ apps/*/expo-env.d.ts
 # per-machine output of a test run, not source.
 var/
 
+# Per-machine runtime config (LLM_MODEL etc.); .env.example documents the keys.
+.env
+
 # Vite build output for the dashboard SPA.
 apps/*/dist/

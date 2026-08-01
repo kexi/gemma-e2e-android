@@ -40,6 +40,9 @@ build:
 web:
     #!/usr/bin/env bash
     set -euo pipefail
+    # dev:server runs with cwd apps/web, where bun would not see the repo-root
+    # .env, so the recipe exports it before either process starts.
+    if [ -f .env ]; then set -a; . ./.env; set +a; fi
     # Both processes share this shell's process group, so one Ctrl-C stops the
     # pair; the trap covers the case where only one of them dies on its own.
     trap 'kill 0' EXIT INT TERM
