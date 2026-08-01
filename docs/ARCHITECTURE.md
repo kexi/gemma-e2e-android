@@ -80,7 +80,7 @@ its step budget is exhausted.
    └──────────────────┘        (PNG frames)     └─────────┬──────────┘
                                                           │ WebSocket
                                                 ┌─────────▼──────────┐
-                                                │ Device / Run page  │
+                                                │ Workbench main pane│
                                                 └────────────────────┘
 ```
 
@@ -126,6 +126,7 @@ One file each, under [knowledge/](knowledge/index.md).
 | SSE stays; Firestore listeners are a later option | [sse-over-firestore-listeners.md](knowledge/sse-over-firestore-listeners.md) |
 | Live device view: gRPC `streamScreenshot` over a WebSocket | [live-device-view.md](knowledge/live-device-view.md) |
 | Per-case screen recording: `scrcpy --no-playback --record` | [per-case-screen-recording.md](knowledge/per-case-screen-recording.md) |
+| Browser target: latest Chrome, Baseline Newly available, no polyfills | [latest-chrome-baseline-newly.md](knowledge/latest-chrome-baseline-newly.md) |
 
 ### Platform and tooling
 

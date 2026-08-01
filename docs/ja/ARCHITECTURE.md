@@ -115,6 +115,7 @@ packages/*      エージェント本体・adb ラッパ・LLM クライアン�
 | SSE は維持し、Firestore リスナーは将来の選択肢 | [sse-over-firestore-listeners.md](knowledge/sse-over-firestore-listeners.md) |
 | デバイスのライブビュー: gRPC `streamScreenshot` の中継 | [live-device-view.md](knowledge/live-device-view.md) |
 | ケース単位の画面録画: `scrcpy --no-playback --record` | [per-case-screen-recording.md](knowledge/per-case-screen-recording.md) |
+| 対象ブラウザ: 最新 Chrome / Baseline Newly available / ポリフィルなし | [latest-chrome-baseline-newly.md](knowledge/latest-chrome-baseline-newly.md) |
 
 ### プラットフォームとツール
 

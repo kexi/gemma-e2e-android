@@ -35,6 +35,7 @@ English: [../../knowledge/index.md](../../knowledge/index.md)
 - [sse-over-firestore-listeners.md](sse-over-firestore-listeners.md) — SSE は維持し、Firestore リスナーは将来の選択肢
 - [live-device-view.md](live-device-view.md) — デバイスのライブビュー: gRPC `streamScreenshot` を WebSocket で中継
 - [per-case-screen-recording.md](per-case-screen-recording.md) — ケース単位の画面録画: `scrcpy --no-playback --record`
+- [latest-chrome-baseline-newly.md](latest-chrome-baseline-newly.md) — 対象ブラウザ: 最新 Chrome / Baseline Newly available / ポリフィルなし
 
 ## プラットフォームとツール
 

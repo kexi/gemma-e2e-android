@@ -35,6 +35,7 @@ The overview and data-flow diagrams live in
 - [sse-over-firestore-listeners.md](sse-over-firestore-listeners.md) — SSE stays; Firestore listeners are a later option
 - [live-device-view.md](live-device-view.md) — Live device view: gRPC `streamScreenshot` relayed over a WebSocket
 - [per-case-screen-recording.md](per-case-screen-recording.md) — Per-case screen recording: `scrcpy --no-playback --record`
+- [latest-chrome-baseline-newly.md](latest-chrome-baseline-newly.md) — Browser target: latest Chrome, Baseline Newly available, no polyfills
 
 ## Platform and tooling
 

@@ -1,22 +1,24 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
 import CssBaseline from "@mui/material/CssBaseline";
 import { App } from "./App.tsx";
-import { ScenariosPage } from "./pages/ScenariosPage.tsx";
+import { IdlePage } from "./pages/IdlePage.tsx";
 import { RunPage } from "./pages/RunPage.tsx";
-import { HistoryPage } from "./pages/HistoryPage.tsx";
-import { DevicePage } from "./pages/DevicePage.tsx";
+import "./workbench.css";
 
 const router = createBrowserRouter([
   {
     path: "/",
     element: <App />,
     children: [
-      { index: true, element: <ScenariosPage /> },
-      { path: "runs", element: <HistoryPage /> },
+      { index: true, element: <IdlePage /> },
       { path: "runs/:id", element: <RunPage /> },
-      { path: "device", element: <DevicePage /> },
+      // The workbench absorbed both of these: history is the rail's own list,
+      // and the device view is what the idle main pane shows. Bookmarks and
+      // the browser's own history still resolve.
+      { path: "runs", element: <Navigate to="/" replace /> },
+      { path: "device", element: <Navigate to="/" replace /> },
     ],
   },
 ]);

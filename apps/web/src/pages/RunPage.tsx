@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import Accordion from "@mui/material/Accordion";
 import AccordionDetails from "@mui/material/AccordionDetails";
@@ -6,6 +6,7 @@ import AccordionSummary from "@mui/material/AccordionSummary";
 import Alert from "@mui/material/Alert";
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Chip from "@mui/material/Chip";
@@ -14,11 +15,14 @@ import LinearProgress from "@mui/material/LinearProgress";
 import Link from "@mui/material/Link";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import type { CaseRun, Run, RunStatus, Step } from "@gemma-e2e/core/schema";
 import { fetchRun, screenshotUrl, videoUrl } from "../api.ts";
 import { actionIcon, describeAction, StatusChip } from "../status.tsx";
 import { DeviceLiveView } from "../DeviceLiveView.tsx";
+import { UiTreeDetails } from "../UiTreeDetails.tsx";
+import { useDirectionalNavigate } from "../viewTransition.ts";
 
 interface CaseStarted {
   type: "case_started";
@@ -113,11 +117,21 @@ export function RunPage() {
   const [status, setStatus] = useState<RunStatus | null>(null);
   const [reason, setReason] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const navigate = useDirectionalNavigate();
 
   useEffect(() => {
     if (id === undefined) {
       return;
     }
+
+    // A different run means a different timeline; without this the previous
+    // run's cases would linger until the new stream replayed over them.
+    setRun(null);
+    setCases(new Map());
+    setStatus(null);
+    setReason(null);
+    setError(null);
 
     let cancelled = false;
 
@@ -180,6 +194,13 @@ export function RunPage() {
     };
   }, [id]);
 
+  // The view transition swaps the pane's contents but does not move focus, so
+  // the rail button the user clicked would keep it and a screen reader would
+  // never announce the run.
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, [run?.id]);
+
   if (error !== null) {
     return <Alert severity="error">{error}</Alert>;
   }
@@ -193,8 +214,18 @@ export function RunPage() {
   return (
     <Stack spacing={3}>
       <Box>
-        <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-          <Typography variant="h5">{run.title}</Typography>
+        <Button
+          size="small"
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate("/", "backward")}
+          sx={{ mb: 1, ml: -1 }}
+        >
+          Device
+        </Button>
+        <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap" }}>
+          <Typography variant="h5" component="h1" ref={headingRef} tabIndex={-1}>
+            {run.title}
+          </Typography>
           {status !== null && <StatusChip status={status} />}
         </Stack>
         <Typography variant="caption" color="text.secondary">
@@ -210,10 +241,13 @@ export function RunPage() {
 
       {isRunning && <LinearProgress />}
 
-      <Stack direction={{ xs: "column", md: "row" }} spacing={3} sx={{ alignItems: "flex-start" }}>
+      <Stack direction={{ xs: "column", lg: "row" }} spacing={3} sx={{ alignItems: "flex-start" }}>
         <Stack spacing={1} sx={{ flexGrow: 1, minWidth: 0, width: "100%" }}>
-          {ordered.map((caseRun) => (
-            <CaseAccordion key={caseRun.caseId} caseRun={caseRun} />
+          {ordered.map((caseRun, position) => (
+            // The first case is above the fold, where deferring rendering costs
+            // more than it saves: the browser would evaluate its visibility
+            // boundary before it could paint anything at all.
+            <CaseAccordion key={caseRun.caseId} caseRun={caseRun} deferred={position > 0} />
           ))}
           {ordered.length === 0 && !isRunning && (
             <Typography color="text.secondary">No cases were recorded.</Typography>
@@ -226,10 +260,10 @@ export function RunPage() {
         {isRunning && (
           <Box
             sx={{
-              width: { xs: "100%", md: 320 },
+              width: { xs: "100%", lg: 320 },
               flexShrink: 0,
-              position: { md: "sticky" },
-              top: { md: 16 },
+              position: { lg: "sticky" },
+              top: { lg: 0 },
             }}
           >
             <Typography variant="subtitle2" gutterBottom>
@@ -243,13 +277,18 @@ export function RunPage() {
   );
 }
 
-function CaseAccordion({ caseRun }: { caseRun: CaseRun }) {
+function CaseAccordion({ caseRun, deferred }: { caseRun: CaseRun; deferred: boolean }) {
   // Open while it is the case being worked on, and after a failure, which are
   // the two moments the steps are worth reading.
   const startsOpen = caseRun.status !== "passed";
 
   return (
-    <Accordion defaultExpanded={startsOpen} variant="outlined" disableGutters>
+    <Accordion
+      className={deferred ? "deferred-case" : undefined}
+      defaultExpanded={startsOpen}
+      variant="outlined"
+      disableGutters
+    >
       <AccordionSummary expandIcon={<ExpandMoreIcon />}>
         <Stack
           direction="row"
@@ -291,14 +330,20 @@ function CaseAccordion({ caseRun }: { caseRun: CaseRun }) {
             </Box>
           )}
 
-          {caseRun.steps.map((step) => (
-            <Card key={step.index} variant="outlined">
+          {caseRun.steps.map((step, position) => (
+            // Same reasoning as the case list: only the steps that cannot be in
+            // the opening viewport are worth deferring.
+            <Card
+              key={step.index}
+              className={position > 0 ? "deferred-step" : undefined}
+              variant="outlined"
+            >
               <CardContent>
                 <Stack direction="row" spacing={2} sx={{ alignItems: "flex-start" }}>
                   <Avatar sx={{ bgcolor: step.note === null ? "primary.main" : "error.main" }}>
                     {actionIcon(step.action)}
                   </Avatar>
-                  <Box sx={{ flexGrow: 1 }}>
+                  <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                     <Typography variant="subtitle1">
                       {step.index + 1}. {describeAction(step.action)}
                     </Typography>
@@ -309,6 +354,11 @@ function CaseAccordion({ caseRun }: { caseRun: CaseRun }) {
                       <Alert severity="warning" sx={{ mt: 1 }}>
                         {step.note}
                       </Alert>
+                    )}
+                    {step.uiText !== "" && (
+                      <Box sx={{ mt: 1 }}>
+                        <UiTreeDetails uiText={step.uiText} />
+                      </Box>
                     )}
                   </Box>
                   {step.screenshotPath !== null && (

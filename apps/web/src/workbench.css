@@ -1,0 +1,187 @@
+/*
+ * Workbench-wide CSS that MUI's `sx` cannot express: view transition
+ * pseudo-elements, `interpolate-size`, and the `content-visibility` rules that
+ * carry a `contain-intrinsic-size` placeholder.
+ */
+
+:root {
+  /* Enables transitions to `auto` for the case/UI-tree disclosures below.
+     Chrome-only today; elsewhere the open/close simply snaps. */
+  interpolate-size: allow-keywords;
+}
+
+/* ---------------------------------------------------------------------------
+ * Directional view transitions
+ *
+ * Only the main pane is named, so the sidebar and app bar stay put while the
+ * run detail slides. The name lives on one element at a time, which is what the
+ * API requires.
+ * ------------------------------------------------------------------------- */
+
+.workbench-main {
+  view-transition-name: workbench-main;
+}
+
+::view-transition-group(workbench-main) {
+  animation-duration: 0.28s;
+  animation-timing-function: ease-in-out;
+  animation-fill-mode: both;
+}
+
+@keyframes workbench-slide-to-left {
+  to {
+    transform: translateX(-4%);
+    opacity: 0;
+  }
+}
+
+@keyframes workbench-slide-from-right {
+  from {
+    transform: translateX(4%);
+    opacity: 0;
+  }
+}
+
+@keyframes workbench-slide-to-right {
+  to {
+    transform: translateX(4%);
+    opacity: 0;
+  }
+}
+
+@keyframes workbench-slide-from-left {
+  from {
+    transform: translateX(-4%);
+    opacity: 0;
+  }
+}
+
+html:active-view-transition-type(forward)::view-transition-old(workbench-main) {
+  animation-name: workbench-slide-to-left;
+}
+
+html:active-view-transition-type(forward)::view-transition-new(workbench-main) {
+  animation-name: workbench-slide-from-right;
+}
+
+html:active-view-transition-type(backward)::view-transition-old(workbench-main) {
+  animation-name: workbench-slide-to-right;
+}
+
+html:active-view-transition-type(backward)::view-transition-new(workbench-main) {
+  animation-name: workbench-slide-from-left;
+}
+
+/* ---------------------------------------------------------------------------
+ * Deferred rendering
+ *
+ * Both lists grow without bound (a long run's steps, every run ever recorded)
+ * and both sit below the fold, so the browser can skip their layout until the
+ * scroll approaches. The intrinsic sizes are the measured height of a typical
+ * row, so the scrollbar does not jump.
+ * ------------------------------------------------------------------------- */
+
+.deferred-step {
+  content-visibility: auto;
+  contain-intrinsic-size: auto none auto 132px;
+}
+
+.deferred-history-item {
+  content-visibility: auto;
+  contain-intrinsic-size: auto none auto 64px;
+}
+
+.deferred-case {
+  content-visibility: auto;
+  contain-intrinsic-size: auto none auto 72px;
+}
+
+/* The live view is the element whose background work is worth pausing; the
+   `contentvisibilityautostatechange` event it raises is what closes the frame
+   socket. `contain-intrinsic-size` keeps the pane's height while skipped. */
+.device-live-view {
+  content-visibility: auto;
+  contain-intrinsic-size: auto none auto 480px;
+}
+
+/* ---------------------------------------------------------------------------
+ * UI tree disclosure
+ *
+ * Native <details> rather than MUI's Accordion: the accordion unmounts its
+ * panel, so find-in-page can never reach a step's UI dump, while <details>
+ * content stays searchable and auto-expands on a match.
+ * ------------------------------------------------------------------------- */
+
+.ui-tree-details {
+  border: 1px solid var(--workbench-divider, rgb(0 0 0 / 12%));
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.ui-tree-details > summary {
+  cursor: pointer;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+  color: var(--workbench-text-secondary, rgb(0 0 0 / 60%));
+  list-style-position: inside;
+  user-select: none;
+}
+
+.ui-tree-details > summary:hover {
+  background: var(--workbench-hover, rgb(0 0 0 / 4%));
+}
+
+.ui-tree-details > summary:focus-visible {
+  outline: 2px solid var(--workbench-focus, #1976d2);
+  outline-offset: -2px;
+}
+
+.ui-tree-body {
+  /* Padding lives here rather than on the [hidden] element, so nothing is
+     painted while the browser holds the content hidden-until-found. */
+  margin: 0;
+  padding: 8px 10px;
+  max-height: 320px;
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--workbench-code-bg, rgb(0 0 0 / 3%));
+}
+
+/* Animate the disclosure open instead of snapping. `calc-size()` is what makes
+   `auto` interpolable per-property; browsers without it keep the plain `auto`
+   declaration above and jump, which is still correct. */
+@supports (block-size: calc-size(auto, size)) {
+  .ui-tree-details::details-content {
+    block-size: 0;
+    overflow: hidden;
+    transition:
+      block-size 0.25s ease,
+      content-visibility 0.25s allow-discrete;
+  }
+
+  .ui-tree-details[open]::details-content {
+    block-size: calc-size(auto, size);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Reduced motion
+ * ------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+
+  .ui-tree-details::details-content {
+    transition: none !important;
+  }
+}

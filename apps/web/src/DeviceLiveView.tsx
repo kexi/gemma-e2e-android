@@ -8,7 +8,7 @@ import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import RefreshIcon from "@mui/icons-material/Refresh";
 
-export type ConnectionState = "connecting" | "live" | "disconnected" | "unavailable";
+export type ConnectionState = "connecting" | "live" | "disconnected" | "unavailable" | "paused";
 
 /** The gateway sends 1011 when the emulator side failed, not the browser. */
 const CLOSE_UPSTREAM_FAILED = 1011;
@@ -18,6 +18,7 @@ const STATE_LABEL: Record<ConnectionState, string> = {
   live: "Live",
   disconnected: "Disconnected",
   unavailable: "Emulator unreachable",
+  paused: "Paused (off-screen)",
 };
 
 const STATE_COLOR: Record<ConnectionState, "default" | "success" | "warning" | "error"> = {
@@ -25,7 +26,15 @@ const STATE_COLOR: Record<ConnectionState, "default" | "success" | "warning" | "
   live: "success",
   disconnected: "warning",
   unavailable: "error",
+  paused: "default",
 };
+
+/** `contentvisibilityautostatechange` is only raised where the property exists. */
+const SUPPORTS_CONTENT_VISIBILITY = "contentVisibility" in document.documentElement.style;
+
+interface ContentVisibilityEvent extends Event {
+  readonly skipped: boolean;
+}
 
 function streamUrl(): string {
   // Same origin as the page: in development Vite proxies /api (ws:true) to the
@@ -35,9 +44,9 @@ function streamUrl(): string {
 }
 
 export interface DeviceLiveViewProps {
-  /** Cap on the rendered height; the Run page gives it less room than the Device page. */
+  /** Cap on the rendered height; the run pane gives it less room than the idle pane. */
   maxHeight?: number | string;
-  /** Hidden on the Run page, where the surrounding card already explains itself. */
+  /** Hidden beside a run, where the surrounding card already explains itself. */
   showHint?: boolean;
 }
 
@@ -46,13 +55,18 @@ export interface DeviceLiveViewProps {
  * gRPC `streamScreenshot`.
  *
  * The socket is owned by this component, so mounting and unmounting is what
- * opens and closes it: the Run page can drop the element when a run ends and
- * the stream is released without any extra coordination.
+ * opens and closes it: the run pane can drop the element when a run ends and
+ * the stream is released without any extra coordination. On top of that, the
+ * wrapper carries `content-visibility: auto`, and the browser's own
+ * skip/render decision closes and reopens the socket — a scrolled-away or
+ * background-tabbed view stops costing the emulator an encode per frame.
  */
 export function DeviceLiveView({ maxHeight = "70vh", showHint = true }: DeviceLiveViewProps) {
   const [state, setState] = useState<ConnectionState>("connecting");
   const [frameUrl, setFrameUrl] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [rendered, setRendered] = useState(true);
+  const containerRef = useRef<HTMLDivElement>(null);
   // Held in a ref rather than state: the cleanup path has to revoke the URL
   // that is currently on screen, and reading it from state there would close
   // over a stale value.
@@ -64,6 +78,44 @@ export function DeviceLiveView({ maxHeight = "70vh", showHint = true }: DeviceLi
   }, []);
 
   useEffect(() => {
+    const container = containerRef.current;
+    if (container === null) {
+      return;
+    }
+
+    if (SUPPORTS_CONTENT_VISIBILITY) {
+      // The listener has to sit on the element carrying the property: the
+      // event does not bubble in every implementation.
+      const onStateChange = (event: Event) => {
+        setRendered(!(event as ContentVisibilityEvent).skipped);
+      };
+      container.addEventListener("contentvisibilityautostatechange", onStateChange);
+      return () => {
+        container.removeEventListener("contentvisibilityautostatechange", onStateChange);
+      };
+    }
+
+    // Rough approximation for browsers without content-visibility: the margin
+    // reopens the socket slightly before the view is actually on screen.
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          setRendered(entry.isIntersecting);
+        }
+      },
+      { rootMargin: "200px" },
+    );
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!rendered) {
+      setState("paused");
+      return;
+    }
+
+    setState("connecting");
     const socket = new WebSocket(streamUrl());
     socket.binaryType = "blob";
     let closed = false;
@@ -100,13 +152,15 @@ export function DeviceLiveView({ maxHeight = "70vh", showHint = true }: DeviceLi
         URL.revokeObjectURL(currentUrl.current);
         currentUrl.current = null;
       }
+      // The last frame's URL is gone, so the <img> must not keep pointing at it.
+      setFrameUrl(null);
     };
-  }, [attempt]);
+  }, [attempt, rendered]);
 
   const isBroken = state === "unavailable" || state === "disconnected";
 
   return (
-    <Stack spacing={1.5}>
+    <Stack className="device-live-view" ref={containerRef} spacing={1.5}>
       <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
         <Chip label={STATE_LABEL[state]} color={STATE_COLOR[state]} size="small" />
         <Box sx={{ flexGrow: 1 }} />
@@ -140,7 +194,9 @@ export function DeviceLiveView({ maxHeight = "70vh", showHint = true }: DeviceLi
       >
         {frameUrl === null ? (
           <Typography variant="body2" color="text.secondary">
-            {state === "connecting" ? "Waiting for the first frame…" : "No frame"}
+            {state === "connecting" && "Waiting for the first frame…"}
+            {state === "paused" && "Streaming stops while the view is off-screen."}
+            {state !== "connecting" && state !== "paused" && "No frame"}
           </Typography>
         ) : (
           <Box
