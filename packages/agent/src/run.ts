@@ -14,7 +14,7 @@ import type {
 import { resolveModel } from "@gemma-e2e/core";
 import { serializeForLlm, type UiRef } from "@gemma-e2e/adb";
 import { errorFields, type Logger, noopLogger } from "@gemma-e2e/logger";
-import type { LlmFactory } from "./llm.ts";
+import type { Clock, LlmFactory } from "./llm.ts";
 import { recordCase, type Recorder } from "./recorder.ts";
 
 /** The slice of AdbClient the loop needs; a fake satisfies it in tests. */
@@ -69,7 +69,15 @@ export type RunEvent =
   | { type: "case_started"; runId: string; caseId: string; caseRun: CaseRun }
   | { type: "step_started"; runId: string; caseId: string; index: number }
   | { type: "ui_captured"; runId: string; caseId: string; index: number; uiText: string }
-  | { type: "action_decided"; runId: string; caseId: string; index: number; action: Action }
+  | {
+      type: "action_decided";
+      runId: string;
+      caseId: string;
+      index: number;
+      action: Action;
+      /** Wall-clock cost of the decision, retries included. */
+      llmDurationMs: number;
+    }
   | { type: "action_executed"; runId: string; caseId: string; index: number; action: Action }
   | { type: "step_recorded"; runId: string; caseId: string; step: Step }
   | {
@@ -97,6 +105,8 @@ export interface RunDeps {
   logger?: Logger | undefined;
   runId?: string | undefined;
   sleep?: ((ms: number) => Promise<void>) | undefined;
+  /** Injection seam for the step timer; tests make a decision cost exact ms. */
+  clock?: Clock | undefined;
 }
 
 export interface CaseResult {
@@ -222,6 +232,7 @@ async function runCase(ctx: CaseContext): Promise<CaseResult> {
   const { scenario, testCase, order, runId, deps, emit } = ctx;
   const { adb, store, screenshotDir } = deps;
   const sleep = deps.sleep ?? defaultSleep;
+  const now = deps.clock ?? (() => performance.now());
   const caseId = testCase.id;
   const log = ctx.log.child({ caseId });
 
@@ -282,13 +293,23 @@ async function runCase(ctx: CaseContext): Promise<CaseResult> {
       const { text: uiText, refs } = serializeForLlm(tree);
       emit({ type: "ui_captured", runId, caseId, index, uiText });
 
+      // Timed here as well as inside the client: this number includes the
+      // retries a single decision needed, which is what a step's wall-clock
+      // cost actually is, while `llm.decided` reports one generation.
+      const decideStartedAt = now();
       const action = await llm.decide({
         scenarioPrompt: testCase.prompt,
         historySummary: history.slice(-HISTORY_WINDOW).join("\n"),
         uiText,
       });
-      emit({ type: "action_decided", runId, caseId, index, action });
-      log.info("case.action_decided", { index, action: describeAction(action), type: action.type });
+      const llmDurationMs = Math.round(now() - decideStartedAt);
+      emit({ type: "action_decided", runId, caseId, index, action, llmDurationMs });
+      log.info("case.action_decided", {
+        index,
+        action: describeAction(action),
+        type: action.type,
+        llmDurationMs,
+      });
 
       let note: string | null = null;
       const isFinish = action.type === "finish";

@@ -14,6 +14,9 @@ export interface Llm {
   decide(input: DecideInput): Promise<Action>;
 }
 
+/** Wall-clock milliseconds, so a slow model is visible without a profiler. */
+export type Clock = () => number;
+
 /**
  * Builds a client for one specific model. The loop takes a factory rather than
  * a client because the model is chosen per case, and a client fixed at
@@ -67,6 +70,8 @@ export interface GenkitLlmOptions {
   generate?: GenerateFn | undefined;
   /** Defaults to a no-op, so constructing a client never writes on its own. */
   logger?: Logger | undefined;
+  /** Injection seam: a test can make a decision take an exact number of ms. */
+  clock?: Clock | undefined;
 }
 
 export class LlmDecisionError extends Error {
@@ -140,12 +145,14 @@ export class GenkitLlm implements Llm {
   readonly #maxAttempts: number;
   readonly #generate: GenerateFn;
   readonly #log: Logger;
+  readonly #now: Clock;
 
   constructor(options: GenkitLlmOptions = {}) {
     this.#model = options.model ?? process.env["LLM_MODEL"] ?? DEFAULT_MODEL;
     this.#maxAttempts = options.maxAttempts ?? MAX_ATTEMPTS;
     this.#generate = options.generate ?? genkitGenerate(options);
     this.#log = options.logger ?? noopLogger;
+    this.#now = options.clock ?? (() => performance.now());
   }
 
   async decide(input: DecideInput): Promise<Action> {
@@ -153,6 +160,11 @@ export class GenkitLlm implements Llm {
     let lastError: unknown;
 
     for (let attempt = 1; attempt <= this.#maxAttempts; attempt++) {
+      // Timed per attempt rather than per decide(): a decision that took a
+      // minute because two attempts were thrown away is a different problem
+      // from one slow generation, and only per-attempt numbers tell them apart.
+      const startedAt = this.#now();
+
       try {
         const response = await this.#generate({
           model: `${PLUGIN_NAME}/${this.#model}`,
@@ -174,6 +186,13 @@ export class GenkitLlm implements Llm {
           );
         }
 
+        this.#log.info("llm.decided", {
+          attempt,
+          model: this.#model,
+          durationMs: Math.round(this.#now() - startedAt),
+          type: parsed.data.type,
+        });
+
         return parsed.data;
       } catch (error) {
         lastError = error;
@@ -184,6 +203,7 @@ export class GenkitLlm implements Llm {
           attempt,
           maxAttempts: this.#maxAttempts,
           model: this.#model,
+          durationMs: Math.round(this.#now() - startedAt),
           ...errorFields(error),
         });
       }

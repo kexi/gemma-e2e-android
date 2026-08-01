@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { ActionSchema } from "@gemma-e2e/core";
+import { createLogger, type LogEvent } from "@gemma-e2e/logger";
 import {
   buildDecisionPrompt,
   DEFAULT_BASE_URL,
@@ -203,6 +204,110 @@ function restoreEnv(key: string, value: string | undefined): void {
   }
   process.env[key] = value;
 }
+
+describe("decision timing", () => {
+  const input = { scenarioPrompt: "log in", historySummary: "", uiText: "[0] Button" };
+
+  /** Captures NDJSON lines the way a stderr consumer would read them back. */
+  function capture() {
+    const lines: string[] = [];
+    return {
+      logger: createLogger({ sink: (line) => lines.push(line), level: "debug" }),
+      events: () => lines.map((line) => JSON.parse(line) as LogEvent),
+    };
+  }
+
+  /** Advances by a fixed amount on every read, so a call costs exactly `step`. */
+  function steppingClock(step: number) {
+    let value = 0;
+    return () => {
+      const current = value;
+      value += step;
+      return current;
+    };
+  }
+
+  test("reports how long a successful decision took, with the model and attempt", async () => {
+    const log = capture();
+    const llm = new GenkitLlm({
+      model: "gemma-4-e4b",
+      logger: log.logger,
+      clock: steppingClock(1_500),
+      generate: async () => ({ output: { type: "tap", ref: 0 } }),
+    });
+
+    await llm.decide(input);
+
+    expect(log.events().find((e) => e.event === "llm.decided")).toMatchObject({
+      level: "info",
+      attempt: 1,
+      model: "gemma-4-e4b",
+      durationMs: 1_500,
+      type: "tap",
+    });
+  });
+
+  test("measures with a real clock when none is injected", async () => {
+    const log = capture();
+    const llm = new GenkitLlm({
+      logger: log.logger,
+      generate: async () => ({ output: { type: "wait", ms: 10 } }),
+    });
+
+    await llm.decide(input);
+
+    const decided = log.events().find((e) => e.event === "llm.decided");
+    expect(typeof decided?.["durationMs"]).toBe("number");
+    expect(decided?.["durationMs"] as number).toBeGreaterThanOrEqual(0);
+  });
+
+  test("times each attempt on its own rather than the whole decision", async () => {
+    const log = capture();
+    let calls = 0;
+    const llm = new GenkitLlm({
+      logger: log.logger,
+      clock: steppingClock(200),
+      generate: async () => {
+        calls++;
+        const isFirstAttempt = calls === 1;
+        return { output: isFirstAttempt ? null : { type: "key_event", key: "back" } };
+      },
+    });
+
+    await llm.decide(input);
+
+    const events = log.events();
+    expect(events.find((e) => e.event === "llm.attempt_failed")).toMatchObject({
+      attempt: 1,
+      durationMs: 200,
+    });
+    // Attempt 2 is timed from its own start, not from the decision's.
+    expect(events.find((e) => e.event === "llm.decided")).toMatchObject({
+      attempt: 2,
+      durationMs: 200,
+    });
+  });
+
+  test("reports a duration for an attempt that threw", async () => {
+    const log = capture();
+    const llm = new GenkitLlm({
+      maxAttempts: 1,
+      logger: log.logger,
+      clock: steppingClock(900),
+      generate: async () => {
+        throw new Error("connection reset");
+      },
+    });
+
+    await expect(llm.decide(input)).rejects.toBeInstanceOf(LlmDecisionError);
+
+    expect(log.events().find((e) => e.event === "llm.attempt_failed")).toMatchObject({
+      level: "warn",
+      durationMs: 900,
+      error: "connection reset",
+    });
+  });
+});
 
 describe("ActionSchema as structured output", () => {
   test("accepts what the system prompt tells the model to emit", () => {

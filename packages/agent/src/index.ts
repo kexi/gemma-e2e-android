@@ -8,6 +8,7 @@ export {
   SYSTEM_PROMPT,
 } from "./llm.ts";
 export type {
+  Clock,
   DecideInput,
   GenerateFn,
   GenerateRequest,

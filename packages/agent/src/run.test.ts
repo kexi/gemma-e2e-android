@@ -548,6 +548,18 @@ describe("events", () => {
     ]);
   });
 
+  test("carries the decision's duration on action_decided", async () => {
+    const h = harness([FINISH_PASSED]);
+
+    await runScenario(scenario(), h.deps);
+
+    const decided = h.events.find((e) => e.type === "action_decided");
+    expect(decided).toBeDefined();
+    expect(
+      (decided as Extract<RunEvent, { type: "action_decided" }>).llmDurationMs,
+    ).toBeGreaterThanOrEqual(0);
+  });
+
   test("tags every per-case event with its caseId", async () => {
     const h = harness([[FINISH_PASSED], [FINISH_PASSED]]);
 
@@ -682,6 +694,38 @@ describe("structured logging", () => {
     expect(log.events().find((e) => e.event === "case.budget_exhausted")).toMatchObject({
       level: "warn",
       maxSteps: 2,
+    });
+  });
+
+  test("records how long the model took to decide each step", async () => {
+    const log = capture();
+    const h = harness([{ type: "tap", ref: 1 }, FINISH_PASSED]);
+
+    await runScenario(scenario(), { ...h.deps, logger: log.logger });
+
+    const decisions = log.events().filter((e) => e.event === "case.action_decided");
+    expect(decisions).toHaveLength(2);
+    for (const decision of decisions) {
+      expect(typeof decision["llmDurationMs"]).toBe("number");
+      expect(decision["llmDurationMs"] as number).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  test("times a decision from its own start, retries included", async () => {
+    const log = capture();
+    const h = harness([FINISH_PASSED]);
+    // Every clock read costs 2s, so one decision spans exactly one interval.
+    let ticks = 0;
+    const clock = () => {
+      const value = ticks * 2_000;
+      ticks++;
+      return value;
+    };
+
+    await runScenario(scenario(), { ...h.deps, logger: log.logger, clock });
+
+    expect(log.events().find((e) => e.event === "case.action_decided")).toMatchObject({
+      llmDurationMs: 2_000,
     });
   });
 
