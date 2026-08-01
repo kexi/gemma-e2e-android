@@ -32,6 +32,10 @@ typecheck:
 test:
     bun test
 
+# Build production artifacts (currently the dashboard SPA; the Android app builds via `just android`).
+build:
+    bun run --cwd apps/web build
+
 # Run the dashboard: Hono API on :5175 and the Vite dev server on :5173.
 web:
     #!/usr/bin/env bash
