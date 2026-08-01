@@ -1,0 +1,20 @@
+{
+  "name": "@gemma-e2e/agent",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@gemma-e2e/adb": "workspace:*",
+    "@gemma-e2e/core": "workspace:*",
+    "@gemma-e2e/store": "workspace:*",
+    "@genkit-ai/compat-oai": "^1.40.1",
+    "genkit": "^1.40.1",
+    "zod": "^3.25.76"
+  }
+}

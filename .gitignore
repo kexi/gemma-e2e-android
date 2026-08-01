@@ -7,3 +7,7 @@ node_modules/
 # Expo prebuild (CNG) output is regenerated from app config, never committed.
 apps/*/android/
 apps/*/ios/
+
+# Run artifacts: the SQLite history and the screenshots it points at. Both are
+# per-machine output of a test run, not source.
+var/

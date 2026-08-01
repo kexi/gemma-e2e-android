@@ -1,0 +1,9 @@
+{
+  // "bun" types: the screenshot directory is created with Bun's APIs and the
+  // tests run on bun:test.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["bun"]
+  },
+  "include": ["src/**/*.ts"]
+}

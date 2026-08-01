@@ -1,0 +1,11 @@
+# A scenario is a natural-language goal; the agent decides the steps.
+# `id` defaults to the filename when omitted.
+title: Login
+prompt: >-
+  Check that a user can log in. Enter the email "demo@example.com" and the
+  password "demo1234", submit the form, and confirm that the app reaches a
+  logged-in screen showing a greeting.
+app:
+  package: com.example.app
+  activity: .MainActivity
+maxSteps: 15

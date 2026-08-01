@@ -16,7 +16,8 @@
     "preinstall": "npx only-allow@1.2.2 bun",
     "prepare": "bun scripts/install-hooks.ts"
   },
-  "overrides": {
+  "//resolutions": "@genkit-ai/compat-oai pulls openai@4, whose _shims/index.mjs self-imports 'openai/_shims/auto/runtime'. Bun cannot resolve that self-referential specifier through the package's own exports map, so any Genkit import dies at load. openai@5 dropped _shims entirely and loads clean under Bun. Drop this pin once compat-oai depends on openai>=5.",
+  "resolutions": {
     "openai": "^5.23.2"
   },
   "devDependencies": {

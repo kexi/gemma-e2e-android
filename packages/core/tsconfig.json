@@ -1,0 +1,10 @@
+{
+  // "bun" types: the YAML loader reads files through Bun.file, and the tests
+  // run on bun:test. Declared per package rather than in tsconfig.base.json so
+  // apps/* (Expo/React) never typecheck against APIs their runtime lacks.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["bun"]
+  },
+  "include": ["src/**/*.ts"]
+}

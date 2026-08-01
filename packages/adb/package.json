@@ -1,0 +1,16 @@
+{
+  "name": "@gemma-e2e/adb",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@gemma-e2e/core": "workspace:*",
+    "fast-xml-parser": "^5.3.1"
+  }
+}
