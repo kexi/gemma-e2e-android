@@ -110,6 +110,66 @@ function finishCase(cases: CaseMap, event: CaseFinished): CaseMap {
   return next;
 }
 
+/**
+ * Keeps the tail of a growing list in view while `active`, and stops the moment
+ * the user scrolls up to read back.
+ *
+ * The returned ref goes on a zero-height sentinel at the end of the list. Its
+ * visibility is what "the user is at the bottom" means -- not a scrollTop
+ * arithmetic, which would have to know which ancestor actually scrolls and would
+ * be wrong the moment the layout changes. `root: null` still works inside the
+ * workbench's own scroller, because the observer intersects against every
+ * clipping ancestor, not just the viewport.
+ *
+ * `revision` is any value that changes when content is appended; the effect
+ * re-runs on it rather than on the list itself so a re-render that changed
+ * nothing cannot yank the scroll.
+ */
+function useFollowTail(active: boolean, revision: number) {
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  // A ref, not state: nothing renders differently when the user leaves the
+  // tail, so a setState here would only cost a render per scroll.
+  const isFollowingRef = useRef(true);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (sentinel === null) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // The last entry is the current state; a burst of appended steps can
+        // coalesce several crossings into one callback.
+        const latest = entries.at(-1);
+        if (latest === undefined) {
+          return;
+        }
+        isFollowingRef.current = latest.isIntersecting;
+      },
+      // Bottom margin, so the tail is still "in view" just after it scrolls off
+      // and a step that lands mid-animation does not drop the follow.
+      { rootMargin: "0px 0px 160px 0px" },
+    );
+    observer.observe(sentinel);
+
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    const shouldFollow = active && isFollowingRef.current && sentinel !== null;
+    if (!shouldFollow) {
+      return;
+    }
+
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    sentinel.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "end" });
+  }, [active, revision]);
+
+  return sentinelRef;
+}
+
 export function RunPage() {
   const { id } = useParams<{ id: string }>();
   const [run, setRun] = useState<Run | null>(null);
@@ -201,15 +261,24 @@ export function RunPage() {
     headingRef.current?.focus();
   }, [run?.id]);
 
+  const isRunning = status === "running";
+  const ordered = [...cases.values()].sort((a, b) => a.order - b.order);
+  // Counts rather than the map itself: this is exactly the "something was
+  // appended" signal, so a case merely changing status cannot trigger a scroll.
+  const appendCount = ordered.reduce(
+    (total, caseRun) => total + caseRun.steps.length,
+    ordered.length,
+  );
+  // Above the early returns below, so the hook order holds across the loading,
+  // error, and loaded renders.
+  const tailRef = useFollowTail(isRunning, appendCount);
+
   if (error !== null) {
     return <Alert severity="error">{error}</Alert>;
   }
   if (run === null) {
     return <CircularProgress size={24} />;
   }
-
-  const isRunning = status === "running";
-  const ordered = [...cases.values()].sort((a, b) => a.order - b.order);
 
   return (
     <Stack spacing={3}>
@@ -252,6 +321,10 @@ export function RunPage() {
           {ordered.length === 0 && !isRunning && (
             <Typography color="text.secondary">No cases were recorded.</Typography>
           )}
+          {/* The follow-tail sentinel. A plain div outside any `.deferred-case`,
+              so its position is real geometry the observer can trust rather than
+              a `contain-intrinsic-size` estimate. */}
+          <div ref={tailRef} aria-hidden="true" />
         </Stack>
 
         {/* Unmounted the moment the run ends, which is what closes the socket
