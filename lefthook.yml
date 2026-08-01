@@ -1,0 +1,24 @@
+# Pre-commit only, and every command is scoped to staged files so the hook
+# stays fast enough that nobody reaches for --no-verify.
+pre-commit:
+  parallel: true
+  commands:
+    gitleaks:
+      run: gitleaks git --pre-commit --staged --redact
+
+    pinact:
+      glob: ".github/workflows/*.{yml,yaml}"
+      # -fix=false -no-api is pinact's offline form: it only checks that every
+      # `uses:` is a 40-char SHA, with no GitHub API call, so the hook stays
+      # fast and works without network. Resolving new SHAs is `just pin`.
+      run: pinact run -fix=false -no-api {staged_files}
+
+    oxlint:
+      glob: "*.{js,jsx,ts,tsx}"
+      run: bunx oxlint {staged_files}
+
+    oxfmt:
+      glob: "*.{js,jsx,ts,tsx}"
+      # Check only. Rewriting files under the user's commit is surprising;
+      # `just fmt` is the explicit fix.
+      run: bunx oxfmt --check {staged_files}

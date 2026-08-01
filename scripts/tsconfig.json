@@ -1,0 +1,12 @@
+{
+  // Bun's globals (Bun, process) and the "bun" module only exist for the
+  // repo-tooling scripts in this directory. Declaring "types" here rather than
+  // in tsconfig.base.json keeps them out of apps/* -- an Expo/React app that
+  // resolved Bun's globals would typecheck against APIs it cannot call at
+  // runtime.
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["bun"]
+  },
+  "include": ["**/*.ts"]
+}

@@ -1,0 +1,7 @@
+[install]
+# Supply-chain guard: refuse npm packages published less than 1 day ago, so a
+# compromised release has time to be yanked before it reaches a lockfile.
+# Bun expects seconds; the same policy is mirrored in renovate.json ("1 day")
+# and in `just pin` (pinact --min-age 1).
+minimumReleaseAge = 86400
+# minimumReleaseAgeExcludes = []  # add packages here if a hotfix must bypass
