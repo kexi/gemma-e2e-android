@@ -26,6 +26,28 @@ export function fetchScenarios(): Promise<{ scenarios: Scenario[] }> {
   return json("/api/scenarios");
 }
 
+/**
+ * What the builder posts. `maxSteps` is optional here because the server
+ * defaults it, so a case left blank still gets a step budget.
+ */
+export interface CreateScenarioRequest {
+  id: string;
+  title: string;
+  app?: { package: string; activity?: string };
+  model?: string;
+  cases: { id: string; title?: string; prompt: string; model?: string; maxSteps?: number }[];
+}
+
+export function createScenario(
+  body: CreateScenarioRequest,
+): Promise<{ scenario: Scenario; path: string }> {
+  return json("/api/scenarios", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 export function fetchRuns(): Promise<{ runs: Run[] }> {
   return json("/api/runs");
 }

@@ -25,7 +25,8 @@
     "hono": "4.12.32",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "react-router-dom": "7.18.1"
+    "react-router-dom": "7.18.1",
+    "yaml": "^2.8.1"
   },
   "devDependencies": {
     "@types/react": "19.2.17",

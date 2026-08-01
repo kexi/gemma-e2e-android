@@ -26,6 +26,7 @@ import {
   type Run,
   type Scenario,
 } from "./api.ts";
+import { ScenarioBuilder } from "./ScenarioBuilder.tsx";
 import { StatusChip } from "./status.tsx";
 import { useDirectionalNavigate } from "./viewTransition.ts";
 
@@ -61,10 +62,16 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   const [model, setModel] = useState(SERVER_DEFAULT);
   const [starting, setStarting] = useState(false);
 
-  useEffect(() => {
+  // Also called after the builder writes a file, so a scenario created here is
+  // runnable without a page reload.
+  function reloadScenarios() {
     fetchScenarios()
       .then((body) => setScenarios(body.scenarios))
       .catch((cause: unknown) => setError(message(cause)));
+  }
+
+  useEffect(() => {
+    reloadScenarios();
 
     // A model server that is down must not block running a committed scenario,
     // so this failure is reported beside the dropdown rather than as a rail
@@ -189,6 +196,10 @@ export function Sidebar({ onNavigate }: SidebarProps) {
             </Paper>
           ))}
         </Stack>
+
+        <Box sx={{ mt: 1.5 }}>
+          <ScenarioBuilder models={models} onCreated={reloadScenarios} />
+        </Box>
       </Box>
 
       <Divider />

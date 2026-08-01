@@ -171,6 +171,245 @@ html:active-view-transition-type(backward)::view-transition-new(workbench-main) 
 }
 
 /* ---------------------------------------------------------------------------
+ * Scenario builder
+ *
+ * Native <dialog> rather than MUI's: the platform supplies the top layer, the
+ * focus trap, Esc, and -- via closedby="any" -- light dismiss, so only the
+ * appearance is written here. Validation timing is native too: :user-invalid
+ * holds every error back until the field is left or the form is submitted, so
+ * nothing turns red while the user is still typing the first character.
+ * ------------------------------------------------------------------------- */
+
+.builder-dialog {
+  width: min(560px, calc(100vw - 2rem));
+  max-height: calc(100vh - 4rem);
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: var(--workbench-paper, #fff);
+  color: var(--workbench-text, rgb(0 0 0 / 87%));
+  box-shadow: 0 8px 32px rgb(0 0 0 / 24%);
+}
+
+.builder-dialog::backdrop {
+  background: rgb(0 0 0 / 40%);
+}
+
+.builder-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem;
+  /* Single column: the form is scanned top to bottom, and the rail is narrow. */
+  max-height: calc(100vh - 4rem);
+  overflow-y: auto;
+}
+
+.builder-heading {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.builder-lede,
+.builder-hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--workbench-text-secondary, rgb(0 0 0 / 60%));
+}
+
+.builder-lede code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.builder-error {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  color: #b3261e;
+  background: #fce8e6;
+}
+
+.builder-fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin: 0;
+  padding: 0.75rem 1rem 1rem;
+  border: 1px solid var(--workbench-divider, rgb(0 0 0 / 12%));
+  border-radius: 6px;
+}
+
+.builder-fieldset > legend {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+  padding-inline: 0.375rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--workbench-text-secondary, rgb(0 0 0 / 60%));
+}
+
+/* Gestalt proximity: label sits nearer its own control than the next group. */
+.builder-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.builder-field > label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.builder-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.builder-row > .builder-field {
+  flex: 1 1 12rem;
+}
+
+.builder-form input,
+.builder-form select,
+.builder-form textarea {
+  /* 1rem keeps iOS from zooming on focus. */
+  font: inherit;
+  font-size: 1rem;
+  padding: 0.5rem 0.625rem;
+  min-height: 44px;
+  border: 1px solid var(--workbench-divider, rgb(0 0 0 / 32%));
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  box-sizing: border-box;
+}
+
+.builder-form textarea {
+  min-height: 5rem;
+  resize: vertical;
+}
+
+.builder-form :is(input, select, textarea):focus-visible {
+  outline: 2px solid var(--workbench-focus, #1976d2);
+  outline-offset: 1px;
+}
+
+.builder-form :is(input, textarea):disabled {
+  opacity: 0.5;
+}
+
+/* The error text is hidden until the control itself reports a user-visible
+   problem, so nothing shouts on first paint. */
+.builder-error-msg {
+  display: none;
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #b3261e;
+}
+
+/* Border shift *and* a message with an icon: the state is never colour alone. */
+.builder-form :is(input, textarea):user-invalid {
+  border-color: #b3261e;
+  background: #fce8e6;
+}
+
+.builder-form :is(input, textarea):user-invalid ~ .builder-error-msg {
+  display: block;
+}
+
+.builder-form :is(input, textarea):user-valid {
+  border-color: #1e8e3e;
+}
+
+.builder-open,
+.builder-add,
+.builder-cancel,
+.builder-save,
+.builder-remove {
+  font: inherit;
+  border-radius: 4px;
+  cursor: pointer;
+  min-height: 36px;
+  padding-inline: 0.875rem;
+}
+
+.builder-open {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--workbench-focus, #1976d2);
+  background: transparent;
+  color: var(--workbench-focus, #1976d2);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.builder-open:hover,
+.builder-add:hover {
+  background: rgb(25 118 210 / 8%);
+}
+
+.builder-add {
+  align-self: flex-start;
+  border: 1px dashed var(--workbench-divider, rgb(0 0 0 / 32%));
+  background: transparent;
+  color: inherit;
+  font-size: 0.8125rem;
+}
+
+.builder-remove {
+  min-height: 28px;
+  padding-inline: 0.5rem;
+  border: none;
+  background: transparent;
+  color: #b3261e;
+  font-size: 0.75rem;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.builder-remove:hover {
+  text-decoration: underline;
+}
+
+.builder-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  position: sticky;
+  bottom: 0;
+  padding-top: 0.75rem;
+  background: var(--workbench-paper, #fff);
+}
+
+.builder-cancel {
+  border: 1px solid var(--workbench-divider, rgb(0 0 0 / 32%));
+  background: transparent;
+  color: inherit;
+}
+
+.builder-save {
+  border: none;
+  background: var(--workbench-focus, #1976d2);
+  color: #fff;
+  font-weight: 500;
+}
+
+.builder-save:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.builder-form :is(button):focus-visible {
+  outline: 2px solid var(--workbench-focus, #1976d2);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------------
  * Reduced motion
  * ------------------------------------------------------------------------- */
 

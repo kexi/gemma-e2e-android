@@ -1,7 +1,9 @@
+import { join } from "node:path";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { serveStatic, upgradeWebSocket, websocket } from "hono/bun";
-import { loadScenariosDir, type Run, type Scenario } from "@gemma-e2e/core";
+import { Document as YamlDocument, isScalar, Scalar, visit } from "yaml";
+import { loadScenariosDir, type Run, type Scenario, ScenarioSchema } from "@gemma-e2e/core";
 import { errorFields, type Logger, noopLogger } from "@gemma-e2e/logger";
 import type { RunEvent } from "@gemma-e2e/agent";
 import { RunEventBus } from "./bus.ts";
@@ -66,6 +68,8 @@ interface CreateRunBody {
 const AD_HOC_SCENARIO_ID = "ad-hoc";
 const AD_HOC_CASE_ID = "ad-hoc";
 const AD_HOC_MAX_STEPS = 20;
+/** A scenario id is also a filename, so it may not carry a path separator. */
+const SCENARIO_ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim() !== "";
@@ -107,6 +111,57 @@ export function createApp(deps: AppDeps) {
       const message = error instanceof Error ? error.message : String(error);
       return c.json({ error: message }, 500);
     }
+  });
+
+  // The dashboard's scenario builder writes a file the same way a contributor
+  // would: the UI is an entry point to `scenarios/`, not a second store.
+  app.post("/api/scenarios", async (c) => {
+    let body: unknown;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: "body must be JSON" }, 400);
+    }
+
+    const parsed = ScenarioSchema.safeParse(body);
+    if (!parsed.success) {
+      const issues = parsed.error.issues
+        .map((issue) => `${issue.path.join(".") || "<root>"}: ${issue.message}`)
+        .join("; ");
+      return c.json({ error: `not a valid scenario (${issues})` }, 400);
+    }
+
+    const scenario = parsed.data;
+    // The id becomes a filename, so it is held to the same slug rule as a case
+    // id rather than the schema's looser "non-empty string".
+    const isSlug = SCENARIO_ID_PATTERN.test(scenario.id);
+    if (!isSlug) {
+      return c.json({ error: "id must be a lowercase slug (a-z, 0-9, hyphen)" }, 400);
+    }
+
+    const duplicate = findDuplicateCaseId(scenario);
+    if (duplicate !== null) {
+      return c.json({ error: `duplicate case id "${duplicate}"` }, 400);
+    }
+
+    const path = join(deps.scenariosDir, `${scenario.id}.yaml`);
+    // Refused rather than merged or overwritten: these files are git-managed,
+    // and a builder that silently replaces one would destroy reviewed work.
+    const exists = await Bun.file(path).exists();
+    if (exists) {
+      return c.json({ error: `scenario "${scenario.id}" already exists` }, 409);
+    }
+
+    try {
+      await Bun.write(path, toScenarioYaml(scenario));
+    } catch (error) {
+      log.error("http.scenario_write_failed", { path, ...errorFields(error) });
+      const message = error instanceof Error ? error.message : String(error);
+      return c.json({ error: message }, 500);
+    }
+
+    log.info("scenario.created", { scenarioId: scenario.id, cases: scenario.cases.length, path });
+    return c.json({ scenario, path }, 201);
   });
 
   const listModels = deps.listModels;
@@ -345,6 +400,47 @@ export function createApp(deps: AppDeps) {
   }
 
   return app;
+}
+
+/**
+ * Serialises a scenario the way the committed files are written: the `id` is
+ * dropped because the loader takes it from the filename, and every `prompt` is
+ * forced to a folded block scalar so prose wraps at the margin.
+ */
+function toScenarioYaml(scenario: Scenario): string {
+  const { id: _id, ...rest } = scenario;
+  const doc = new YamlDocument(rest);
+
+  // Only prompts are folded, not every string: a global block-scalar default
+  // would turn `id: login` into a three-line scalar as well.
+  visit(doc, {
+    Pair(_index, pair) {
+      const key = pair.key;
+      const isPrompt = isScalar(key) && key.value === "prompt";
+      if (!isPrompt) {
+        return;
+      }
+      const value = pair.value;
+      const isText = isScalar(value) && typeof value.value === "string";
+      if (isText) {
+        value.type = Scalar.BLOCK_FOLDED;
+      }
+    },
+  });
+
+  return doc.toString({ lineWidth: 80 });
+}
+
+function findDuplicateCaseId(scenario: Scenario): string | null {
+  const seen = new Set<string>();
+  for (const testCase of scenario.cases) {
+    const isDuplicate = seen.has(testCase.id);
+    if (isDuplicate) {
+      return testCase.id;
+    }
+    seen.add(testCase.id);
+  }
+  return null;
 }
 
 function stripPrefix(path: string): string {

@@ -157,7 +157,9 @@ This starts three processes — the Firestore emulator on `127.0.0.1:8790`, the
 Hono API on `http://localhost:5175`, and the Vite dev server on
 `http://localhost:5173`. Open the last one. From there you can run a committed
 scenario, submit a one-off prompt against a model of your choice, watch steps
-stream in live under each case, and browse the run history.
+stream in live under each case, and browse the run history. **New scenario** in
+the rail opens a builder that writes `scenarios/<id>.yaml` — a git-managed file
+you still have to commit, and one it refuses to overwrite if it already exists.
 
 ### Live device view
 

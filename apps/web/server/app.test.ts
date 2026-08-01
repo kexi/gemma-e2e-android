@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { CaseRun, Run, Step } from "@gemma-e2e/core";
@@ -127,6 +127,98 @@ describe("GET /api/scenarios", () => {
     const res = await app.request("/api/scenarios");
 
     expect(res.status).toBe(500);
+  });
+});
+
+describe("POST /api/scenarios", () => {
+  function post(body: unknown) {
+    return harness().request("/api/scenarios", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  const CHECKOUT = {
+    id: "checkout",
+    title: "Checkout",
+    app: { package: "dev.kexi.gemmae2e.example", activity: ".MainActivity" },
+    cases: [{ id: "buys-a-bean", title: "Buys a bean", prompt: "Add a bean and pay." }],
+  };
+
+  test("writes the scenario to scenarios/<id>.yaml so the listing picks it up", async () => {
+    const res = await post(CHECKOUT);
+
+    expect(res.status).toBe(201);
+    const listed = (await (await harness().request("/api/scenarios")).json()) as {
+      scenarios: { id: string; title: string; app?: { package: string } }[];
+    };
+    const created = listed.scenarios.find((s) => s.id === "checkout");
+    expect(created).toMatchObject({ title: "Checkout", app: { package: CHECKOUT.app.package } });
+  });
+
+  test("omits the id from the file, because the loader takes it from the filename", async () => {
+    await post(CHECKOUT);
+
+    const written = await readFile(join(scenariosDir, "checkout.yaml"), "utf8");
+    expect(written).not.toContain("id: checkout");
+    expect(written).toContain("title: Checkout");
+    // Prompts fold as `>-`, the shape the committed scenarios already use.
+    expect(written).toContain("prompt: >-");
+  });
+
+  test("defaults maxSteps so a case created without a budget is still bounded", async () => {
+    await post(CHECKOUT);
+
+    const listed = (await (await harness().request("/api/scenarios")).json()) as {
+      scenarios: { id: string; cases: { maxSteps: number }[] }[];
+    };
+    expect(listed.scenarios.find((s) => s.id === "checkout")?.cases[0]?.maxSteps).toBe(20);
+  });
+
+  test("refuses to overwrite an existing scenario file", async () => {
+    const res = await post({ id: "login", title: "Rewritten", cases: CHECKOUT.cases });
+
+    expect(res.status).toBe(409);
+    // The committed file is untouched: a 409 must not be a partial write.
+    expect(await readFile(join(scenariosDir, "login.yaml"), "utf8")).toBe(LOGIN_YAML);
+  });
+
+  test("rejects a body the scenario schema does not accept", async () => {
+    const res = await post({ id: "empty", title: "No cases", cases: [] });
+
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { error: string }).error).toContain("at least one case");
+  });
+
+  test("rejects an id that would escape the scenarios directory", async () => {
+    const res = await post({ ...CHECKOUT, id: "../escape" });
+
+    expect(res.status).toBe(400);
+    expect(await Bun.file(join(scenariosDir, "../escape.yaml")).exists()).toBe(false);
+  });
+
+  test("rejects two cases sharing an id, which would collide in Firestore", async () => {
+    const res = await post({
+      ...CHECKOUT,
+      cases: [
+        { id: "same", prompt: "First." },
+        { id: "same", prompt: "Second." },
+      ],
+    });
+
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { error: string }).error).toContain("duplicate case id");
+  });
+
+  test("rejects a non-JSON body", async () => {
+    const res = await harness().request("/api/scenarios", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "not json",
+    });
+
+    expect(res.status).toBe(400);
   });
 });
 

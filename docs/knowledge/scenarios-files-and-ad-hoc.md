@@ -26,3 +26,11 @@ would only yield a failed run.
 An ad-hoc prompt becomes a scenario of exactly one case, so the runner has a
 single shape to execute and the resulting history looks the same whether it came
 from a file or the form.
+
+*Why the dashboard's scenario builder still writes a file:* `POST /api/scenarios`
+validates its body with the same Zod schema the YAML loader uses and writes
+`scenarios/<id>.yaml`. The UI is an entry point to the directory, not a second
+store — a scenario built in the browser is reviewed, versioned and replayed in CI
+exactly like a hand-written one. An id that is already on disk is answered with
+409 rather than overwritten, because these files are git-managed and a silent
+replacement would destroy reviewed work.
