@@ -8,6 +8,10 @@ node_modules/
 apps/*/android/
 apps/*/ios/
 
+# Expo CLI local state and the type shim it writes for the project's env vars.
+apps/*/.expo/
+apps/*/expo-env.d.ts
+
 # Run artifacts: the SQLite history and the screenshots it points at. Both are
 # per-machine output of a test run, not source.
 var/

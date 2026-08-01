@@ -1,0 +1,13 @@
+{
+  // Two bases, in this order: expo/tsconfig.base supplies the React Native
+  // module resolution and JSX settings, then tsconfig.base.json layers the
+  // workspace's strictness on top so this app is held to the same bar as
+  // packages/*. Expo's own "strict" is a subset of it.
+  "extends": ["expo/tsconfig.base", "../../tsconfig.base.json"],
+  "compilerOptions": {
+    // React Native's runtime is neither Node nor Bun; @types/react is all the
+    // ambient typing this app should see.
+    "types": ["react"]
+  },
+  "include": ["*.ts", "*.tsx"]
+}
