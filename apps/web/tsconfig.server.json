@@ -1,5 +1,5 @@
 {
-  // "bun" types: the Hono server runs under Bun (bun:sqlite through the store,
+  // "bun" types: the Hono server runs under Bun (Bun.spawn for scrcpy/adb,
   // Bun.file for the SPA-dist probe) and its tests run on bun:test.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {

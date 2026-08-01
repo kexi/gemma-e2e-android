@@ -12,8 +12,8 @@ apps/*/ios/
 apps/*/.expo/
 apps/*/expo-env.d.ts
 
-# Run artifacts: the SQLite history and the screenshots it points at. Both are
-# per-machine output of a test run, not source.
+# Run artifacts: the screenshots and recordings the Firestore history points
+# at. Per-machine output of a test run, not source.
 var/
 
 # Per-machine runtime config (LLM_MODEL etc.); .env.example documents the keys.

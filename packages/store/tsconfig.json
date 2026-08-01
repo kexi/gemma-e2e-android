@@ -1,5 +1,5 @@
 {
-  // "bun" types: persistence is bun:sqlite, and the tests run on bun:test.
+  // "bun" types: the tests run on bun:test.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "types": ["bun"]

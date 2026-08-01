@@ -16,7 +16,7 @@ scenario prompt ─▶ agent loop:  adb uiautomator dump ─▶ UI tree (text)
                 adb tap / type ◀── structured Action ◀──────┘
                      │
                      ▼
-        SQLite history + screenshots ─▶ web dashboard (live via SSE)
+     Firestore history + screenshots ─▶ web dashboard (live via SSE)
 ```
 
 ## Repository layout
@@ -26,7 +26,7 @@ scenario prompt ─▶ agent loop:  adb uiautomator dump ─▶ UI tree (text)
 | `packages/core` | Shared Zod schemas (UI tree, actions, runs) and the YAML scenario loader |
 | `packages/adb` | adb wrapper: UI dump parsing, LLM-facing tree serialization, input commands |
 | `packages/agent` | Genkit-based decision loop against LM Studio's OpenAI-compatible API |
-| `packages/store` | Run/step history in SQLite (`bun:sqlite`) |
+| `packages/store` | Run/step history in Firestore (local emulator via `firebase-admin`) |
 | `apps/web` | Dashboard: Hono API + SSE, Vite/React/MUI frontend |
 | `apps/example` | "Kexi Coffee Shop" — the Expo store app the agent is tested against |
 | `scenarios/` | Committed test scenarios (`*.yaml`) |
