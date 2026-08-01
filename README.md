@@ -28,7 +28,7 @@ scenario prompt ─▶ agent loop:  adb uiautomator dump ─▶ UI tree (text)
 | `packages/agent` | Genkit-based decision loop against LM Studio's OpenAI-compatible API |
 | `packages/store` | Run/step history in SQLite (`bun:sqlite`) |
 | `apps/web` | Dashboard: Hono API + SSE, Vite/React/MUI frontend |
-| `apps/example` | Expo login app the agent is tested against |
+| `apps/example` | "Kexi Coffee Shop" — the Expo store app the agent is tested against |
 | `scenarios/` | Committed test scenarios (`*.yaml`) |
 
 ## Quick start

@@ -11,8 +11,8 @@ cases:
     title: Logs in with valid credentials
     prompt: >-
       Check that a user can log in. Enter the email "demo@example.com" and the
-      password "demo1234", submit the form, and confirm that the app reaches a
-      logged-in screen showing a greeting.
+      password "demo1234", submit the form, and confirm that the app reaches the
+      logged-in shop screen listing coffee beans.
     maxSteps: 15
 
   - id: invalid-password

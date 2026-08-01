@@ -76,7 +76,7 @@ English: [../ARCHITECTURE.md](../ARCHITECTURE.md)
 ## リポジトリ構成
 
 ```
-apps/example    テスト対象の Expo アプリ
+apps/example    テスト対象の Expo アプリ(Kexi Coffee Shop)
 apps/web        Vite + React ダッシュボード
 packages/*      エージェント本体・adb ラッパ・LLM クライアント(ビルドレス TS)
 ```

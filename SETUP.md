@@ -111,7 +111,7 @@ it in, and accept the RSA prompt; `adb devices` will show it.
 With a device or emulator online, build and install the example app:
 
 ```sh
-just android      # expo run:android — prebuilds (CNG) and installs the login app
+just android      # expo run:android — prebuilds (CNG) and installs "Kexi Coffee Shop"
 ```
 
 The first run generates `android/` and downloads Gradle dependencies, so it

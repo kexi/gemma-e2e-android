@@ -87,7 +87,7 @@ its step budget is exhausted.
 ## Repository layout
 
 ```
-apps/example    Expo app under test
+apps/example    Kexi Coffee Shop — the Expo app under test
 apps/web        Vite + React dashboard
 packages/*      agent core, adb wrapper, LLM client (buildless TS)
 ```

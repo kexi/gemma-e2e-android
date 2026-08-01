@@ -1,0 +1,27 @@
+# Deep-navigation cases against the Kexi Coffee Shop example app. Where
+# login.yaml stops at one form, these cross four and six screens -- which is
+# what makes them worth running: the history window and the `remember` action
+# only matter once a case outgrows a single screen.
+title: Coffee shop
+app:
+  package: dev.kexi.gemmae2e.example
+  activity: .MainActivity
+cases:
+  - id: add-to-cart
+    title: Adds a bean to the cart and sees the total
+    prompt: >-
+      Check that a customer can put a coffee bean in the cart. Log in with the
+      email "demo@example.com" and the password "demo1234", open the
+      "Yirgacheffe" bean from the shop list, add it to the cart, and confirm the
+      cart screen shows a total of $18.00.
+    maxSteps: 20
+
+  - id: checkout-with-code
+    title: Places an order using the confirmation code
+    prompt: >-
+      Check that a customer can complete an order. Log in with the email
+      "demo@example.com" and the password "demo1234", add any one coffee bean to
+      the cart, and go through checkout. The checkout screen shows a
+      confirmation code; the screen after it asks you to type that code back in.
+      Enter it, place the order, and confirm that an order number is shown.
+    maxSteps: 30
