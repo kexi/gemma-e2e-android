@@ -13,8 +13,11 @@
     "fmt": "bun run scripts/run-if-sources.ts oxfmt",
     "fmt:check": "bun run scripts/run-if-sources.ts oxfmt --check",
     "typecheck": "bun run scripts/run-if-sources.ts --typecheck",
-    "preinstall": "npx only-allow bun",
-    "prepare": "lefthook install || true"
+    "preinstall": "npx only-allow@1.2.2 bun",
+    "prepare": "bun scripts/install-hooks.ts"
+  },
+  "overrides": {
+    "openai": "^5.23.2"
   },
   "devDependencies": {
     "@types/bun": "^1.3.14",
