@@ -44,7 +44,7 @@ Entering the shell also runs `lefthook install`, so the pre-commit hooks
 ## 3. Install JavaScript dependencies
 
 ```sh
-bun install
+just install    # = bun install
 ```
 
 `bunfig.toml` sets `minimumReleaseAge = 86400`, so packages published within
@@ -78,6 +78,15 @@ adb devices       # should list the emulator
 
 For a physical device instead: enable Developer options → USB debugging, plug
 it in, and accept the RSA prompt; `adb devices` will show it.
+
+With a device or emulator online, build and install the example app:
+
+```sh
+just android      # expo run:android — prebuilds (CNG) and installs the login app
+```
+
+The first run generates `android/` and downloads Gradle dependencies, so it
+takes a while; later runs are incremental.
 
 ## 6. Dashboard
 

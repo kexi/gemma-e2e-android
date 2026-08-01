@@ -44,7 +44,7 @@ devshell に入ると `lefthook install` も実行されるので、pre-commit �
 ## 3. JavaScript の依存を入れる
 
 ```sh
-bun install
+just install    # = bun install
 ```
 
 `bunfig.toml` で `minimumReleaseAge = 86400` を設定しているため、公開から 1 日
@@ -77,6 +77,15 @@ adb devices       # エミュレータが見えることを確認
 
 実機を使う場合は、開発者オプション → USB デバッグを有効にして接続し、RSA の
 確認ダイアログを承認すると `adb devices` に現れます。
+
+デバイスかエミュレータが見えたら、example アプリをビルドして導入します:
+
+```sh
+just android      # = expo run:android(prebuild(CNG)→ ビルド → インストール)
+```
+
+初回は `android/` の生成と Gradle 依存のダウンロードで時間がかかります。
+2回目以降は差分ビルドです。
 
 ## 6. ダッシュボード
 

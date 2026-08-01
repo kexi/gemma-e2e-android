@@ -13,6 +13,10 @@ default:
 setup:
     lefthook install
 
+# Install JavaScript dependencies (bun is the only supported package manager).
+install:
+    bun install
+
 lint:
     bun run lint
 
@@ -61,6 +65,10 @@ avd-create:
 # Boot the AVD headless. Drop --no-window to watch the screen.
 emu:
     emulator -avd {{ avd_name }} -no-window -no-audio -no-boot-anim
+
+# Prebuild (CNG) and install the example app on the running emulator/device.
+android:
+    bun run --cwd apps/example android
 
 # Start the LM Studio local OpenAI-compatible API (http://localhost:1234/v1).
 llm:
