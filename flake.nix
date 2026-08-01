@@ -69,6 +69,9 @@
               pkgs.gitleaks
               pkgs.pinact
               pkgs.bun
+              # NDJSON logs and API responses get inspected constantly; keep
+              # the JSON tooling declared instead of leaning on system python.
+              pkgs.jq
               # Kept as a fallback: `#!/usr/bin/env node` shebang CLIs (Expo CLI)
               # resolve node, and Genkit is not officially supported on Bun yet.
               pkgs.nodejs_22
