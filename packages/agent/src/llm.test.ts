@@ -75,6 +75,11 @@ describe("SYSTEM_PROMPT", () => {
     expect(SYSTEM_PROMPT).toContain("passed");
     expect(SYSTEM_PROMPT).toContain("failed");
   });
+
+  test("tells the model to remember a value before leaving the screen showing it", () => {
+    expect(SYSTEM_PROMPT).toContain("BEFORE the action that leaves that screen");
+    expect(SYSTEM_PROMPT).toContain("once you have left");
+  });
 });
 
 describe("defaults", () => {

@@ -54,7 +54,9 @@ Actions:
 - remember: record a fact from the current screen that a later step will need
   (a confirmation code, an order number, a total). It touches nothing on the
   device, so use it only for values you would otherwise lose once you navigate
-  away — never for narrating what you just did.
+  away — never for narrating what you just did. If such a value is on the screen
+  now, remember it BEFORE the action that leaves that screen: once you have left,
+  the value is gone and you cannot go back for it.
 - finish: end the test. Use verdict "passed" once you can SEE the goal has been
   met, and "failed" when the goal cannot be achieved (a blocking error, a dead
   end, or the same screen repeating with no progress). Always give a reason.

@@ -10,6 +10,7 @@ import {
   FakeRecorder,
   FakeStore,
   HOME_XML,
+  LAUNCHING_XML,
   LOGIN_XML,
   scenario,
   ScriptedLlmFactory,
@@ -349,6 +350,58 @@ describe("app reset between cases", () => {
 
     expect(h.adb.methodNames()).not.toContain("launchApp");
     expect(h.adb.methodNames()).not.toContain("stopApp");
+  });
+});
+
+describe("waiting for the app's first screen", () => {
+  const withApp = { package: "com.example.app", activity: ".MainActivity" };
+
+  /** A cold start that shows nothing actionable until the second dump. */
+  function launching(scripts: (Action | Error)[]) {
+    const h = harness(scripts, [LAUNCHING_XML, LOGIN_XML]);
+    h.adb.advanceOnDump = true;
+    return h;
+  }
+
+  test("gives the model the drawn screen, not the empty one the launch dumped", async () => {
+    const h = launching([FINISH_PASSED]);
+
+    await runScenario(scenario({ app: withApp }), h.deps);
+
+    const uiText = h.llm.clients[0]?.inputs[0]?.uiText ?? "";
+    expect(uiText).toContain("Sign in");
+  });
+
+  test("spends no step on the wait", async () => {
+    const h = launching([FINISH_PASSED]);
+
+    const result = await runScenario(scenario({ app: withApp }), h.deps);
+
+    expect(result.cases[0]?.steps).toBe(1);
+    expect(h.store.case("run-1", "logs-in")?.steps).toHaveLength(1);
+  });
+
+  test("polls rather than sleeping a fixed span, so a ready app is not waited on", async () => {
+    const slept: number[] = [];
+    const h = harness([FINISH_PASSED], [LOGIN_XML]);
+
+    await runScenario(scenario({ app: withApp }), {
+      ...h.deps,
+      sleep: async (ms: number) => {
+        slept.push(ms);
+      },
+    });
+
+    expect(slept).toEqual([]);
+  });
+
+  test("proceeds after the timeout when the screen never fills in", async () => {
+    const h = harness([FINISH_PASSED], [LAUNCHING_XML]);
+
+    const result = await runScenario(scenario({ app: withApp }), h.deps);
+
+    expect(result.status).toBe("passed");
+    expect(h.llm.clients[0]?.inputs[0]?.uiText).toBe("");
   });
 });
 

@@ -29,6 +29,15 @@ export const HOME_XML = `<?xml version='1.0' encoding='UTF-8' standalone='yes' ?
   </node>
 </hierarchy>`;
 
+/**
+ * What a cold start dumps before the activity has drawn: a root with nothing
+ * actionable under it, so `serializeForLlm` numbers no refs at all.
+ */
+export const LAUNCHING_XML = `<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>
+<hierarchy rotation="0">
+  <node index="0" class="android.widget.FrameLayout" bounds="[0,0][1080,2400]" enabled="true" />
+</hierarchy>`;
+
 export interface AdbCall {
   method: string;
   args: unknown[];
@@ -49,6 +58,13 @@ export class FakeAdb implements AdbLike {
    * cannot report its focus produces.
    */
   activities: string[] = [];
+
+  /**
+   * When set, every dump advances the script as well. Models a screen that
+   * changes on its own — an app still starting up — which no action-driven
+   * advance can express.
+   */
+  advanceOnDump = false;
 
   constructor(
     private readonly screens: string[] = [LOGIN_XML],
@@ -73,6 +89,9 @@ export class FakeAdb implements AdbLike {
     this.#record("dumpUi");
     const index = Math.min(this.#screenIndex, this.screens.length - 1);
     const xml = this.screens[index] as string;
+    if (this.advanceOnDump) {
+      this.advance();
+    }
     return parseUiDump(xml);
   }
 
