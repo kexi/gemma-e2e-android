@@ -1,0 +1,9 @@
+{
+  // "bun" types: the Hono server runs under Bun (bun:sqlite through the store,
+  // Bun.file for the SPA-dist probe) and its tests run on bun:test.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["bun"]
+  },
+  "include": ["server/**/*.ts", "vite.config.ts"]
+}

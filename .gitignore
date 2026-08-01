@@ -15,3 +15,6 @@ apps/*/expo-env.d.ts
 # Run artifacts: the SQLite history and the screenshots it points at. Both are
 # per-machine output of a test run, not source.
 var/
+
+# Vite build output for the dashboard SPA.
+apps/*/dist/

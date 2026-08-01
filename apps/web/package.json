@@ -1,0 +1,33 @@
+{
+  "name": "@gemma-e2e/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:server": "bun --watch server/index.ts",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.server.json"
+  },
+  "dependencies": {
+    "@emotion/react": "11.14.0",
+    "@emotion/styled": "11.14.0",
+    "@gemma-e2e/adb": "workspace:*",
+    "@gemma-e2e/agent": "workspace:*",
+    "@gemma-e2e/core": "workspace:*",
+    "@gemma-e2e/store": "workspace:*",
+    "@mui/icons-material": "9.1.1",
+    "@mui/material": "9.1.2",
+    "hono": "4.12.32",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-router-dom": "7.18.1"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.4",
+    "vite": "8.1.5"
+  }
+}

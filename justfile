@@ -28,6 +28,17 @@ typecheck:
 test:
     bun test
 
+# Run the dashboard: Hono API on :5175 and the Vite dev server on :5173.
+web:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Both processes share this shell's process group, so one Ctrl-C stops the
+    # pair; the trap covers the case where only one of them dies on its own.
+    trap 'kill 0' EXIT INT TERM
+    bun run --cwd apps/web dev:server &
+    bun run --cwd apps/web dev &
+    wait
+
 # Full-history secret scan (the pre-commit hook only sees staged changes).
 secrets:
     gitleaks git --redact

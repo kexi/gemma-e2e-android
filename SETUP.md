@@ -79,7 +79,18 @@ adb devices       # should list the emulator
 For a physical device instead: enable Developer options → USB debugging, plug
 it in, and accept the RSA prompt; `adb devices` will show it.
 
-## 6. Verify
+## 6. Dashboard
+
+```sh
+just web
+```
+
+This starts the Hono API on `http://localhost:5175` and the Vite dev server on
+`http://localhost:5173` — open the second one. From there you can run a
+committed scenario, submit a one-off prompt, watch steps stream in live, and
+browse the run history.
+
+## 7. Verify
 
 ```sh
 just check

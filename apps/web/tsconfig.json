@@ -1,0 +1,14 @@
+{
+  // The client half of the app. The server half is tsconfig.server.json, and
+  // `bun run typecheck` checks both: they run on different platforms (browser
+  // vs Bun) and cannot share one `lib`/`types` set. This one is the default so
+  // editors and `vite build` pick up the JSX settings without extra config.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    // No "bun": the SPA must not typecheck against APIs the browser lacks.
+    "types": ["vite/client"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
+}
