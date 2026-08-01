@@ -22,5 +22,6 @@ var/
 # Vite build output for the dashboard SPA.
 apps/*/dist/
 
-# Firestore emulator debug log, written into the repo root on every run.
+# Emulator and Firebase CLI debug logs, written into the repo root on every run.
 firestore-debug.log
+firebase-debug.log
