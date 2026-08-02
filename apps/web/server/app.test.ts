@@ -1000,6 +1000,12 @@ describe("GET /api/device", () => {
     return createApp({ store, scenariosDir, startRun: () => {}, devices });
   }
 
+  /** `res.json()` is `unknown`, and the label is the only field these read. */
+  async function whichSource(res: Response): Promise<string | undefined> {
+    const body = (await res.json()) as { device?: { hardwareConfig?: Record<string, string> } };
+    return body.device?.hardwareConfig?.["which"];
+  }
+
   test("lists the platforms it can show", async () => {
     const res = await withDevices({ android: source("a"), web: source("w") }).request(
       "/api/device/platforms",
@@ -1020,15 +1026,15 @@ describe("GET /api/device", () => {
     const android = await app.request("/api/device/status?platform=android");
     const web = await app.request("/api/device/status?platform=web");
 
-    expect((await android.json()).device.hardwareConfig.which).toBe("emulator");
-    expect((await web.json()).device.hardwareConfig.which).toBe("browser");
+    expect(await whichSource(android)).toBe("emulator");
+    expect(await whichSource(web)).toBe("browser");
   });
 
   test("falls back to the only source when the request names none", async () => {
     // A single-platform setup keeps working without a query string.
     const res = await withDevices({ web: source("browser") }).request("/api/device/status");
 
-    expect((await res.json()).device.hardwareConfig.which).toBe("browser");
+    expect(await whichSource(res)).toBe("browser");
   });
 
   test("reports a platform that is not attached, rather than showing the other", async () => {
