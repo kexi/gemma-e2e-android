@@ -15,6 +15,13 @@ const SCROLL_FRACTION = 0.8;
 /** How long a navigation may take before the driver stops waiting for quiet. */
 const NAVIGATION_TIMEOUT_MS = 15_000;
 
+/**
+ * JPEG quality for screencast frames. 80 is the usual compromise: the artifact
+ * is a record of what the agent did, not a demo reel, and every point of
+ * quality is paid for in encode time and in base64 over the socket.
+ */
+const SCREENCAST_QUALITY = 80;
+
 export interface Viewport {
   width: number;
   height: number;
@@ -36,6 +43,20 @@ export interface CdpSession {
   readonly browserContextId: string;
 }
 
+/** One frame of the page, as the screencast encoded it. */
+export interface ScreencastFrame {
+  /** Base64 JPEG, straight from the protocol. */
+  data: string;
+  /**
+   * Wall-clock milliseconds. What makes a still page recordable: the stream
+   * emits nothing while nothing moves, so the gaps have to be reconstructed
+   * from when each frame was actually taken.
+   */
+  timestampMs: number;
+}
+
+export type FrameHandler = (frame: ScreencastFrame) => void;
+
 export function endpointOf(port: number = DEFAULT_DEBUGGING_PORT): string {
   return `http://127.0.0.1:${port}`;
 }
@@ -55,6 +76,9 @@ export class CdpClient {
   readonly #log: Logger;
   readonly #connectionOptions: CdpConnectionOptions;
   readonly #fetch: typeof globalThis.fetch;
+  /** Per page, so a recording and a live view can share one screencast. */
+  readonly #frameSubscribers = new Map<string, Set<FrameHandler>>();
+  readonly #frameUnsubscribers = new Map<string, () => void>();
   #connection: CdpConnection | null = null;
 
   constructor(options: CdpClientOptions = {}) {
@@ -348,9 +372,89 @@ export class CdpClient {
     );
   }
 
+  /**
+   * Subscribes to the page's frames, starting the screencast on the first
+   * subscriber and stopping it on the last. Returns the unsubscribe function.
+   *
+   * Chromium allows one screencast per page: a second `startScreencast` on the
+   * same target reconfigures the first rather than adding to it, and either
+   * consumer calling `stopScreencast` ends it for both. So the stream is
+   * started once and the frames are handed out here -- which is what lets a
+   * recording and a live view watch the same case at once.
+   *
+   * Frames are acknowledged as they arrive. Chromium caps how many may be
+   * outstanding and simply stops sending once the cap is reached, so a missed
+   * ack does not slow the stream down, it ends it.
+   */
+  async onFrames(session: CdpSession, handler: FrameHandler): Promise<() => void> {
+    const cdp = await this.#connect();
+
+    const existing = this.#frameSubscribers.get(session.sessionId);
+    const subscribers = existing ?? new Set<FrameHandler>();
+    const isFirst = subscribers.size === 0;
+    subscribers.add(handler);
+    this.#frameSubscribers.set(session.sessionId, subscribers);
+
+    if (isFirst) {
+      const off = cdp.on("Page.screencastFrame", (event) => {
+        const isOurs = event.sessionId === session.sessionId;
+        if (!isOurs) {
+          return;
+        }
+
+        const params = event.params as {
+          data: string;
+          sessionId: number;
+          metadata?: { timestamp?: number };
+        };
+        // Acknowledged before the handlers run: a slow consumer must not be
+        // able to stall the stream for the others.
+        void cdp
+          .send("Page.screencastFrameAck", { sessionId: params.sessionId }, session.sessionId)
+          .catch(() => {
+            // The page is gone, which the case is about to notice anyway.
+          });
+
+        const frame: ScreencastFrame = {
+          data: params.data,
+          timestampMs: (params.metadata?.timestamp ?? 0) * 1000,
+        };
+        for (const subscriber of Array.from(subscribers)) {
+          subscriber(frame);
+        }
+      });
+      this.#frameUnsubscribers.set(session.sessionId, off);
+
+      await cdp.send(
+        "Page.startScreencast",
+        { format: "jpeg", quality: SCREENCAST_QUALITY, everyNthFrame: 1 },
+        session.sessionId,
+      );
+    }
+
+    return () => {
+      subscribers.delete(handler);
+      const isLast = subscribers.size === 0;
+      if (!isLast) {
+        return;
+      }
+
+      this.#frameSubscribers.delete(session.sessionId);
+      this.#frameUnsubscribers.get(session.sessionId)?.();
+      this.#frameUnsubscribers.delete(session.sessionId);
+      // Not awaited: the caller is tearing down, and a page already disposed
+      // would reject here for a stream that no longer exists.
+      void this.#connection
+        ?.send("Page.stopScreencast", {}, session.sessionId)
+        .catch(() => undefined);
+    };
+  }
+
   /** Drops the socket. Sessions opened on it are gone with it. */
   close(): void {
     this.#connection?.close();
     this.#connection = null;
+    this.#frameSubscribers.clear();
+    this.#frameUnsubscribers.clear();
   }
 }

@@ -109,6 +109,11 @@
               # Mirrors the (headless) emulator or a physical device screen;
               # watching the agent drive the app beats reading step logs.
               pkgs.scrcpy
+              # Muxes web recordings. CDP has no video capture, so a browser
+              # case is recorded by piping the screencast's JPEG frames through
+              # ffmpeg -- scrcpy covers the Android side and does its own
+              # muxing, so this is only needed for the browser.
+              pkgs.ffmpeg
               # Kept as a fallback: `#!/usr/bin/env node` shebang CLIs (Expo CLI)
               # resolve node, and Genkit is not officially supported on Bun yet.
               pkgs.nodejs_22

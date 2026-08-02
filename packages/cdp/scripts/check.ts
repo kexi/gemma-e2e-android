@@ -72,7 +72,27 @@ try {
   const shot = `${process.env["TMPDIR"] ?? "/tmp"}/cdp-check.png`;
   await cdp.screencap(session, shot);
   console.log(`\nscreenshot: ${shot}`);
-  console.log("\nOK: the walker found the page, and the loop's actions drove it.");
+
+  // The screencast half, which no unit test reaches either: frames only arrive
+  // from a browser, and only ffmpeg can say whether what we mux is playable.
+  let frames = 0;
+  const stopFrames = await cdp.onFrames(session, () => {
+    frames += 1;
+  });
+  // Something has to move, or a still page emits nothing at all -- which is
+  // the behaviour the recorder's timestamps exist to work around.
+  await cdp.swipe(session, "up");
+  await Bun.sleep(500);
+  await cdp.swipe(session, "down");
+  await Bun.sleep(500);
+  stopFrames();
+
+  console.log(`screencast frames: ${frames}`);
+  if (frames === 0) {
+    throw new Error("the screencast delivered no frames");
+  }
+
+  console.log("\nOK: the walker found the page, the actions drove it, and frames arrive.");
 } finally {
   await cdp.closeSession(session);
   cdp.close();

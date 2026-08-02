@@ -1,5 +1,11 @@
 export { CdpClient, DEFAULT_DEBUGGING_PORT, endpointOf } from "./client.ts";
-export type { CdpClientOptions, CdpSession, Viewport } from "./client.ts";
+export type {
+  CdpClientOptions,
+  CdpSession,
+  FrameHandler,
+  ScreencastFrame,
+  Viewport,
+} from "./client.ts";
 
 export { CdpConnection, CdpError } from "./connection.ts";
 export type {

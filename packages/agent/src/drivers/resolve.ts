@@ -1,4 +1,5 @@
 import type { Target, WebTarget } from "@gemma-e2e/core";
+import type { CdpSession } from "@gemma-e2e/cdp";
 import type { DriverSession, OpenDriver } from "../driver.ts";
 import type { Recorder } from "../recorder.ts";
 import { type AdbLike, AndroidDriver } from "./android.ts";
@@ -23,7 +24,7 @@ export interface WebPlatform {
    * the recorder cannot be shared across cases the way scrcpy's is. Omitted,
    * web cases run unrecorded.
    */
-  recorder?: ((session: { sessionId: string }) => Recorder) | undefined;
+  recorder?: ((session: CdpSession) => Recorder) | undefined;
 }
 
 export interface DriverResolverDeps {

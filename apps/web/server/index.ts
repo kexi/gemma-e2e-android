@@ -1,7 +1,8 @@
 import { join } from "node:path";
 import { AdbClient } from "@gemma-e2e/adb";
-import { CdpClient, DEFAULT_DEBUGGING_PORT, endpointOf } from "@gemma-e2e/cdp";
+import { CdpClient, type CdpSession, DEFAULT_DEBUGGING_PORT, endpointOf } from "@gemma-e2e/cdp";
 import {
+  CdpRecorder,
   createDriverResolver,
   createGenkitLlmFactory,
   DEFAULT_BASE_URL,
@@ -64,12 +65,31 @@ const cdp = new CdpClient({
   logger,
 });
 
+// Stated here rather than left to the client's default because the recorder
+// needs the same numbers: a container declaring one size while the frames are
+// another produces a video that plays stretched or not at all. A scenario's
+// own `viewport` overrides the page but not this, so a case that resizes gets
+// a letterboxed recording rather than a broken one.
+const CHROME_VIEWPORT = { width: 1280, height: 900 } as const;
+
+// Built per session rather than shared like scrcpy's: a screencast belongs to
+// one page, so each case's recorder is bound to the page that case opened.
+const webRecorder = isRecording
+  ? (session: CdpSession) =>
+      new CdpRecorder({
+        videoDir: videosDir,
+        subscribe: (handler) => cdp.onFrames(session, handler),
+        ...CHROME_VIEWPORT,
+        logger,
+      })
+  : undefined;
+
 // Resolved per case rather than fixed here, so one scenario may name a
 // different platform on each of its cases. The platform halves above are
 // long-lived and shared; only the per-case driver is new each time.
 const openDriver = createDriverResolver({
   android: { adb, ...(recorder === undefined ? {} : { recorder }) },
-  web: { cdp },
+  web: { cdp, ...(webRecorder === undefined ? {} : { recorder: webRecorder }) },
 });
 
 function startRun({ runId, scenario, onEvent }: StartRunInput): void {

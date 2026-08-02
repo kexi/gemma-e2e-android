@@ -29,6 +29,14 @@ export type { CdpLike } from "./drivers/web.ts";
 export { createDriverResolver } from "./drivers/resolve.ts";
 export type { AndroidPlatform, DriverResolverDeps, WebPlatform } from "./drivers/resolve.ts";
 
+export { CdpRecorder } from "./recorders/cdp.ts";
+export type {
+  CdpRecorderOptions,
+  FfmpegProcess,
+  FfmpegSpawn,
+  SubscribeFrames,
+} from "./recorders/cdp.ts";
+
 export { recordCase, RecorderError, ScrcpyRecorder } from "./recorder.ts";
 export type {
   RecordedOutcome,
