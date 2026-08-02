@@ -196,6 +196,23 @@ export class CdpClient {
   /** Disposes the context, and with it every trace of what the case did. */
   async closeSession(session: CdpSession): Promise<void> {
     const cdp = await this.#connect();
+
+    // Released here as well as on the last unsubscribe, because a case that
+    // errors disposes its session while the recorder is still subscribed. The
+    // per-session frame handler and both map entries would otherwise outlive
+    // the page for the life of this client -- and since session ids are never
+    // reused, that grows with every case a long-running server runs.
+    //
+    // Stopped before the context goes: afterwards the page no longer exists
+    // and the command would only reject.
+    const wasStreaming = this.#frameSubscribers.has(session.sessionId);
+    if (wasStreaming) {
+      this.#frameUnsubscribers.get(session.sessionId)?.();
+      this.#frameUnsubscribers.delete(session.sessionId);
+      this.#frameSubscribers.delete(session.sessionId);
+      await cdp.send("Page.stopScreencast", {}, session.sessionId).catch(() => undefined);
+    }
+
     await cdp.send("Target.disposeBrowserContext", {
       browserContextId: session.browserContextId,
     });

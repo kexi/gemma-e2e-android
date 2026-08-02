@@ -170,6 +170,9 @@ logger.info("server.started", {
  * anything that fails is logged rather than raised, since the process is
  * leaving either way.
  */
+/** Long enough for a healthy teardown, short enough that Ctrl-C still feels like one. */
+const SHUTDOWN_TIMEOUT_MS = 3000;
+
 let shuttingDown = false;
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, () => {
@@ -182,7 +185,13 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
 
     void (async () => {
       try {
-        await device.close();
+        // Bounded: a wedged browser or a gRPC channel that never answers would
+        // otherwise hold the process open until something sends SIGKILL, and
+        // the point of this handler is that Ctrl-C works.
+        await Promise.race([
+          device.close(),
+          new Promise<void>((resolve) => setTimeout(resolve, SHUTDOWN_TIMEOUT_MS)),
+        ]);
       } catch (error) {
         logger.warn("server.shutdown_failed", errorFields(error));
       }

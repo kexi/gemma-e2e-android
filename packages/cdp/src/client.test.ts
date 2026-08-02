@@ -65,6 +65,15 @@ class FakeChrome implements SocketLike {
   }
 
   /** Pushes a lifecycle event a test controls the timing of. */
+  /** Pushes a screencast frame, as the page would when it repaints. */
+  announceFrame(sessionId: string, data = btoa("\xff\xd8\xff\xd9")): void {
+    this.#deliver({
+      method: "Page.screencastFrame",
+      params: { data, sessionId: 1, metadata: { timestamp: 1 } },
+      sessionId,
+    });
+  }
+
   announceLifecycle(name: string, sessionId: string): void {
     this.#deliver({ method: "Page.lifecycleEvent", params: { name }, sessionId });
   }
@@ -217,6 +226,35 @@ describe("sessions", () => {
     await openSession(chrome, client(chrome));
 
     expect(chrome.methodNames()).toContain("Page.setLifecycleEventsEnabled");
+  });
+
+  test("releases a frame subscription its subscriber never dropped", async () => {
+    // A case that errors disposes its session while the recorder is still
+    // subscribed. Without this the per-session frame handler and its map
+    // entries outlive the page for the life of the client, and session ids are
+    // never reused -- so it grows with every case a long-running server runs.
+    // `Page.stopScreencast` is the observable half of that release.
+    const chrome = new FakeChrome();
+    const cdp = client(chrome);
+    const session = await openSession(chrome, cdp);
+    await cdp.onFrames(session, () => {});
+
+    await cdp.closeSession(session);
+
+    expect(chrome.ofMethod("Page.stopScreencast")).toHaveLength(1);
+  });
+
+  test("stops delivering frames once the session is closed", async () => {
+    const chrome = new FakeChrome();
+    const cdp = client(chrome);
+    const session = await openSession(chrome, cdp);
+    const frames: unknown[] = [];
+    await cdp.onFrames(session, (frame) => frames.push(frame));
+
+    await cdp.closeSession(session);
+    chrome.announceFrame(session.sessionId);
+
+    expect(frames).toHaveLength(0);
   });
 
   test("disposing the context is what clears cookies and storage together", async () => {
