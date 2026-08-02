@@ -36,14 +36,18 @@ interface ContentVisibilityEvent extends Event {
   readonly skipped: boolean;
 }
 
-function streamUrl(): string {
+export type DevicePlatform = "android" | "web";
+
+function streamUrl(platform: DevicePlatform): string {
   // Same origin as the page: in development Vite proxies /api (ws:true) to the
   // Hono server, in production Hono serves both.
   const scheme = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return `${scheme}//${window.location.host}/api/device/stream`;
+  return `${scheme}//${window.location.host}/api/device/stream?platform=${platform}`;
 }
 
 export interface DeviceLiveViewProps {
+  /** Which source to watch. Changing it reopens the socket on the other one. */
+  platform: DevicePlatform;
   /** Cap on the rendered height; the run pane gives it less room than the idle pane. */
   maxHeight?: number | string;
   /** Hidden beside a run, where the surrounding card already explains itself. */
@@ -61,7 +65,11 @@ export interface DeviceLiveViewProps {
  * skip/render decision closes and reopens the socket — a scrolled-away or
  * background-tabbed view stops costing the emulator an encode per frame.
  */
-export function DeviceLiveView({ maxHeight = "70vh", showHint = true }: DeviceLiveViewProps) {
+export function DeviceLiveView({
+  platform,
+  maxHeight = "70vh",
+  showHint = true,
+}: DeviceLiveViewProps) {
   const [state, setState] = useState<ConnectionState>("connecting");
   const [frameUrl, setFrameUrl] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -116,7 +124,7 @@ export function DeviceLiveView({ maxHeight = "70vh", showHint = true }: DeviceLi
     }
 
     setState("connecting");
-    const socket = new WebSocket(streamUrl());
+    const socket = new WebSocket(streamUrl(platform));
     socket.binaryType = "blob";
     let closed = false;
 
@@ -155,7 +163,10 @@ export function DeviceLiveView({ maxHeight = "70vh", showHint = true }: DeviceLi
       // The last frame's URL is gone, so the <img> must not keep pointing at it.
       setFrameUrl(null);
     };
-  }, [attempt, rendered]);
+    // `platform` belongs here: switching it has to drop this socket and open
+    // one on the other source, which is exactly what re-running the effect
+    // does. Leaving it out would keep showing the previous platform's frames.
+  }, [attempt, rendered, platform]);
 
   const isBroken = state === "unavailable" || state === "disconnected";
 

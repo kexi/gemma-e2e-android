@@ -6,7 +6,7 @@ import type { CaseRun, Run, Scenario, Step } from "@gemma-e2e/core";
 import { createLogger, type LogEvent } from "@gemma-e2e/logger";
 import type { RunEvent } from "@gemma-e2e/agent";
 import { RunEventBus } from "./bus.ts";
-import { createApp, type StartRunInput, type StoreReader } from "./app.ts";
+import { createApp, type DeviceSource, type StartRunInput, type StoreReader } from "./app.ts";
 
 const LOGIN_YAML = `title: Login
 cases:
@@ -972,5 +972,97 @@ describe("structured logging", () => {
     const res = await app.request("/api/scenarios");
 
     expect(res.status).toBe(200);
+  });
+});
+
+/**
+ * Both sources are attached at once and the request picks, so a run on either
+ * platform can be watched without restarting the server. These pin the
+ * selection; the sources themselves are covered by their own suites.
+ */
+describe("GET /api/device", () => {
+  const source = (label: string): DeviceSource => ({
+    getStatus: async () => ({
+      uptimeMs: null,
+      booted: true,
+      hardwareConfig: { which: label },
+    }),
+    openFrameStream: () => ({
+      on: () => {},
+      cancel: () => {},
+    }),
+  });
+
+  function withDevices(devices: {
+    android?: DeviceSource | undefined;
+    web?: DeviceSource | undefined;
+  }) {
+    return createApp({ store, scenariosDir, startRun: () => {}, devices });
+  }
+
+  test("lists the platforms it can show", async () => {
+    const res = await withDevices({ android: source("a"), web: source("w") }).request(
+      "/api/device/platforms",
+    );
+
+    expect(await res.json()).toEqual({ platforms: ["android", "web"] });
+  });
+
+  test("lists only what is attached, so a picker can hide itself", async () => {
+    const res = await withDevices({ web: source("w") }).request("/api/device/platforms");
+
+    expect(await res.json()).toEqual({ platforms: ["web"] });
+  });
+
+  test("answers from the platform the request names", async () => {
+    const app = withDevices({ android: source("emulator"), web: source("browser") });
+
+    const android = await app.request("/api/device/status?platform=android");
+    const web = await app.request("/api/device/status?platform=web");
+
+    expect((await android.json()).device.hardwareConfig.which).toBe("emulator");
+    expect((await web.json()).device.hardwareConfig.which).toBe("browser");
+  });
+
+  test("falls back to the only source when the request names none", async () => {
+    // A single-platform setup keeps working without a query string.
+    const res = await withDevices({ web: source("browser") }).request("/api/device/status");
+
+    expect((await res.json()).device.hardwareConfig.which).toBe("browser");
+  });
+
+  test("reports a platform that is not attached, rather than showing the other", async () => {
+    const res = await withDevices({ android: source("emulator") }).request(
+      "/api/device/status?platform=web",
+    );
+
+    expect(res.status).toBe(404);
+  });
+
+  test("reports a source that cannot answer as unavailable, not as a crash", async () => {
+    // Which the Device page renders as guidance -- "start the emulator".
+    const app = createApp({
+      store,
+      scenariosDir,
+      startRun: () => {},
+      devices: {
+        android: {
+          getStatus: async () => {
+            throw new Error("connect ECONNREFUSED");
+          },
+          openFrameStream: () => ({ on: () => {}, cancel: () => {} }),
+        },
+      },
+    });
+
+    const res = await app.request("/api/device/status?platform=android");
+
+    expect(res.status).toBe(503);
+  });
+
+  test("serves no device routes at all when neither source is attached", async () => {
+    const res = await withDevices({}).request("/api/device/platforms");
+
+    expect(res.status).toBe(404);
   });
 });

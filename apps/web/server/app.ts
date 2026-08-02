@@ -19,6 +19,7 @@ import { errorFields, type Logger, noopLogger } from "@gemma-e2e/logger";
 import type { RunEvent } from "@gemma-e2e/agent";
 import { RunEventBus } from "./bus.ts";
 import {
+  CLOSE_UPSTREAM_FAILED,
   type DeviceStatus,
   type FrameSink,
   type FrameStream,
@@ -64,7 +65,12 @@ export interface AppDeps {
   bus?: RunEventBus | undefined;
   /** Defaults to a no-op so the app tests stay quiet unless they opt in. */
   logger?: Logger | undefined;
-  device?: DeviceSource | undefined;
+  /**
+   * The live views on offer, by platform. Both may be attached: a browser
+   * costs nothing while idle and an emulator either answers or does not, so
+   * which one is shown is the client's choice rather than the process's.
+   */
+  devices?: { android?: DeviceSource | undefined; web?: DeviceSource | undefined } | undefined;
   /** Backs GET /api/models; omitted, the endpoint reports 503. */
   listModels?: (() => Promise<ModelInfo[]>) | undefined;
 }
@@ -481,17 +487,46 @@ export function createApp(deps: AppDeps) {
     });
   });
 
-  const device = deps.device;
-  const hasDevice = device !== undefined;
-  if (hasDevice) {
+  const devices = deps.devices ?? {};
+  /**
+   * Which source a request wants, defaulting to whichever exists.
+   *
+   * Both platforms can be attached at once -- a browser costs nothing when
+   * idle, and an emulator either answers or does not -- so the choice belongs
+   * to the request rather than to the process. Falling back to the only one
+   * configured keeps a single-platform setup working without a query string.
+   */
+  const deviceFor = (platform: string | undefined): DeviceSource | undefined => {
+    const named =
+      platform === "web" ? devices.web : platform === "android" ? devices.android : undefined;
+    return named ?? (platform === undefined ? (devices.android ?? devices.web) : undefined);
+  };
+
+  const hasAnyDevice = devices.android !== undefined || devices.web !== undefined;
+  if (hasAnyDevice) {
+    app.get("/api/device/platforms", (c) =>
+      c.json({
+        platforms: (["android", "web"] as const).filter((name) => devices[name] !== undefined),
+      }),
+    );
+
     app.get("/api/device/status", async (c) => {
+      const platform = c.req.query("platform");
+      const device = deviceFor(platform);
+      if (device === undefined) {
+        return c.json({ error: `no ${platform ?? "device"} source is configured` }, 404);
+      }
+
       try {
         return c.json({ device: await device.getStatus() });
       } catch (error) {
-        // An emulator that is down is an expected state for this page, not a
+        // A platform that is down is an expected state for this page, not a
         // server fault: 503 lets the client say "start the emulator" rather
         // than render a crash.
-        log.warn("device.status_unavailable", errorFields(error));
+        log.warn("device.status_unavailable", {
+          platform: platform ?? null,
+          ...errorFields(error),
+        });
         const message = error instanceof Error ? error.message : String(error);
         return c.json({ error: message }, 503);
       }
@@ -499,10 +534,17 @@ export function createApp(deps: AppDeps) {
 
     app.get(
       "/api/device/stream",
-      upgradeWebSocket(() => {
+      upgradeWebSocket((c) => {
+        const device = deviceFor(c.req.query("platform"));
         let stop: (() => void) | null = null;
         return {
           onOpen(_event, ws) {
+            const isMissing = device === undefined;
+            if (isMissing) {
+              ws.close(CLOSE_UPSTREAM_FAILED, "no such device source");
+              return;
+            }
+
             const sink: FrameSink = {
               send: (data) => {
                 ws.send(data);
@@ -511,9 +553,9 @@ export function createApp(deps: AppDeps) {
                 ws.close(code, reason);
               },
             };
-            // Throttled to ~20 fps: streamScreenshot only emits on change, so
-            // this caps a busy animation without adding latency to an idle
-            // screen, where frames are already rare.
+            // Throttled to ~20 fps: both sources only emit on change, so this
+            // caps a busy animation without adding latency to an idle screen,
+            // where frames are already rare.
             stop = relayFrames(() => device.openFrameStream(), sink, {
               minFrameIntervalMs: 50,
               logger: log,

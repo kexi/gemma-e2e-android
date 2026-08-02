@@ -120,20 +120,18 @@ const isProduction = await Bun.file(join(clientDir, "index.html")).exists();
 // CDP source behaves the same way, for the same reason.
 const emulatorGrpcTarget = process.env["EMULATOR_GRPC"] ?? DEFAULT_EMULATOR_GRPC_TARGET;
 
-// One live view, so which platform it watches is a choice rather than
-// something derived: a run may name either, and the page cannot show both at
-// once. Android stays the default because it is what the view was built for.
-const livePlatform = process.env["LIVE_VIEW"] === "web" ? "web" : "android";
-const device =
-  livePlatform === "web"
-    ? new CdpDeviceSource(cdp, {
-        ...(process.env["LIVE_VIEW_URL"] === undefined
-          ? {}
-          : { url: process.env["LIVE_VIEW_URL"] }),
-        viewport: CHROME_VIEWPORT,
-        logger,
-      })
-    : new EmulatorClient(emulatorGrpcTarget, { logger });
+// Both are attached, and the page picks. Neither costs anything until it is
+// asked for -- grpc-js connects lazily and the browser page opens on first
+// use -- so making this a choice at startup would only mean a run on one
+// platform could not be watched while the server was configured for the other.
+const devices = {
+  android: new EmulatorClient(emulatorGrpcTarget, { logger }),
+  web: new CdpDeviceSource(cdp, {
+    ...(process.env["LIVE_VIEW_URL"] === undefined ? {} : { url: process.env["LIVE_VIEW_URL"] }),
+    viewport: CHROME_VIEWPORT,
+    logger,
+  }),
+};
 
 const app = createApp({
   store,
@@ -142,7 +140,7 @@ const app = createApp({
   screenshotsDir,
   videosDir,
   logger,
-  device,
+  devices,
   listModels: () => listModels({ baseURL: llmBaseURL, logger }),
   ...(isProduction ? { clientDir } : {}),
 });
@@ -153,26 +151,26 @@ logger.info("server.started", {
   varDir,
   emulatorGrpcTarget,
   chromePort,
-  livePlatform,
+  liveViewUrl: process.env["LIVE_VIEW_URL"] ?? null,
   defaultModel,
   recording: isRecording,
   firestoreEmulator: process.env["FIRESTORE_EMULATOR_HOST"] ?? null,
   mode: isProduction ? "prod" : "dev",
 });
 
-/**
- * Releases what outlives a request before the process goes.
- *
- * The live view holds a browser context open across the whole session, and
- * `--watch` restarts this file on every edit. Without a teardown each restart
- * strands another context, and a morning's work leaves a browser full of
- * orphaned pages. The device sources own that, so they are asked to close;
- * anything that fails is logged rather than raised, since the process is
- * leaving either way.
- */
 /** Long enough for a healthy teardown, short enough that Ctrl-C still feels like one. */
 const SHUTDOWN_TIMEOUT_MS = 3000;
 
+/**
+ * Releases what outlives a request before the process goes.
+ *
+ * The web live view holds a browser context open across the whole session, and
+ * `--watch` restarts this file on every edit. Without a teardown each restart
+ * strands another context, and a morning's work leaves a browser full of
+ * orphaned pages. Only that source owns anything worth releasing -- grpc-js
+ * drops its channel with the process -- and a failure is logged rather than
+ * raised, since the process is leaving either way.
+ */
 let shuttingDown = false;
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, () => {
@@ -189,7 +187,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
         // otherwise hold the process open until something sends SIGKILL, and
         // the point of this handler is that Ctrl-C works.
         await Promise.race([
-          device.close(),
+          devices.web.close(),
           new Promise<void>((resolve) => setTimeout(resolve, SHUTDOWN_TIMEOUT_MS)),
         ]);
       } catch (error) {

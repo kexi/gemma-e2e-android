@@ -21,6 +21,7 @@ import type { CaseRun, Run, RunStatus, Step } from "@gemma-e2e/core/schema";
 import { fetchRun, screenshotUrl, videoUrl } from "../api.ts";
 import { actionIcon, describeAction, StatusChip } from "../status.tsx";
 import { DeviceLiveView } from "../DeviceLiveView.tsx";
+import { useDevicePlatform } from "../useDevicePlatform.ts";
 import { UiTreeDetails } from "../UiTreeDetails.tsx";
 import { useDirectionalNavigate } from "../viewTransition.ts";
 
@@ -179,6 +180,11 @@ export function RunPage() {
   const [error, setError] = useState<string | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const navigate = useDirectionalNavigate();
+  // The same choice the Device page holds, so switching there is still in
+  // effect when a run is opened. No picker here: beside a running case the
+  // interesting screen is the one it is driving, and the Device page is one
+  // click away for anything else.
+  const [livePlatform] = useDevicePlatform();
 
   useEffect(() => {
     if (id === undefined) {
@@ -342,7 +348,7 @@ export function RunPage() {
             <Typography variant="subtitle2" gutterBottom>
               Live screen
             </Typography>
-            <DeviceLiveView maxHeight="60vh" showHint={false} />
+            <DeviceLiveView platform={livePlatform} maxHeight="60vh" showHint={false} />
           </Box>
         )}
       </Stack>
