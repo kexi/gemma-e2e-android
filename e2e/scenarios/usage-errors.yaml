@@ -81,6 +81,28 @@ steps:
       code: 2
       timeout: 10s
 
+  # A stored scenario carries its own title and model, so these flags belong to
+  # --prompt alone. Refused rather than sent: the server ignores them on the
+  # scenario branch, which would make a wrong --model look accepted.
+  - spawn: "${GEMMA_E2E_BIN} run start login --model bogus-model-xyz"
+  - expect:
+      contains: "use --model with --prompt, not with a scenario id"
+      timeout: 10s
+  - expect:
+      contains: "Try 'gemma-e2e run start --help' for more information."
+      timeout: 10s
+  - expect_exit:
+      code: 2
+      timeout: 10s
+
+  - spawn: "${GEMMA_E2E_BIN} run start login --title Mine --model bogus-model-xyz"
+  - expect:
+      contains: "use --title and --model with --prompt, not with a scenario id"
+      timeout: 10s
+  - expect_exit:
+      code: 2
+      timeout: 10s
+
   - spawn: "${GEMMA_E2E_BIN} scenario"
   - expect:
       contains: "missing scenario subcommand"

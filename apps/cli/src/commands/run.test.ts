@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type { Run, RunStatus } from "@gemma-e2e/core/schema";
 import type { ExitCode } from "../exit-codes.ts";
 import { runCommand, type RunTiming } from "./run.ts";
-import { captureContext, sseFrame, sseResponse, withServer } from "../testing.ts";
+import { captureContext, rejection, sseFrame, sseResponse, withServer } from "../testing.ts";
 import { UsageError } from "../usage.ts";
 
 /** Sleeps return immediately, so retry and poll loops run at full speed. */
@@ -11,6 +11,9 @@ const FAST: RunTiming = {
   pollIntervalMs: 0,
   sleep: () => Promise.resolve(),
 };
+
+/** How many times `watch` looks for a run before giving up, per RUN_APPEAR_ATTEMPTS. */
+const WATCH_APPEAR_LOOKUPS = 20;
 
 function runDoc(overrides: Partial<Run> = {}): Run {
   return {
@@ -45,6 +48,43 @@ describe("run get", () => {
         },
       );
     }
+  });
+
+  test("retries the 404 a run start has not finished writing yet", async () => {
+    let lookups = 0;
+    await withServer(
+      () => {
+        lookups += 1;
+        // POST /api/runs answers 202 before the document exists, so a get
+        // issued right after it legitimately misses at first.
+        const isReady = lookups > 2;
+        return isReady
+          ? Response.json({ run: runDoc() })
+          : Response.json({ error: "no such run" }, { status: 404 });
+      },
+      async (client) => {
+        const { context, out } = captureContext(client);
+
+        expect(await runCommand(["run-1"], context, "get", FAST)).toBe(0);
+        expect(out.join("\n")).toContain("run-1");
+      },
+    );
+  });
+
+  test("gives up on a missing run far sooner than watch does, so a typo does not hang", async () => {
+    let lookups = 0;
+    await withServer(
+      () => {
+        lookups += 1;
+        return Response.json({ error: "no such run" }, { status: 404 });
+      },
+      async (client) => {
+        const { context } = captureContext(client);
+
+        await expect(runCommand(["typo"], context, "get", FAST)).rejects.toThrow("no such run");
+        expect(lookups).toBeLessThan(WATCH_APPEAR_LOOKUPS);
+      },
+    );
   });
 
   test("prints the run as JSON when --json is given", async () => {
@@ -164,6 +204,35 @@ describe("run start", () => {
       },
     );
   });
+
+  test("refuses --title and --model on a scenario start instead of dropping them", async () => {
+    const cases: [string[], string][] = [
+      [["login", "--title", "Mine"], "--title"],
+      [["login", "--model", "bogus"], "--model"],
+      [["login", "--title", "Mine", "--model", "bogus"], "--title and --model"],
+    ];
+
+    for (const [argv, named] of cases) {
+      let posted = false;
+      await withServer(
+        () => {
+          posted = true;
+          return Response.json({ runId: "run-9" }, { status: 202 });
+        },
+        async (client) => {
+          const { context } = captureContext(client);
+
+          const error = await rejection(runCommand(argv, context, "start", FAST));
+
+          expect(error).toBeInstanceOf(UsageError);
+          expect(error.message).toContain(named);
+          // The server would have ignored these on the scenario branch, so the
+          // run must not have been started at all.
+          expect(posted).toBe(false);
+        },
+      );
+    }
+  });
 });
 
 describe("run watch", () => {
@@ -200,12 +269,17 @@ describe("run watch", () => {
   });
 
   test("gives up on a run that never appears", async () => {
+    let lookups = 0;
     await withServer(
-      () => Response.json({ error: "no such run" }, { status: 404 }),
+      () => {
+        lookups += 1;
+        return Response.json({ error: "no such run" }, { status: 404 });
+      },
       async (client) => {
         const { context } = captureContext(client);
 
-        expect(runCommand(["ghost"], context, "watch", FAST)).rejects.toThrow("no such run");
+        await expect(runCommand(["ghost"], context, "watch", FAST)).rejects.toThrow("no such run");
+        expect(lookups).toBe(WATCH_APPEAR_LOOKUPS);
       },
     );
   });
@@ -343,6 +417,32 @@ describe("run watch", () => {
 
         expect(await runCommand(["run-1"], context, "watch", FAST)).toBe(1);
         expect(out.join("\n")).toContain("failed  run run-1  timed out");
+      },
+    );
+  });
+
+  test("stops polling a run wedged in running and reports it as unresolved", async () => {
+    let polls = 0;
+    await withServer(
+      (request) => {
+        const isEvents = new URL(request.url).pathname.endsWith("/events");
+        if (isEvents) {
+          // Drops without a verdict, and the run never leaves "running" --
+          // an executor killed before it could write one.
+          return sseResponse([]);
+        }
+        polls += 1;
+        return Response.json({ run: runDoc({ status: "running" }) });
+      },
+      async (client) => {
+        const { context, err } = captureContext(client);
+
+        expect(await runCommand(["run-1"], context, "watch", FAST)).toBe(2);
+        expect(err.join("\n")).toContain("gave up waiting for a verdict");
+        // Bounded rather than endless: the exact ceiling is a tuning choice,
+        // that it exists at all is the guarantee.
+        expect(polls).toBeGreaterThan(1);
+        expect(polls).toBeLessThan(10_000);
       },
     );
   });
