@@ -110,6 +110,18 @@ describe("CdpDeviceSource status", () => {
     expect(cdp.opened).toBe(1);
   });
 
+  test("opens one page for callers that arrive together", async () => {
+    // The Device page polls getStatus() while the relay opens a frame stream,
+    // so this overlap is the normal case. Two opens would strand the first
+    // context: close() can only dispose the one it can see.
+    const cdp = new FakeCdp();
+    const device = source(cdp);
+
+    await Promise.all([device.getStatus(), device.getStatus(), device.getStatus()]);
+
+    expect(cdp.opened).toBe(1);
+  });
+
   test("reopens after the page goes away, rather than holding a dead handle", async () => {
     // Chrome restarted, or the context was disposed: the next command fails,
     // and a live view that kept the handle would stay blank until a reboot.

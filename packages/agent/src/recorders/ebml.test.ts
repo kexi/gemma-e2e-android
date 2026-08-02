@@ -118,9 +118,13 @@ describe("ebmlFrame", () => {
     expect(frame[block + 2 + 1 + 2]).toBe(0x80);
   });
 
-  test("rounds and floors the timestamp, since a negative one cannot be encoded", () => {
-    expect(() => ebmlFrame(jpeg, -50)).not.toThrow();
-    expect(() => ebmlFrame(jpeg, 12.7)).not.toThrow();
+  test("rounds and clamps the timestamp, since a negative one cannot be encoded", () => {
+    // Asserting the value rather than merely that it does not throw: a clamp
+    // that silently produced the wrong timecode would pass the weaker check
+    // while shifting every frame after it.
+    expect(timecodeOf(ebmlFrame(jpeg, -50))).toBe(0);
+    expect(timecodeOf(ebmlFrame(jpeg, 12.7))).toBe(13);
+    expect(timecodeOf(ebmlFrame(jpeg, 12.2))).toBe(12);
   });
 
   test("holds the JPEG unaltered, so what was captured is what is muxed", () => {

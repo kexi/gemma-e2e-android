@@ -56,9 +56,10 @@ describe("AndroidDriver", () => {
   test("reports no label when the client cannot name an activity", async () => {
     const adb = new FakeAdb([LOGIN_XML]);
     // A client predating focusedActivity: the method is absent, not empty.
-    const { focusedActivity: _omitted, ...withoutReporting } = adb;
+    // Written out rather than spread from the fake, because its methods live
+    // on the prototype -- a rest destructure would copy none of them and omit
+    // none either, so the case would pass without testing anything.
     const driver = new AndroidDriver({
-      ...withoutReporting,
       dumpUi: () => adb.dumpUi(),
       tap: (x, y) => adb.tap(x, y),
       typeText: (text) => adb.typeText(text),

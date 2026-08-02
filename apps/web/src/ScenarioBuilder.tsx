@@ -26,6 +26,14 @@ interface CaseDraft {
   title: string;
   prompt: string;
   model: string;
+  /**
+   * Carried through untouched, and not editable in this form.
+   *
+   * A case may override the scenario's platform, which is what lets one
+   * scenario span both. Nothing here edits that, but a draft that dropped it
+   * would delete it on save -- silently, since the form never showed it.
+   */
+  target?: Target | undefined;
   maxSteps: string;
 }
 
@@ -86,6 +94,7 @@ function draftOf(scenario: Scenario): Draft {
         title: one.title ?? "",
         prompt: one.prompt,
         model: one.model ?? SERVER_DEFAULT,
+        ...(one.target === undefined ? {} : { target: one.target }),
         maxSteps: String(one.maxSteps),
       };
     }),
@@ -254,6 +263,9 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
         ...(one.title.trim() === "" ? {} : { title: one.title.trim() }),
         prompt: one.prompt.trim(),
         ...(one.model === SERVER_DEFAULT ? {} : { model: one.model }),
+        // Sent back as it arrived: this form cannot edit a case's target, so
+        // omitting it would delete an override the user never saw.
+        ...(one.target === undefined ? {} : { target: one.target }),
         ...(one.maxSteps.trim() === "" ? {} : { maxSteps: Number(one.maxSteps) }),
       })),
     };

@@ -76,19 +76,21 @@ describe("CdpConnection commands", () => {
   });
 
   test("routes a command to a session, which is how a page is addressed", async () => {
+    // Bounded and caught: the command is never answered, and its default 30s
+    // timer would otherwise outlive the test along with the rejection it fires.
     const socket = new FakeSocket();
-    const cdp = await connect(socket);
+    const cdp = await connect(socket, 10);
 
-    void cdp.send("Runtime.evaluate", { expression: "1" }, "S1");
+    void cdp.send("Runtime.evaluate", { expression: "1" }, "S1").catch(() => {});
 
     expect(socket.sent[0]?.["sessionId"]).toBe("S1");
   });
 
   test("omits sessionId for browser-level commands", async () => {
     const socket = new FakeSocket();
-    const cdp = await connect(socket);
+    const cdp = await connect(socket, 10);
 
-    void cdp.send("Target.createBrowserContext");
+    void cdp.send("Target.createBrowserContext").catch(() => {});
 
     expect(socket.sent[0]).not.toHaveProperty("sessionId");
   });

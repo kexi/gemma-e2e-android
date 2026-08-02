@@ -168,6 +168,17 @@ export const COLLECT_JS = String.raw`(() => {
     for (const child of el.children) visit(child, childrenInto);
   };
 
-  for (const child of document.body.children) visit(child, roots);
+  // A document mid-navigation, or an XML one, has no body. Reporting an empty
+  // tree lets the loop's readiness poll wait it out; throwing would surface as
+  // "the page returned nothing" and end the case.
+  //
+  // Blind spots, both deliberate: an open shadow root is not descended into,
+  // and an iframe's document is a separate target that needs its own session.
+  // Neither is reachable in the app under test; both would need widening
+  // before this drives a page that uses them.
+  const body = document.body;
+  if (body) {
+    for (const child of body.children) visit(child, roots);
+  }
   return { elements, roots };
 })()`;

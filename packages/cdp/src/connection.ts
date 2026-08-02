@@ -106,18 +106,32 @@ export class CdpConnection {
     const isReady = (socket as { readyState?: number }).readyState;
     const alreadyOpen = isReady === undefined || isReady === 1;
     if (!alreadyOpen) {
-      await new Promise<void>((resolve, reject) => {
-        const native = socket as unknown as {
-          addEventListener(type: string, handler: () => void): void;
-        };
-        native.addEventListener("open", resolve);
-        native.addEventListener("error", () => {
-          reject(new CdpError(`cannot reach devtools at ${url}`));
+      const native = socket as unknown as {
+        addEventListener(type: string, handler: () => void): void;
+        removeEventListener?(type: string, handler: () => void): void;
+      };
+
+      // Detached once the handshake settles: these belong to the wait, not to
+      // the connection, and the error one would otherwise fire again for every
+      // later failure -- rejecting a promise that has long since resolved.
+      let onOpen = (): void => {};
+      let onError = (): void => {};
+      try {
+        await new Promise<void>((resolve, reject) => {
+          onOpen = resolve;
+          onError = () => {
+            reject(new CdpError(`cannot reach devtools at ${url}`));
+          };
+          native.addEventListener("open", onOpen);
+          native.addEventListener("error", onError);
         });
-      });
+      } finally {
+        native.removeEventListener?.("open", onOpen);
+        native.removeEventListener?.("error", onError);
+      }
     }
 
-    options.logger?.debug("cdp.connected", { url });
+    connection.#log.debug("cdp.connected", { url });
     return connection;
   }
 

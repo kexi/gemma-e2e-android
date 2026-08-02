@@ -184,7 +184,8 @@ chrome:
         echo "Chrome not found. Install it, or set CHROME_ENDPOINT to one already listening." >&2
         exit 1
     fi
-    exec "$chrome" --remote-debugging-port=9222 --user-data-dir="$profile" --no-first-run
+    # Same variable the server reads, so moving the port moves both halves.
+    exec "$chrome" --remote-debugging-port="${CHROME_PORT:-9222}" --user-data-dir="$profile" --no-first-run
 
 # Drive the example web app through the real CdpClient and print what the model
 # would see. Needs `just example-web` and `just chrome` running; deliberately
