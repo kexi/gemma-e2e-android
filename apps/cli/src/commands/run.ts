@@ -1,6 +1,6 @@
 import type { Run } from "@gemma-e2e/core/schema";
 import { parseCommand, rejectExtraOperands, requireOperand } from "../args.ts";
-import { ApiError, type CreateRunRequest } from "../client.ts";
+import { ApiError, ConnectionError, type CreateRunRequest } from "../client.ts";
 import { type Context, printJson } from "../context.ts";
 import { EXIT_ERROR, EXIT_OK, type ExitCode, exitCodeForStatus } from "../exit-codes.ts";
 import { renderEvent, renderRun, renderRunList } from "../render.ts";
@@ -240,7 +240,10 @@ async function getRun(context: Context, runId: string, timing: RunTiming): Promi
  * `run_finished`, and any earlier close (a restart, a dropped connection) is
  * indistinguishable from that at the socket level. So a stream that ends
  * without a verdict falls through to polling rather than reporting success it
- * never saw.
+ * never saw. A stream that ends by *throwing* -- a socket reset mid-frame is
+ * the same restart seen a moment earlier -- falls through the same way, since
+ * refusing to poll exactly when the connection proved unreliable would give up
+ * on the run in the one case the fallback exists for.
  *
  * The stream is drained to its close rather than broken out of on
  * `run_finished`: the timeline is replayed from the start, so a finished run
@@ -256,7 +259,7 @@ async function watchRun(context: Context, runId: string, timing: RunTiming): Pro
     throw new ApiError(response.status, `cannot watch run ${runId} (${response.status})`);
   }
 
-  const finish = await streamEvents(context, response);
+  const finish = await streamEvents(context, response).catch(() => null);
   const sawVerdict = finish !== null;
   if (sawVerdict) {
     return exitCodeForStatus(finish.status);
@@ -325,10 +328,40 @@ async function waitForRun(
 }
 
 /**
+ * A failed poll that says nothing about the run, as opposed to one that says
+ * the run is gone or the request was wrong.
+ *
+ * The stream is only ever abandoned because something went wrong with the
+ * connection or the server, so the first polls land in exactly that weather: a
+ * refused connection while the dashboard restarts, a 502 from a proxy ahead of
+ * it, a 503 while it comes back up. Treating those as answers would make the
+ * fallback fail precisely when it is needed, so they count as an attempt spent
+ * and nothing more.
+ *
+ * *Why not retry everything:* a 404 means the run was deleted and a 4xx means
+ * this request will never succeed, so retrying either burns the whole
+ * POLL_MAX_ATTEMPTS budget -- half an hour of a held terminal -- to arrive at
+ * the failure that was already known on the first try. Those are raised as they
+ * come.
+ */
+function isTransientPollFailure(error: unknown): boolean {
+  const isApi = error instanceof ApiError;
+  if (!isApi) {
+    // A ConnectionError, i.e. nothing is listening yet. The server being down
+    // is the restart this fallback was written for.
+    return error instanceof ConnectionError;
+  }
+  return error.status >= 500;
+}
+
+/**
  * Fallback for a stream that died mid-run: ask until the run reaches a verdict,
  * and give up rather than poll forever. A run wedged in "running" -- an
  * executor killed between its last write and its verdict -- would otherwise
  * hold the terminal, or a CI job, until something outside kills it.
+ *
+ * Polls that fail transiently are spent attempts rather than the end of the
+ * loop; see isTransientPollFailure for where that line is drawn.
  */
 async function pollToVerdict(
   context: Context,
@@ -336,9 +369,9 @@ async function pollToVerdict(
   timing: RunTiming,
 ): Promise<ExitCode> {
   for (let attempt = 0; attempt < POLL_MAX_ATTEMPTS; attempt += 1) {
-    const { run } = await context.client.getRun(runId);
-    const isOver = run.status !== "running";
-    if (isOver) {
+    const run = await pollOnce(context, runId);
+    const isResolved = run !== null && run.status !== "running";
+    if (isResolved) {
       reportFinalStatus(context, run);
       return exitCodeForStatus(run.status);
     }
@@ -350,6 +383,19 @@ async function pollToVerdict(
   // not answer", never a passing one.
   context.err(`${PROGRAM}: run ${runId} is still running; gave up waiting for a verdict`);
   return EXIT_ERROR;
+}
+
+/** One poll: the run if the server answered with it, null if the failure was worth retrying. */
+async function pollOnce(context: Context, runId: string): Promise<Run | null> {
+  try {
+    const { run } = await context.client.getRun(runId);
+    return run;
+  } catch (error) {
+    if (isTransientPollFailure(error)) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 function reportFinalStatus(context: Context, run: Run): void {

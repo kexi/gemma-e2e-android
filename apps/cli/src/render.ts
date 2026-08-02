@@ -48,9 +48,35 @@ export function statusColor(status: RunStatus): Color {
 }
 
 /**
+ * SGR sequences as this module emits them: ESC [ digits m. Kept to that shape
+ * rather than the full CSI grammar because these are the only escapes `table`
+ * can receive -- every cell it is handed was decorated by `colored` above.
+ */
+const SGR = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");
+
+/** The width a cell occupies on screen, which its `.length` overstates once it carries colour. */
+function visibleWidth(cell: string): number {
+  return cell.replace(SGR, "").length;
+}
+
+/**
  * Left-aligned columns padded to the widest cell, with a two-space gutter.
  * Trailing whitespace is trimmed so the output diffs cleanly and copies without
  * invisible padding.
+ *
+ * Cells arrive already decorated -- renderRunList colours a status, both list
+ * renderers dim their header -- so widths are measured with the escapes removed
+ * and the padding is computed from that. Measuring `.length` instead inflated
+ * every coloured cell by the nine or so bytes of its SGR pair, which padded the
+ * *undecorated* cells in the same column to a phantom width and left every
+ * coloured table misaligned.
+ *
+ * *Why not count East Asian wide characters as two columns:* every cell here is
+ * an id, a status, an ISO timestamp, or an emulator config key -- ASCII by
+ * construction, and the scenario titles that could hold CJK are the one column
+ * that is already last and therefore never padded. Carrying a width table for
+ * text that cannot appear is cost without a case; revisit if a wide-capable
+ * column is ever added in front of another.
  */
 export function table(rows: string[][]): string {
   const isEmpty = rows.length === 0;
@@ -61,14 +87,21 @@ export function table(rows: string[][]): string {
   const widths: number[] = [];
   for (const row of rows) {
     row.forEach((cell, index) => {
-      widths[index] = Math.max(widths[index] ?? 0, cell.length);
+      widths[index] = Math.max(widths[index] ?? 0, visibleWidth(cell));
     });
   }
 
   return rows
     .map((row) =>
       row
-        .map((cell, index) => (index === row.length - 1 ? cell : cell.padEnd(widths[index] ?? 0)))
+        .map((cell, index) => {
+          const isLast = index === row.length - 1;
+          if (isLast) {
+            return cell;
+          }
+          const padding = (widths[index] ?? 0) - visibleWidth(cell);
+          return cell + " ".repeat(padding);
+        })
         .join("  ")
         .trimEnd(),
     )

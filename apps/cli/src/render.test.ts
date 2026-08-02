@@ -112,6 +112,80 @@ describe("table", () => {
   test("renders nothing for no rows", () => {
     expect(table([])).toBe("");
   });
+
+  test("pads a coloured cell to its visible width, not to its byte count", () => {
+    const rendered = table([
+      [colored("id", "dim"), "title"],
+      ["a-very-long-id", "x"],
+    ]);
+
+    // The same table `plain` would produce: colour changes what the terminal
+    // paints, never where the columns land.
+    expect(strip(rendered)).toBe("id              title\na-very-long-id  x");
+  });
+});
+
+const ESC = String.fromCharCode(27);
+
+/** What the terminal shows, with the colour codes taken back out. */
+function strip(text: string): string {
+  return text.replaceAll(new RegExp(`${ESC}\\[[0-9;]*m`, "g"), "");
+}
+
+/** The column each row's `index`-th cell starts at, once colour is discounted. */
+function columnStarts(line: string): number[] {
+  const starts: number[] = [];
+  const gutter = /(?:^|\s{2})(\S)/g;
+  for (const match of line.matchAll(gutter)) {
+    starts.push(match.index + match[0].length - 1);
+  }
+  return starts;
+}
+
+/**
+ * The alignment guarantee, asserted on the rendering the user actually sees:
+ * every row's cells must begin at the same columns once the escapes are gone.
+ * Written against the visible text rather than against an expected string so it
+ * keeps holding when a fixture's ids change length.
+ */
+describe("coloured tables", () => {
+  test("renderRunList lines its columns up under colour", () => {
+    const runs: Run[] = [
+      { ...RUN, id: "aaaa", scenarioId: "login", status: "passed" },
+      { ...RUN, id: "bbbb", scenarioId: "shop-long", status: "running" },
+    ];
+
+    const lines = strip(renderRunList(runs, colored)).split("\n");
+
+    expect(lines).toHaveLength(3);
+    const [header, ...body] = lines as [string, ...string[]];
+    for (const line of body) {
+      expect(columnStarts(line)).toEqual(columnStarts(header));
+    }
+  });
+
+  test("renderScenarioList lines its columns up under colour", () => {
+    const scenarios: Scenario[] = [
+      SCENARIO,
+      { ...SCENARIO, id: "shopping-cart", title: "Cart", model: "gemma-4-26b" },
+    ];
+
+    const lines = strip(renderScenarioList(scenarios, colored)).split("\n");
+
+    expect(lines).toHaveLength(3);
+    const [header, ...body] = lines as [string, ...string[]];
+    for (const line of body) {
+      expect(columnStarts(line)).toEqual(columnStarts(header));
+    }
+  });
+
+  test("keeps the colour it was asked for while doing so", () => {
+    const rendered = renderRunList([RUN], colored);
+
+    // Padding must be plain spaces outside the escapes, so the reset still
+    // lands right after the word it closes.
+    expect(rendered).toContain(`${ESC}[31mfailed${ESC}[0m`);
+  });
 });
 
 describe("renderScenarioList", () => {

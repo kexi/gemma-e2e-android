@@ -100,12 +100,34 @@ export class ApiClient {
     }
   }
 
+  /**
+   * A 2xx is not a promise of JSON: a proxy or a wrong port answers 200 with an
+   * HTML login page, and `res.json()` then throws a bare SyntaxError that main's
+   * report() prints as "gemma-e2e: Unexpected token '<'" -- a parser's complaint
+   * where the user needs to be told the address is answering with something
+   * other than the API. Wrapped in ApiError so it reads like every other server
+   * failure and carries the status that names the culprit.
+   *
+   * *Why not tolerate an empty body here too:* the one endpoint that answers 204
+   * is DELETE /api/scenarios/:id, and deleteScenario reads its status directly
+   * rather than coming through here. Every path below expects a document, so a
+   * 2xx with nothing in it is as broken as a 2xx with HTML in it.
+   */
   async #json<T>(path: string, init?: RequestInit): Promise<T> {
+    const method = init?.method ?? "GET";
     const res = await this.fetch(path, init);
     if (!res.ok) {
-      throw await toApiError(res, init?.method ?? "GET", path);
+      throw await toApiError(res, method, path);
     }
-    return (await res.json()) as T;
+    try {
+      return (await res.json()) as T;
+    } catch {
+      throw new ApiError(
+        res.status,
+        `${method} ${path} answered ${res.status} but not JSON. ` +
+          `Is ${this.#server} the dashboard, and not a proxy in front of it?`,
+      );
+    }
   }
 
   listScenarios(): Promise<{ scenarios: Scenario[] }> {
@@ -184,9 +206,14 @@ export function resolveServer(flag: string | undefined, env: NodeJS.ProcessEnv):
   const hasEnv = fromEnv !== undefined && fromEnv !== "";
   const server = flag ?? (hasEnv ? fromEnv : DEFAULT_SERVER);
 
-  const parsed = URL.parse(server);
-  const isUrl = parsed !== null;
-  if (!isUrl) {
+  // Why not URL.parse: it is a recent addition, and the repository pins bun
+  // through the flake without any package declaring an engines floor. The
+  // constructor plus a catch has been there since forever, needs no version
+  // claim, and rejects exactly the same set of values.
+  let parsed: URL;
+  try {
+    parsed = new URL(server);
+  } catch {
     throw new InvalidServerError(server);
   }
 

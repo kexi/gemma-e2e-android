@@ -48,6 +48,23 @@ describe("ApiClient", () => {
     );
   });
 
+  test("reports a 2xx that is not JSON as a server error, not as a parser's complaint", async () => {
+    await withServer(
+      // What a proxy or a captive portal in front of the dashboard answers:
+      // a perfectly successful response to a request the API never saw.
+      () => new Response("<html>Sign in</html>", { headers: { "content-type": "text/html" } }),
+      async (client) => {
+        const error = await rejection(client.listRuns());
+
+        expect(error).toBeInstanceOf(ApiError);
+        expect((error as ApiError).status).toBe(200);
+        expect(error.message).toContain("not JSON");
+        // The raw SyntaxError this replaces named a token, not the problem.
+        expect(error.message).not.toContain("Unexpected token");
+      },
+    );
+  });
+
   test("treats a 204 delete as success and a 404 delete as an error", async () => {
     await withServer(
       (request) => {

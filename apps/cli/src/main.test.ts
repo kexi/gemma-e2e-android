@@ -185,15 +185,23 @@ describe("--help and --version under an unusable server", () => {
       ["device"],
     ];
 
-    for (const argv of reaching) {
-      const session = await cli(["--server=not-a-url", ...argv]);
+    // Every unusable value, not just the unparseable one: `--server=` and a
+    // scheme fetch cannot address are refused by different branches of
+    // resolveServer, and testing one of them leaves the others free to regress
+    // into a connection error against an address that was never viable.
+    for (const server of UNUSABLE) {
+      for (const argv of reaching) {
+        const session = await cli([`--server=${server}`, ...argv]);
 
-      expect(session.code).toBe(2);
-      expect(session.out).toBe("");
-      expect(session.err).toContain('invalid --server value "not-a-url": not a URL');
-      expect(session.err).not.toContain("just web");
-      // --server is global, so a hint at the subcommand's help would misdirect.
-      expect(session.err).not.toContain("--help");
+        expect(session.code).toBe(2);
+        expect(session.out).toBe("");
+        expect(session.err).toContain(
+          `invalid --server value ${JSON.stringify(server)}: not a URL`,
+        );
+        expect(session.err).not.toContain("just web");
+        // --server is global, so a hint at the subcommand's help would misdirect.
+        expect(session.err).not.toContain("--help");
+      }
     }
   });
 

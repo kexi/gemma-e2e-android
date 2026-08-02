@@ -2,7 +2,14 @@ import { describe, expect, test } from "bun:test";
 import type { Run, RunStatus, Step } from "@gemma-e2e/core/schema";
 import type { ExitCode } from "../exit-codes.ts";
 import { runCommand, type RunTiming } from "./run.ts";
-import { captureContext, rejection, sseFrame, sseResponse, withServer } from "../testing.ts";
+import {
+  captureContext,
+  rejection,
+  sseFrame,
+  sseResponse,
+  withServer,
+  withTruncatedSseServer,
+} from "../testing.ts";
 import { UsageError } from "../usage.ts";
 
 /** Sleeps return immediately, so retry and poll loops run at full speed. */
@@ -190,7 +197,13 @@ describe("run start", () => {
         await runCommand(["--json", "login"], context, "start", FAST);
         await runCommand(["login", "--json"], context, "start", FAST);
 
-        expect(out).toEqual([out[0] as string, out[0] as string]);
+        // Asserted against the id the stub returns rather than against the
+        // first line: comparing the two outputs to each other passes just as
+        // happily when both of them are empty. Printed bare rather than as
+        // JSON because --json is a global flag, resolved by main into the
+        // context -- here it is only along for the ride, as the operand whose
+        // placement is under test.
+        expect(out).toEqual(["run-9", "run-9"]);
       },
     );
   });
@@ -564,6 +577,98 @@ describe("run watch", () => {
 
         expect(await runCommand(["run-1"], context, "watch", FAST)).toBe(1);
         expect(out.join("\n")).toContain("failed  run run-1  timed out");
+      },
+    );
+  });
+
+  test("falls back to polling when the stream is cut off rather than closed", async () => {
+    let lookups = 0;
+    await withTruncatedSseServer(
+      [
+        sseFrame("case_started", {
+          type: "case_started",
+          runId: "run-1",
+          caseId: "valid",
+          caseRun: { title: "Logs in" },
+        }),
+      ],
+      () => {
+        lookups += 1;
+        return Response.json({ run: runDoc({ status: "passed" }) });
+      },
+      async (client) => {
+        const { context, out } = captureContext(client);
+
+        // The stream throws rather than ending, which used to escape watch
+        // altogether: the verdict was never reported and the exit status came
+        // from the exception instead of from the run.
+        expect(await runCommand(["run-1"], context, "watch", FAST)).toBe(0);
+        expect(out.join("\n")).toContain("case  valid  Logs in");
+        expect(out.join("\n")).toContain("passed  run run-1");
+        // One lookup for waitForRun, one poll that resolved it.
+        expect(lookups).toBe(2);
+      },
+    );
+  });
+
+  test("polls through a server that is still restarting instead of giving up on it", async () => {
+    let lookups = 0;
+    await withServer(
+      (request) => {
+        const isEvents = new URL(request.url).pathname.endsWith("/events");
+        if (isEvents) {
+          return sseResponse([]);
+        }
+        lookups += 1;
+        // The first lookup is watch's own "does this run exist"; the ones
+        // after it are the polls. The weather this fallback runs in: the
+        // stream dropped because the dashboard was going down, so the first
+        // polls hit it on the way back up. A 503 says nothing about the run,
+        // so it must not end the loop.
+        const isFirst = lookups === 1;
+        if (isFirst) {
+          return Response.json({ run: runDoc({ status: "running" }) });
+        }
+        const isBackUp = lookups > 4;
+        return isBackUp
+          ? Response.json({ run: runDoc({ status: "failed", verdictReason: "one case failed" }) })
+          : Response.json({ error: "restarting" }, { status: 503 });
+      },
+      async (client) => {
+        const { context, out } = captureContext(client);
+
+        expect(await runCommand(["run-1"], context, "watch", FAST)).toBe(1);
+        expect(out.join("\n")).toContain("failed  run run-1  one case failed");
+        // Three polls were 503s and were survived; the fourth answered.
+        expect(lookups).toBe(5);
+      },
+    );
+  });
+
+  test("gives up at once when polling says the run is gone, rather than retrying a 404", async () => {
+    let lookups = 0;
+    await withServer(
+      (request) => {
+        const isEvents = new URL(request.url).pathname.endsWith("/events");
+        if (isEvents) {
+          return sseResponse([]);
+        }
+        lookups += 1;
+        // The run existed when watch looked for it and was deleted while the
+        // stream was up. Retrying cannot bring it back, so the poll budget --
+        // POLL_MAX_ATTEMPTS, half an hour of a held terminal -- must not be
+        // spent discovering that repeatedly.
+        const isGone = lookups > 1;
+        return isGone
+          ? Response.json({ error: "no such run" }, { status: 404 })
+          : Response.json({ run: runDoc({ status: "running" }) });
+      },
+      async (client) => {
+        const { context } = captureContext(client);
+
+        await expect(runCommand(["run-1"], context, "watch", FAST)).rejects.toThrow("no such run");
+        // One lookup for waitForRun, then the single poll whose 404 ended it.
+        expect(lookups).toBe(2);
       },
     );
   });
