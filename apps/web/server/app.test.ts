@@ -142,7 +142,11 @@ describe("POST /api/scenarios", () => {
   const CHECKOUT = {
     id: "checkout",
     title: "Checkout",
-    app: { package: "dev.kexi.gemmae2e.example", activity: ".MainActivity" },
+    target: {
+      platform: "android",
+      package: "dev.kexi.gemmae2e.example",
+      activity: ".MainActivity",
+    },
     cases: [{ id: "buys-a-bean", title: "Buys a bean", prompt: "Add a bean and pay." }],
   };
 
@@ -151,10 +155,13 @@ describe("POST /api/scenarios", () => {
 
     expect(res.status).toBe(201);
     const listed = (await (await harness().request("/api/scenarios")).json()) as {
-      scenarios: { id: string; title: string; app?: { package: string } }[];
+      scenarios: { id: string; title: string; target?: { package: string } }[];
     };
     const created = listed.scenarios.find((s) => s.id === "checkout");
-    expect(created).toMatchObject({ title: "Checkout", app: { package: CHECKOUT.app.package } });
+    expect(created).toMatchObject({
+      title: "Checkout",
+      target: { platform: "android", package: CHECKOUT.target.package },
+    });
   });
 
   test("omits the id from the file, because the loader takes it from the filename", async () => {
@@ -266,7 +273,7 @@ describe("PUT /api/scenarios/:id", () => {
 
   const EDITED_LOGIN = {
     title: "Login (revised)",
-    app: { package: "dev.kexi.gemmae2e.example" },
+    target: { platform: "android", package: "dev.kexi.gemmae2e.example" },
     cases: [{ id: "valid", title: "Logs in", prompt: "Check that a user can log in." }],
   };
 

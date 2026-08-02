@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { describeTarget } from "@gemma-e2e/core/schema";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -177,7 +178,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                   </Typography>
                   <Typography variant="caption" color="text.secondary" component="div">
                     {scenario.cases.length} case{scenario.cases.length === 1 ? "" : "s"}
-                    {scenario.app !== undefined && ` · ${scenario.app.package}`}
+                    {scenario.target !== undefined && ` · ${describeTarget(scenario.target)}`}
                     {scenario.model !== undefined && ` · ${scenario.model}`}
                   </Typography>
                 </Box>

@@ -595,7 +595,7 @@ function foldPrompts(node: YamlDocument | YamlNode): void {
 }
 
 /** The scenario keys, in the order `toScenarioYaml` emits them. */
-const SCENARIO_KEYS = ["title", "app", "model", "cases"] as const;
+const SCENARIO_KEYS = ["title", "target", "model", "cases"] as const;
 
 /**
  * Rewrites `current` so it describes `scenario`, reusing the existing nodes

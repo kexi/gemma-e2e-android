@@ -26,13 +26,14 @@ const MINIMAL = ["title: Checkout", "cases:", "  - id: buys", "    prompt: buy s
 );
 
 describe("loadScenario", () => {
-  test("loads a scenario with its app, model, and cases", async () => {
+  test("loads a scenario with its target, model, and cases", async () => {
     const path = await write(
       "login.yaml",
       [
         "id: login-happy",
         "title: Login",
-        "app:",
+        "target:",
+        "  platform: android",
         "  package: com.example.app",
         "  activity: .MainActivity",
         "model: scenario-model",
@@ -51,7 +52,11 @@ describe("loadScenario", () => {
 
     expect(scenario.id).toBe("login-happy");
     expect(scenario.title).toBe("Login");
-    expect(scenario.app?.package).toBe("com.example.app");
+    expect(scenario.target).toEqual({
+      platform: "android",
+      package: "com.example.app",
+      activity: ".MainActivity",
+    });
     expect(scenario.model).toBe("scenario-model");
     expect(scenario.cases).toHaveLength(2);
     expect(scenario.cases[0]?.title).toBe("Logs in");
@@ -66,9 +71,32 @@ describe("loadScenario", () => {
 
     expect(scenario.id).toBe("checkout");
     expect(scenario.cases[0]?.maxSteps).toBe(20);
-    expect(scenario.app).toBeUndefined();
+    expect(scenario.target).toBeUndefined();
     expect(scenario.model).toBeUndefined();
     expect(scenario.cases[0]?.model).toBeUndefined();
+  });
+
+  test("still loads a file written with the pre-target `app:` key", async () => {
+    const path = await write(
+      "legacy.yaml",
+      [
+        "title: Login",
+        "app:",
+        "  package: com.example.app",
+        "  activity: .MainActivity",
+        "cases:",
+        "  - id: valid",
+        "    prompt: check that the user can log in",
+      ].join("\n"),
+    );
+
+    const scenario = await loadScenario(path);
+
+    expect(scenario.target).toEqual({
+      platform: "android",
+      package: "com.example.app",
+      activity: ".MainActivity",
+    });
   });
 
   test("rejects a scenario with no cases at all", async () => {

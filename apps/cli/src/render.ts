@@ -1,3 +1,4 @@
+import { describeTarget } from "@gemma-e2e/core/schema";
 import type { Action, Run, RunStatus, Scenario } from "@gemma-e2e/core/schema";
 import type { DeviceStatus, ModelInfo } from "./client.ts";
 import type { RunEvent } from "./sse.ts";
@@ -130,11 +131,10 @@ export function renderScenario(scenario: Scenario, style: Style): string {
     `${style("title", "dim")}  ${scenario.title}`,
   ];
 
-  const hasApp = scenario.app !== undefined;
-  if (hasApp) {
-    const activity = scenario.app?.activity;
-    const suffix = activity === undefined ? "" : `/${activity}`;
-    lines.push(`${style("app", "dim")}    ${scenario.app?.package}${suffix}`);
+  const { target } = scenario;
+  const hasTarget = target !== undefined;
+  if (hasTarget) {
+    lines.push(`${style("target", "dim")} ${target.platform} ${describeTarget(target)}`);
   }
 
   const hasModel = scenario.model !== undefined;

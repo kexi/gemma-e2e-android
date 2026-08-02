@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
   ActionSchema,
+  describeTarget,
   resolveModel,
+  resolveTarget,
   ScenarioSchema,
   TestCaseSchema,
   UiNodeSchema,
@@ -130,18 +132,103 @@ describe("TestCaseSchema", () => {
 describe("ScenarioSchema", () => {
   const oneCase = [{ id: "logs-in", prompt: "log in" }];
 
-  test("accepts a scenario with an app block and a default model", () => {
+  test("accepts a scenario with a target and a default model", () => {
     const parsed = ScenarioSchema.parse({
       id: "login",
       title: "Login",
-      app: { package: "com.example", activity: ".MainActivity" },
+      target: { platform: "android", package: "com.example", activity: ".MainActivity" },
       model: "gemma-4-12b",
       cases: oneCase,
     });
 
-    expect(parsed.app?.activity).toBe(".MainActivity");
+    expect(parsed.target).toEqual({
+      platform: "android",
+      package: "com.example",
+      activity: ".MainActivity",
+    });
     expect(parsed.model).toBe("gemma-4-12b");
     expect(parsed.cases).toHaveLength(1);
+  });
+
+  test("accepts a web target", () => {
+    const parsed = ScenarioSchema.parse({
+      id: "login",
+      title: "Login",
+      target: { platform: "web", url: "http://localhost:5174" },
+      cases: oneCase,
+    });
+
+    expect(parsed.target).toEqual({ platform: "web", url: "http://localhost:5174" });
+  });
+
+  test("rejects a target that mixes the two platforms' fields", () => {
+    const parsed = ScenarioSchema.safeParse({
+      id: "login",
+      title: "Login",
+      target: { platform: "web", package: "com.example" },
+      cases: oneCase,
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  test("reads the legacy `app:` key as an android target", () => {
+    const parsed = ScenarioSchema.parse({
+      id: "login",
+      title: "Login",
+      app: { package: "com.example", activity: ".MainActivity" },
+      cases: oneCase,
+    });
+
+    expect(parsed.target).toEqual({
+      platform: "android",
+      package: "com.example",
+      activity: ".MainActivity",
+    });
+  });
+
+  test("lets an explicit target win over a legacy `app:` left alongside it", () => {
+    const parsed = ScenarioSchema.parse({
+      id: "login",
+      title: "Login",
+      app: { package: "com.example" },
+      target: { platform: "web", url: "http://localhost:5174" },
+      cases: oneCase,
+    });
+
+    expect(parsed.target).toEqual({ platform: "web", url: "http://localhost:5174" });
+  });
+
+  test("rejects a malformed legacy `app:` rather than loading with no target", () => {
+    const parsed = ScenarioSchema.safeParse({
+      id: "login",
+      title: "Login",
+      app: { activity: ".MainActivity" },
+      cases: oneCase,
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  test("lets a case override the scenario's target", () => {
+    const parsed = ScenarioSchema.parse({
+      id: "mixed",
+      title: "Mixed",
+      target: { platform: "android", package: "com.example" },
+      cases: [
+        { id: "on-device", prompt: "log in" },
+        { id: "in-browser", prompt: "log in", target: { platform: "web", url: "http://x.test" } },
+      ],
+    });
+
+    expect(resolveTarget(parsed.cases[0]!, parsed)).toEqual({
+      platform: "android",
+      package: "com.example",
+    });
+    expect(resolveTarget(parsed.cases[1]!, parsed)).toEqual({
+      platform: "web",
+      url: "http://x.test",
+    });
   });
 
   test("requires at least one case", () => {
@@ -152,6 +239,21 @@ describe("ScenarioSchema", () => {
   test("rejects empty required strings", () => {
     expect(ScenarioSchema.safeParse({ id: "", title: "t", cases: oneCase }).success).toBe(false);
     expect(ScenarioSchema.safeParse({ id: "i", title: "", cases: oneCase }).success).toBe(false);
+  });
+});
+
+describe("describeTarget", () => {
+  test("names an android target by package, with the activity when there is one", () => {
+    expect(describeTarget({ platform: "android", package: "com.example" })).toBe("com.example");
+    expect(describeTarget({ platform: "android", package: "com.example", activity: ".Main" })).toBe(
+      "com.example/.Main",
+    );
+  });
+
+  test("names a web target by its url", () => {
+    expect(describeTarget({ platform: "web", url: "http://localhost:5174" })).toBe(
+      "http://localhost:5174",
+    );
   });
 });
 
