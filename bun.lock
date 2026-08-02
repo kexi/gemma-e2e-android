@@ -81,6 +81,14 @@
         "zod": "^3.25.76",
       },
     },
+    "packages/cdp": {
+      "name": "@gemma-e2e/cdp",
+      "version": "0.0.0",
+      "dependencies": {
+        "@gemma-e2e/core": "workspace:*",
+        "@gemma-e2e/logger": "workspace:*",
+      },
+    },
     "packages/core": {
       "name": "@gemma-e2e/core",
       "version": "0.0.0",
@@ -365,6 +373,8 @@
     "@gemma-e2e/adb": ["@gemma-e2e/adb@workspace:packages/adb"],
 
     "@gemma-e2e/agent": ["@gemma-e2e/agent@workspace:packages/agent"],
+
+    "@gemma-e2e/cdp": ["@gemma-e2e/cdp@workspace:packages/cdp"],
 
     "@gemma-e2e/cli": ["@gemma-e2e/cli@workspace:apps/cli"],
 
