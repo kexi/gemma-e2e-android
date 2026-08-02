@@ -1,5 +1,5 @@
 {
-  "name": "@gemma-e2e/example",
+  "name": "@gemma-e2e/example-android",
   "version": "0.0.0",
   "private": true,
   "main": "index.ts",
@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@gemma-e2e/example-shared": "workspace:*",
     "expo": "~57.0.9",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",

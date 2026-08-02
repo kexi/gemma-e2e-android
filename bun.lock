@@ -18,10 +18,11 @@
         "@gemma-e2e/core": "workspace:*",
       },
     },
-    "apps/example": {
-      "name": "@gemma-e2e/example",
+    "apps/example-android": {
+      "name": "@gemma-e2e/example-android",
       "version": "0.0.0",
       "dependencies": {
+        "@gemma-e2e/example-shared": "workspace:*",
         "expo": "~57.0.9",
         "expo-status-bar": "~57.0.1",
         "react": "19.2.3",
@@ -29,6 +30,25 @@
       },
       "devDependencies": {
         "@types/react": "~19.2.2",
+      },
+    },
+    "apps/example-shared": {
+      "name": "@gemma-e2e/example-shared",
+      "version": "0.0.0",
+    },
+    "apps/example-web": {
+      "name": "@gemma-e2e/example-web",
+      "version": "0.0.0",
+      "dependencies": {
+        "@gemma-e2e/example-shared": "workspace:*",
+        "react": "19.2.3",
+        "react-dom": "19.2.3",
+      },
+      "devDependencies": {
+        "@types/react": "19.2.17",
+        "@types/react-dom": "19.2.3",
+        "@vitejs/plugin-react": "6.0.4",
+        "vite": "8.1.5",
       },
     },
     "apps/web": {
@@ -382,7 +402,11 @@
 
     "@gemma-e2e/core": ["@gemma-e2e/core@workspace:packages/core"],
 
-    "@gemma-e2e/example": ["@gemma-e2e/example@workspace:apps/example"],
+    "@gemma-e2e/example-android": ["@gemma-e2e/example-android@workspace:apps/example-android"],
+
+    "@gemma-e2e/example-shared": ["@gemma-e2e/example-shared@workspace:apps/example-shared"],
+
+    "@gemma-e2e/example-web": ["@gemma-e2e/example-web@workspace:apps/example-web"],
 
     "@gemma-e2e/logger": ["@gemma-e2e/logger@workspace:packages/logger"],
 
@@ -1855,6 +1879,8 @@
     "@expo/devcert/debug": ["debug@3.2.7", "", { "dependencies": { "ms": "^2.1.1" } }, "sha512-CFjzYYAi4ThfiQvizrFQevTTXHtnCqWfe7x1AhgEscTz6ZbLbfoLRLPugTQyBth6f8ZERVUSyWHFD/7Wu4t1XQ=="],
 
     "@expo/ws-tunnel/ws": ["ws@8.21.1", "", { "peerDependencies": { "bufferutil": "^4.0.1", "utf-8-validate": ">=5.0.2" }, "optionalPeers": ["bufferutil", "utf-8-validate"] }, "sha512-+0NTnW77fFN/DjQi6k/Sq/Yvk4Sgajw7urW8V+asjXnRgDs9gyGkdb7EzgfhA4goXsRIZKE28fzIXBHEzhuiWw=="],
+
+    "@gemma-e2e/example-web/@types/react": ["@types/react@19.2.17", "", { "dependencies": { "csstype": "^3.2.2" } }, "sha512-MXfmqaVPEVgkBT/aY0aGCkRWWtByiYQXo3xdQ8r5RzuFrPiRn8Gar2tQdXSUQ2GKV3bkXckek89V8wQBY2Q/Aw=="],
 
     "@gemma-e2e/web/@types/react": ["@types/react@19.2.17", "", { "dependencies": { "csstype": "^3.2.2" } }, "sha512-MXfmqaVPEVgkBT/aY0aGCkRWWtByiYQXo3xdQ8r5RzuFrPiRn8Gar2tQdXSUQ2GKV3bkXckek89V8wQBY2Q/Aw=="],
 

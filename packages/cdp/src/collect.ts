@@ -12,6 +12,10 @@
  * `DOMSnapshot.captureSnapshot` joined on `backendDOMNodeId`. Both are
  * experimental, the join is fiddly, and `getBoundingClientRect` hands us the
  * coordinates alongside the semantics in one evaluation.
+ *
+ * NOTE: no backticks below, not even in a comment -- one would close this
+ * template literal and truncate the source Chrome receives. Template strings
+ * inside the collector are out for the same reason; use concatenation.
  */
 export const COLLECT_JS = String.raw`(() => {
   const SKIP_TAGS = new Set(["script", "style", "noscript", "template", "head", "link", "meta"]);
@@ -28,8 +32,18 @@ export const COLLECT_JS = String.raw`(() => {
     el.getAttribute("role") ||
     "";
 
-  /** Own text only: a parent repeating its children's words doubles the prompt. */
-  const ownText = (el) => {
+  /**
+   * Own text only: a parent repeating its children's words doubles the prompt.
+   *
+   * A field's text is its current value, which lives in a property rather than
+   * in a child node. Without this an <input> reads as empty however much has
+   * been typed into it, and the model cannot see what it just entered -- nor
+   * tell a filled field from a blank one.
+   */
+  const ownText = (el, tag) => {
+    if (tag === "input" || tag === "textarea" || tag === "select") {
+      return (el.value || "").replace(/\s+/g, " ").trim();
+    }
     let out = "";
     for (const child of el.childNodes) {
       if (child.nodeType === 3) out += child.nodeValue;
@@ -50,11 +64,22 @@ export const COLLECT_JS = String.raw`(() => {
     if (["button", "select", "summary"].includes(tag)) return true;
     if (tag === "a" && el.hasAttribute("href")) return true;
     if (tag === "input") return true;
-    if (tag === "label" && el.htmlFor) return true;
+    // A label that already contains its control is not a target of its own:
+    // numbering both spends two refs on one field and lets the model tap the
+    // wrapper, which focuses the field only by accident of layout. A label
+    // pointing elsewhere by its "for" attribute is a real target, since
+    // nothing else on screen stands for that control.
+    if (tag === "label") {
+      return el.htmlFor !== "" && el.querySelector("input, textarea, select") === null;
+    }
     const role = (el.getAttribute("role") || "").toLowerCase();
     if (CLICKABLE_ROLES.has(role)) return true;
     if (el.hasAttribute("onclick") || el.tabIndex >= 0) return true;
-    return style.cursor === "pointer";
+    // A pointer cursor is only a hint, and it inherits: the spans inside a
+    // button all compute to pointer, so trusting it alone numbers a button
+    // and each of its labels as separate targets that do the same thing.
+    // Only an element whose nearest clickable ancestor is itself qualifies.
+    return style.cursor === "pointer" && el.closest("a,button,[role],[onclick]") === el;
   };
 
   const checkedOf = (el, tag) => {
@@ -85,7 +110,7 @@ export const COLLECT_JS = String.raw`(() => {
     const rect = el.getBoundingClientRect();
     const editable = isEditable(el, tag);
     const clickable = !editable && isClickable(el, tag, style);
-    const text = ownText(el);
+    const text = ownText(el, tag);
     const label = labelOf(el);
 
     // Off-screen elements are dropped rather than reported at their real

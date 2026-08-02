@@ -160,7 +160,39 @@ mirror:
 
 # Prebuild (CNG) and install the example app on the running emulator/device.
 android:
-    bun run --cwd apps/example android
+    bun run --cwd apps/example-android android
+
+# Serve the example app's web build on :5174, which web scenarios point at.
+example-web:
+    bun run --cwd apps/example-web dev
+
+# Chrome with the DevTools endpoint web scenarios drive it through. A profile
+# of its own, so an already-running Chrome does not have to be closed first --
+# a second instance sharing the default profile refuses to open the port.
+chrome:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    profile="${TMPDIR:-/tmp}/gemma-e2e-chrome"
+    for candidate in \
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+        "$(command -v google-chrome-stable || true)" \
+        "$(command -v google-chrome || true)" \
+        "$(command -v chromium || true)"; do
+        if [ -x "$candidate" ]; then chrome="$candidate"; break; fi
+    done
+    if [ -z "${chrome:-}" ]; then
+        echo "Chrome not found. Install it, or set CHROME_ENDPOINT to one already listening." >&2
+        exit 1
+    fi
+    exec "$chrome" --remote-debugging-port=9222 --user-data-dir="$profile" --no-first-run
+
+# Drive the example web app through the real CdpClient and print what the model
+# would see. Needs `just example-web` and `just chrome` running; deliberately
+# outside `just check`, since CI has no browser. This is the only thing that
+# exercises the DOM collector -- it runs inside the page, so no unit test reaches
+# it, and happy-dom cannot stand in (it has no layout, so every rect is zero).
+cdp-check:
+    bun run packages/cdp/scripts/check.ts
 
 # Start the LM Studio local OpenAI-compatible API (http://localhost:1234/v1).
 llm:

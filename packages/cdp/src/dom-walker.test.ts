@@ -205,4 +205,70 @@ describe("toUiNode -> serializeForLlm", () => {
 
     expect(text).toContain("checked=false");
   });
+
+  test("shows what has been typed into a field, not an empty box", () => {
+    // Found against a real browser: a field's value is a property, not a child
+    // text node, so a collector reading only text nodes reports every input as
+    // blank however much the agent has typed -- leaving the model unable to see
+    // its own work or to tell a filled field from an empty one.
+    const { text } = serializeForLlm(
+      toUiNode(
+        tree([
+          raw({ tag: "input", id: "email", label: "Email", editable: true, text: "demo@x.test" }),
+        ]),
+      ),
+    );
+
+    expect(text).toContain('text="demo@x.test"');
+  });
+
+  test("numbers one target per control, not one per label inside it", () => {
+    // Also found against a real browser: `cursor: pointer` inherits, so the
+    // spans inside a button computed to pointer and each became a ref of its
+    // own. Three refs that all mean "the same button" is three ways for the
+    // model to be wrong about what it just tapped.
+    const { refs } = serializeForLlm(
+      toUiNode(
+        tree([
+          raw({
+            tag: "button",
+            id: "beanRow-huila",
+            clickable: true,
+            rect: { x: 0, y: 0, width: 300, height: 60 },
+            children: [1, 2],
+          }),
+          raw({ tag: "span", text: "Huila" }),
+          raw({
+            tag: "span",
+            text: "Colombia - $16.00",
+            rect: { x: 0, y: 20, width: 300, height: 20 },
+          }),
+        ]),
+      ),
+    );
+
+    expect(refs.size).toBe(1);
+    expect(refs.get(0)?.node.resourceId).toBe("beanRow-huila");
+  });
+
+  test("leaves a label wrapping its field unnumbered, so the field is the target", () => {
+    const { text, refs } = serializeForLlm(
+      toUiNode(
+        tree([
+          raw({
+            tag: "label",
+            text: "Email",
+            rect: { x: 0, y: 0, width: 300, height: 60 },
+            children: [1],
+          }),
+          raw({ tag: "input", id: "email", label: "Email", editable: true }),
+        ]),
+      ),
+    );
+
+    expect(refs.size).toBe(1);
+    expect(refs.get(0)?.node.resourceId).toBe("email");
+    // The label still renders: it is what names the field on screen.
+    expect(text).toContain('label text="Email"');
+  });
 });

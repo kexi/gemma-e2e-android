@@ -1,0 +1,11 @@
+{
+  // Browser only: this app never runs under Bun, so it must not typecheck
+  // against Bun's globals. Mirrors apps/web's client tsconfig.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "types": ["vite/client"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
+}
