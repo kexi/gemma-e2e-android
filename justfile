@@ -51,6 +51,45 @@ db:
 build:
     bun run --cwd apps/web build
 
+# Platforms `cli-dist` cross-compiles for. musl (Alpine) is not among them:
+# bun-linux-*-musl targets exist but are untested here, so they are left out
+# rather than shipped unverified.
+cli_targets := "bun-darwin-arm64 bun-darwin-x64 bun-linux-x64 bun-linux-arm64 bun-windows-x64"
+
+# Compile the CLI for this machine. --no-compile-autoload-dotenv keeps the
+# binary from reading whatever .env sits next to it at run time, which would
+# otherwise let the repo root's file silently reconfigure a user's CLI.
+cli:
+    bun build --compile --minify --no-compile-autoload-dotenv \
+      apps/cli/src/main.ts --outfile apps/cli/dist/gemma-e2e
+
+# Cross-compile the CLI for every supported platform. The first build per
+# target downloads that platform's Bun runtime into ~/.bun (needs network).
+cli-dist:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for target in {{ cli_targets }}; do
+        platform="${target#bun-}"
+        suffix=""
+        case "$platform" in windows-*) suffix=".exe" ;; esac
+        echo "building $platform"
+        bun build --compile --minify --no-compile-autoload-dotenv \
+          --target "$target" \
+          apps/cli/src/main.ts \
+          --outfile "apps/cli/dist/gemma-e2e-${platform}${suffix}"
+    done
+
+# Drive the compiled CLI on a real PTY and assert its output, exit codes, and
+# argument handling (pitty). Everything under e2e/scenarios/ runs without a
+# server; e2e/scenarios/server/ needs `just web` and is excluded here, so this
+# recipe is safe to run on a machine with nothing else started.
+cli-e2e: cli
+    GEMMA_E2E_BIN="$PWD/apps/cli/dist/gemma-e2e" pitty run e2e/scenarios
+
+# The server-dependent half. Assumes `just web` is already up on :5175.
+cli-e2e-server: cli
+    GEMMA_E2E_BIN="$PWD/apps/cli/dist/gemma-e2e" pitty run e2e/scenarios/server
+
 # Run the dashboard: Firestore emulator on :8790, Hono API on :5175, and the
 # Vite dev server on :5173.
 web:
