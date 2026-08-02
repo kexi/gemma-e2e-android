@@ -38,65 +38,48 @@ export function captureContext(client: ApiClient, options: { json?: boolean } = 
  */
 const SERVER_TAG_HEADER = "x-gemma-e2e-test-server";
 
-/** How many ports to try before giving up on finding one nobody else holds. */
-const PORT_ATTEMPTS = 40;
+/**
+ * The address these servers bind, and the one their clients dial. Binding the
+ * *same* address the client connects to is what keeps a reply honest.
+ */
+const LOOPBACK = "127.0.0.1";
 
 let nextServerTag = 0;
 
 /**
- * Stands a server up on a port that nothing else is listening on, and answers
- * with `tag` on every response so a stray reply can be spotted.
+ * Stands a server up on an ephemeral loopback port, and answers with `tag` on
+ * every response so a stray reply can be spotted.
  *
- * *Why not just `Bun.serve({ port: 0 })` and trust the kernel:* `port: 0` draws
- * from the same ephemeral range that every other process on the machine draws
- * from, and a developer laptop is full of them -- Electron apps, language
- * servers, VM helpers all sit on 127.0.0.1 in the 49152-65535 window. Binding
- * is not what collides; the kernel will happily give this process a port a
- * *different* process already holds on the same address, and then a request
- * meant for a two-line test handler is answered by somebody's editor with a
- * 403. That is the residual flake this suite could not otherwise explain: a
- * failing POST /api/runs (403) with no 403 anywhere in the repository.
+ * *Why not `Bun.serve({ port: 0 })` without a hostname:* that binds the
+ * wildcard address, and a wildcard bind does not conflict with a process
+ * already holding the same port on 127.0.0.1 -- verified on macOS, where the
+ * kernel hands back the occupied port and the request that follows is answered
+ * by the stranger. That is the residual flake this suite could not otherwise
+ * explain: a failing POST /api/runs (403) with no 403 anywhere in the
+ * repository. Naming the hostname makes the bind compete for exactly the
+ * address the client dials, so the kernel refuses the collision outright.
+ *
+ * *Why not probe the port for a squatter before using it:* a probe is both
+ * unnecessary and unportable. Unnecessary because the bind above already is
+ * the check, performed atomically by the kernel with no window between test
+ * and use. Unportable because probing a port this process has already bound
+ * asks the OS a question it answers differently: Linux counts the wildcard
+ * listener as holding the loopback address and refuses the probe, so every
+ * candidate port reads as taken and the suite runs out of attempts, while
+ * macOS allows it and the same code passes. That divergence is what broke CI.
  */
 function serveOnFreePort(handler: Handler): { server: ReturnType<typeof Bun.serve>; tag: string } {
   const tag = `t${(nextServerTag += 1)}`;
-  for (let attempt = 0; attempt < PORT_ATTEMPTS; attempt += 1) {
-    const server = Bun.serve({
-      port: 0,
-      async fetch(request) {
-        const response = await handler(request);
-        response.headers.set(SERVER_TAG_HEADER, tag);
-        return response;
-      },
-    });
-
-    const isTaken = isPortHeldByAnother(server.port);
-    if (!isTaken) {
-      return { server, tag };
-    }
-    void server.stop(true);
-  }
-  throw new Error(`could not find a free port after ${PORT_ATTEMPTS} attempts`);
-}
-
-/**
- * Whether some *other* listener is already bound to `port` on 127.0.0.1.
- *
- * Bun's own listener is bound to the wildcard address, so a second bind
- * specifically to 127.0.0.1 succeeds when the port is otherwise clear and fails
- * with EADDRINUSE exactly when a foreign process holds it.
- */
-function isPortHeldByAnother(port: number | undefined): boolean {
-  const isUnbound = port === undefined;
-  if (isUnbound) {
-    return true;
-  }
-  try {
-    const probe = Bun.listen({ hostname: "127.0.0.1", port, socket: { data() {} } });
-    probe.stop(true);
-    return false;
-  } catch {
-    return true;
-  }
+  const server = Bun.serve({
+    hostname: LOOPBACK,
+    port: 0,
+    async fetch(request) {
+      const response = await handler(request);
+      response.headers.set(SERVER_TAG_HEADER, tag);
+      return response;
+    },
+  });
+  return { server, tag };
 }
 
 /**
@@ -110,14 +93,13 @@ const CONNECTION_RETRIES = 4;
  * An ApiClient for a server this suite started: it rejects a reply that came
  * from somewhere else, and re-sends a request whose connection died.
  *
- * The tag check is for the port *collision*. `Bun.serve({ port: 0 })` binds the
- * wildcard address, and the kernel will hand it a port another process already
- * holds on 127.0.0.1 -- verified directly: a wildcard bind onto an occupied
- * loopback port succeeds, and the request that follows is answered by the
- * stranger. That is where a `POST /api/runs failed (403)` came from in a
- * repository with no 403 in it. serveOnFreePort avoids those ports; this check
- * is the backstop that names the problem if one is ever reached anyway, rather
- * than letting it read as the handler's own answer.
+ * The tag check is for the port *collision*. serveOnFreePort binds the same
+ * loopback address the client dials, so the kernel refuses to seat this server
+ * on a port a stranger already holds -- that is the fix. This check is the
+ * backstop underneath it: if a foreign process ever does answer one of these
+ * requests, the mismatch says so in as many words, rather than letting a
+ * stranger's `POST /api/runs failed (403)` read as the handler's own answer in
+ * a repository containing no 403 anywhere.
  *
  * The retry is for the port *churn*. Standing a server up and tearing it down
  * per test, across a concurrent suite, leaves a small rate of requests that
@@ -275,7 +257,7 @@ export async function withTruncatedSseServer(
   handler: Handler,
   body: (client: ApiClient) => Promise<void>,
 ): Promise<void> {
-  const rest = Bun.serve({ port: 0, fetch: handler });
+  const rest = Bun.serve({ hostname: LOOPBACK, port: 0, fetch: handler });
   const front = Bun.listen<undefined>({
     hostname: "127.0.0.1",
     port: 0,
@@ -331,7 +313,7 @@ export async function withRefusedSseServer(
   handler: Handler,
   body: (client: ApiClient) => Promise<void>,
 ): Promise<void> {
-  const rest = Bun.serve({ port: 0, fetch: handler });
+  const rest = Bun.serve({ hostname: LOOPBACK, port: 0, fetch: handler });
   const front = Bun.listen<undefined>({
     hostname: "127.0.0.1",
     port: 0,
