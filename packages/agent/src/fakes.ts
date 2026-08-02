@@ -5,11 +5,14 @@ import type {
   RunStatus,
   Scenario,
   Step,
+  Target,
   TestCase,
   UiNode,
 } from "@gemma-e2e/core";
 import { parseUiDump } from "@gemma-e2e/adb";
-import type { AdbLike, StoreLike } from "./run.ts";
+import type { StoreLike } from "./run.ts";
+import type { DriverSession, OpenDriver } from "./driver.ts";
+import { type AdbLike, AndroidDriver } from "./drivers/android.ts";
 import type { DecideInput, Llm } from "./llm.ts";
 import type { Recorder, RecorderProcess, Recording } from "./recorder.ts";
 
@@ -135,6 +138,40 @@ export class FakeAdb implements AdbLike {
     // of resetting between cases.
     this.#screenIndex = 0;
   }
+}
+
+/**
+ * An {@link OpenDriver} that wraps one {@link FakeAdb} in the real
+ * {@link AndroidDriver}, so loop tests exercise the adapter rather than
+ * bypassing it, and records the targets and closes it was asked for.
+ */
+export class FakeDriverFactory {
+  /** Targets passed to `open`, in the order cases reached them. */
+  readonly targets: (Target | undefined)[] = [];
+  /** How many sessions have been closed, so a leak shows up as a mismatch. */
+  closed = 0;
+
+  constructor(
+    private readonly adb: AdbLike,
+    private readonly recorder?: Recorder | undefined,
+  ) {}
+
+  open: OpenDriver = async (target) => {
+    this.targets.push(target);
+
+    // Only an android target reaches the android driver; anything else would
+    // be a test asking for a platform this fake does not model.
+    const androidTarget = target?.platform === "android" ? target : undefined;
+
+    const session: DriverSession = {
+      driver: new AndroidDriver(this.adb, androidTarget),
+      ...(this.recorder === undefined ? {} : { recorder: this.recorder }),
+      close: async () => {
+        this.closed += 1;
+      },
+    };
+    return session;
+  };
 }
 
 /** Returns scripted actions in order; the last one repeats. */

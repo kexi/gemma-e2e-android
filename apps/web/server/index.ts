@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { AdbClient } from "@gemma-e2e/adb";
 import {
+  createDriverResolver,
   createGenkitLlmFactory,
   DEFAULT_BASE_URL,
   DEFAULT_MODEL,
@@ -53,17 +54,23 @@ const recorder = isRecording
 // instance underneath serves every model a run touches.
 const llm = createGenkitLlmFactory({ baseURL: llmBaseURL, logger });
 
+// Resolved per case rather than fixed here, so one scenario may name a
+// different platform on each of its cases. The android halves above are
+// long-lived and shared; only the per-case driver is new each time.
+const openDriver = createDriverResolver({
+  android: { adb, ...(recorder === undefined ? {} : { recorder }) },
+});
+
 function startRun({ runId, scenario, onEvent }: StartRunInput): void {
   // Deliberately not awaited: POST /api/runs answers 202 immediately and the
   // client follows progress over SSE. runScenario already converts every
   // failure into a finished case with status=error, so a rejection here would
   // only mean the store itself is broken.
   void runScenario(scenario, {
-    adb,
+    openDriver,
     llm,
     store,
     screenshotDir: screenshotsDir,
-    recorder,
     defaultModel,
     runId,
     onEvent,
