@@ -1,7 +1,8 @@
-import type { Target } from "@gemma-e2e/core";
+import type { Target, WebTarget } from "@gemma-e2e/core";
 import type { DriverSession, OpenDriver } from "../driver.ts";
 import type { Recorder } from "../recorder.ts";
 import { type AdbLike, AndroidDriver } from "./android.ts";
+import { type CdpLike, WebDriver } from "./web.ts";
 
 /**
  * One platform's long-lived halves, built once at startup and shared by every
@@ -15,8 +16,20 @@ export interface AndroidPlatform {
   recorder?: Recorder | undefined;
 }
 
+export interface WebPlatform {
+  cdp: CdpLike;
+  /**
+   * Built per session, unlike android's: a screencast belongs to one page, so
+   * the recorder cannot be shared across cases the way scrcpy's is. Omitted,
+   * web cases run unrecorded.
+   */
+  recorder?: ((session: { sessionId: string }) => Recorder) | undefined;
+}
+
 export interface DriverResolverDeps {
   android: AndroidPlatform;
+  /** Omitted, a web target reports that this build has no browser wired in. */
+  web?: WebPlatform | undefined;
 }
 
 /**
@@ -41,8 +54,35 @@ export function createDriverResolver(deps: DriverResolverDeps): OpenDriver {
       case "android":
         return androidSession(deps.android, target);
       case "web":
-        throw new Error("web targets need a browser: this build has no CDP driver wired in yet");
+        return await webSession(deps.web, target);
     }
+  };
+}
+
+/**
+ * Opens a page in a context of its own and hands back the driver bound to it.
+ *
+ * Unlike android's, this session owns something: closing it disposes the
+ * browser context, which is what stops one case's cookies and storage from
+ * reaching the next.
+ */
+async function webSession(
+  platform: WebPlatform | undefined,
+  target: WebTarget,
+): Promise<DriverSession> {
+  const isConfigured = platform !== undefined;
+  if (!isConfigured) {
+    throw new Error("this build has no browser wired in, so a web target cannot be driven");
+  }
+
+  const session = await platform.cdp.openSession(target.viewport);
+
+  return {
+    driver: new WebDriver(platform.cdp, session, target),
+    ...(platform.recorder === undefined ? {} : { recorder: platform.recorder(session) }),
+    close: async () => {
+      await platform.cdp.closeSession(session);
+    },
   };
 }
 

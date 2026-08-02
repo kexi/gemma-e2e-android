@@ -39,6 +39,7 @@
         "@emotion/styled": "11.14.0",
         "@gemma-e2e/adb": "workspace:*",
         "@gemma-e2e/agent": "workspace:*",
+        "@gemma-e2e/cdp": "workspace:*",
         "@gemma-e2e/core": "workspace:*",
         "@gemma-e2e/logger": "workspace:*",
         "@gemma-e2e/store": "workspace:*",
@@ -73,6 +74,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@gemma-e2e/adb": "workspace:*",
+        "@gemma-e2e/cdp": "workspace:*",
         "@gemma-e2e/core": "workspace:*",
         "@gemma-e2e/logger": "workspace:*",
         "@gemma-e2e/store": "workspace:*",

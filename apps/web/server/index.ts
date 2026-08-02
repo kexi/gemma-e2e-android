@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import { AdbClient } from "@gemma-e2e/adb";
+import { CdpClient, DEFAULT_DEBUGGING_PORT, endpointOf } from "@gemma-e2e/cdp";
 import {
   createDriverResolver,
   createGenkitLlmFactory,
@@ -24,6 +25,7 @@ const screenshotsDir = join(varDir, "screenshots");
 const videosDir = join(varDir, "videos");
 const clientDir = join(import.meta.dir, "..", "dist");
 const llmBaseURL = process.env["LLM_BASE_URL"] ?? DEFAULT_BASE_URL;
+const chromePort = Number(process.env["CHROME_PORT"] ?? DEFAULT_DEBUGGING_PORT);
 // Last resort in the case → scenario → env chain; a scenario that names no
 // model anywhere still has to run on something.
 const defaultModel = process.env["LLM_MODEL"] ?? DEFAULT_MODEL;
@@ -54,11 +56,20 @@ const recorder = isRecording
 // instance underneath serves every model a run touches.
 const llm = createGenkitLlmFactory({ baseURL: llmBaseURL, logger });
 
+// Constructed unconditionally and connected lazily, like `adb` above: a
+// machine with no Chrome running still boots the dashboard, and a web case
+// then fails with a message naming the flag to start it with.
+const cdp = new CdpClient({
+  endpoint: process.env["CHROME_ENDPOINT"] ?? endpointOf(chromePort),
+  logger,
+});
+
 // Resolved per case rather than fixed here, so one scenario may name a
-// different platform on each of its cases. The android halves above are
+// different platform on each of its cases. The platform halves above are
 // long-lived and shared; only the per-case driver is new each time.
 const openDriver = createDriverResolver({
   android: { adb, ...(recorder === undefined ? {} : { recorder }) },
+  web: { cdp },
 });
 
 function startRun({ runId, scenario, onEvent }: StartRunInput): void {
@@ -105,6 +116,7 @@ logger.info("server.started", {
   scenariosDir,
   varDir,
   emulatorGrpcTarget,
+  chromePort,
   defaultModel,
   recording: isRecording,
   firestoreEmulator: process.env["FIRESTORE_EMULATOR_HOST"] ?? null,

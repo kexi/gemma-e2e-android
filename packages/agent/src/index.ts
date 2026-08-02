@@ -24,8 +24,10 @@ export type { CaseResult, RunDeps, RunEvent, RunResult, StoreLike } from "./run.
 export type { Driver, DriverSession, OpenDriver } from "./driver.ts";
 export { AndroidDriver } from "./drivers/android.ts";
 export type { AdbLike } from "./drivers/android.ts";
+export { WebDriver } from "./drivers/web.ts";
+export type { CdpLike } from "./drivers/web.ts";
 export { createDriverResolver } from "./drivers/resolve.ts";
-export type { AndroidPlatform, DriverResolverDeps } from "./drivers/resolve.ts";
+export type { AndroidPlatform, DriverResolverDeps, WebPlatform } from "./drivers/resolve.ts";
 
 export { recordCase, RecorderError, ScrcpyRecorder } from "./recorder.ts";
 export type {
