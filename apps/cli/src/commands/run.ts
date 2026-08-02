@@ -296,6 +296,11 @@ async function openEvents(context: Context, runId: string): Promise<Response | n
     return response;
   }
 
+  // Nobody reads the body of a refusal, and an unread one holds its connection
+  // open until the collector happens to run -- against a client that is about
+  // to start polling on that same connection.
+  await response.body?.cancel();
+
   // Built before it is classified rather than after: isTransientPollFailure
   // reads a status off an ApiError, and handing it the same value the throw
   // would carry keeps one shape flowing through one judgement.
