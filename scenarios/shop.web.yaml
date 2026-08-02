@@ -1,12 +1,11 @@
-# Deep-navigation cases against the Kexi Coffee Shop example app. Where
-# login.yaml stops at one form, these cross four and six screens -- which is
-# what makes them worth running: the history window and the `remember` action
-# only matter once a case outgrows a single screen.
-title: Coffee shop
+# shop.yaml's deep-navigation cases, against the browser build. Same reason as
+# login.web.yaml: the prompts match their Android counterparts, so a difference
+# in outcome is a difference in the app or the driver rather than in what was
+# asked.
+title: Coffee shop (web)
 target:
-  platform: android
-  package: dev.kexi.gemmae2e.example
-  activity: .MainActivity
+  platform: web
+  url: http://localhost:5174
 cases:
   - id: add-to-cart
     title: Adds a bean to the cart and sees the total

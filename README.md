@@ -1,52 +1,74 @@
 # gemma-e2e-android
 
-Run Android end-to-end tests from natural-language prompts. You write something
-like *"check that the user can log in"*; an agent driven by a local
-[Gemma](https://ai.google.dev/gemma) model reads the live UI tree over `adb`,
-decides the next tap or type, performs it, and judges whether the goal was met.
-Everything runs on your machine — the LLM is served locally by LM Studio, so no
-screenshots or app data leave the device.
+Run end-to-end tests from natural-language prompts, on an Android device or in
+Chrome. You write something like *"check that the user can log in"*; an agent
+driven by a local [Gemma](https://ai.google.dev/gemma) model reads the live UI
+tree, decides the next tap or type, performs it, and judges whether the goal was
+met. Everything runs on your machine — the LLM is served locally by LM Studio,
+so no screenshots or app data leave it.
+
+Each test case names its own target, so one scenario can cover both platforms
+and the prompts stay the same on either.
 
 ## How it works
 
 ```
-scenario prompt ─▶ agent loop:  adb uiautomator dump ─▶ UI tree (text)
-                     ▲                                      │
-                     │                              Gemma 4 (LM Studio)
-                adb tap / type ◀── structured Action ◀──────┘
+              ┌── adb uiautomator dump ──┐
+scenario ─▶   │                          ├─▶ UI tree (text)
+prompt        └── CDP DOM walk ──────────┘         │
+                     ▲                      Gemma 4 (LM Studio)
+                     │                             │
+              tap / type / scroll ◀── structured Action
                      │
                      ▼
-     Firestore history + screenshots ─▶ web dashboard (live via SSE)
+     Firestore history + screenshots + video ─▶ dashboard (live via SSE)
 ```
+
+Both platforms produce the same `UiNode` tree, so the serializer the model
+reads, the action vocabulary it answers in, and the prompt behind it are one
+implementation rather than two.
 
 ## Repository layout
 
 | Path | What it is |
 | --- | --- |
 | `packages/core` | Shared Zod schemas (UI tree, actions, runs) and the YAML scenario loader |
-| `packages/adb` | adb wrapper: UI dump parsing, LLM-facing tree serialization, input commands |
-| `packages/agent` | Genkit-based decision loop against LM Studio's OpenAI-compatible API |
+| `packages/adb` | adb wrapper: UI dump parsing and input commands |
+| `packages/cdp` | Chrome DevTools Protocol client: page reading, input, screencast |
+| `packages/agent` | Genkit-based decision loop, and the drivers that adapt each platform to it |
 | `packages/store` | Run/step history in Firestore (local emulator via `firebase-admin`) |
 | `apps/web` | Dashboard: Hono API + SSE, Vite/React/MUI frontend |
 | `apps/cli` | `gemma-e2e` command-line client for the dashboard API |
-| `apps/example` | "Kexi Coffee Shop" — the Expo store app the agent is tested against |
-| `scenarios/` | Android test scenarios (`*.yaml`) — natural-language goals the agent runs on a device |
+| `apps/example-shared` | "Kexi Coffee Shop" domain data, so the two fixture apps cannot disagree |
+| `apps/example-android` | The Expo build of the shop, driven over adb |
+| `apps/example-web` | The browser build of the shop, driven over CDP |
+| `scenarios/` | Test scenarios (`*.yaml`) — natural-language goals, each naming an Android or web target |
 | `e2e/scenarios/` | CLI test scenarios (`*.yaml`) — [pitty](https://github.com/kexi/pitty) cases that drive the `gemma-e2e` binary itself |
 
 The two scenario directories are unrelated despite the similar names.
 `scenarios/` is *input to the product*: prompts Gemma executes against the
-emulator. `e2e/scenarios/` is *test code for the CLI*: PTY sessions asserting
-what `gemma-e2e` prints and which exit code it returns.
+emulator or the browser. `e2e/scenarios/` is *test code for the CLI*: PTY
+sessions asserting what `gemma-e2e` prints and which exit code it returns.
 
 ## Quick start
 
 ```sh
 direnv allow      # devshell: every CLI tool, the Android SDK, and the emulator
 just install      # JavaScript dependencies
-just emu          # boot the emulator          (first time: just avd-create)
-just android      # build & install the example app
 just llm          # start LM Studio's local API (manual app install required)
 just web          # dashboard → http://localhost:5173
+```
+
+Then bring up whichever platform a scenario targets:
+
+```sh
+# Android (scenarios/login.yaml, shop.yaml)
+just emu          # boot the emulator          (first time: just avd-create)
+just android      # build & install the example app
+
+# Web (scenarios/login.web.yaml, shop.web.yaml)
+just example-web  # the shop, in the browser → http://localhost:5174
+just chrome       # Chrome with the DevTools port the driver connects to
 ```
 
 `just --list` shows every task; `just check` runs the same gates as CI.

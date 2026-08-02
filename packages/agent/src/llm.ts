@@ -36,7 +36,8 @@ export const DEFAULT_MODEL = "gemma-4-12b";
 const PLUGIN_NAME = "lmstudio";
 const MAX_ATTEMPTS = 3;
 
-export const SYSTEM_PROMPT = `You are an Android E2E test operator.
+export const SYSTEM_PROMPT = `You are an E2E test operator. The screen may be a
+phone app or a web page; you drive both the same way.
 
 You are given a test goal, a summary of what you have already done, and a text
 rendering of the current screen's UI tree. Choose exactly ONE next action.
@@ -49,7 +50,8 @@ Actions:
 - input_text: type text into the element with the given ref. Tap a field before
   typing into it if it is not already focused.
 - swipe: scroll the screen (up scrolls toward later content).
-- key_event: press back, home, or enter.
+- key_event: back returns to the previous screen, home goes to the start, and
+  enter submits the focused field.
 - wait: pause when the screen looks like it is still loading.
 - remember: record a fact from the current screen that a later step will need
   (a confirmation code, an order number, a total). It touches nothing on the

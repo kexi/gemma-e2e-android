@@ -1,12 +1,11 @@
-# A scenario bundles test cases; each case is one natural-language goal that
-# gets its own verdict. `id` defaults to the filename when omitted.
-title: Login
+# The same two assertions as login.yaml, against the browser build of the same
+# app. The prompts are deliberately near-identical: what differs is the target,
+# and a case that reads the same on both is the point -- it says the agent is
+# describing the app rather than the platform.
+title: Login (web)
 target:
-  platform: android
-  package: dev.kexi.gemmae2e.example
-  activity: .MainActivity
-# Every case may name its own `model:`; without one it falls back to this
-# scenario-level default, and then to the server's LLM_MODEL.
+  platform: web
+  url: http://localhost:5174
 cases:
   - id: valid-credentials
     title: Logs in with valid credentials

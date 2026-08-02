@@ -14,14 +14,17 @@ restate the reasoning, so there is only ever one copy to keep current.
 ## The domain: scenarios bundle test cases
 
 A **test case** is one natural-language goal that earns one verdict. A
-**scenario** is a bundle of cases that share an app and, usually, a model.
+**scenario** is a bundle of cases that share a target and, usually, a model.
 
 ```
    Scenario (scenarios/login.yaml)
-   ├─ id, title, app?, model?
+   ├─ id, title, target?, model?
    └─ cases: TestCase[]            (at least one, run in order)
-      ├─ TestCase { id (slug), title?, prompt, model?, maxSteps=20 }
+      ├─ TestCase { id (slug), title?, prompt, model?, target?, maxSteps=20 }
       └─ TestCase { … }
+
+   Target = { platform: "android", package, activity? }
+          | { platform: "web", url, viewport? }
 
    One execution of a scenario:
 
@@ -44,12 +47,13 @@ its step budget is exhausted.
                   ┌──────────────────────────────────────────┐
                   │                                          │
    ┌──────────────▼───────────────┐                          │
-   │ Android device / emulator    │                          │
+   │ Android device  |  Chrome    │                          │
    └──────────────┬───────────────┘                          │
-                  │ adb shell uiautomator dump               │
+                  │ uiautomator dump | CDP DOM walk          │
                   ▼                                          │
    ┌──────────────────────────────┐                          │
-   │ UI tree (XML → compact text) │                          │
+   │ UiNode tree → compact text   │                          │
+   │ (one serializer, either way) │                          │
    └──────────────┬───────────────┘                          │
                   │ prompt: goal + UI tree + step history    │
                   ▼                                          │
@@ -59,8 +63,8 @@ its step budget is exhausted.
    └──────────────┬───────────────┘                          │
                   │ {action: tap|type|swipe|back|assert, …}  │
                   ▼                                          │
-   ┌──────────────────────────────┐   adb input / shell      │
-   │ Action executor              │──────────────────────────┘
+   ┌──────────────────────────────┐   adb input | CDP input  │
+   │ Action executor (via Driver) │──────────────────────────┘
    └──────────────┬───────────────┘
                   │ step log + screenshot path + verdict
                   ▼
@@ -87,10 +91,28 @@ its step budget is exhausted.
 ## Repository layout
 
 ```
-apps/example    Kexi Coffee Shop — the Expo app under test
-apps/web        Vite + React dashboard
-packages/*      agent core, adb wrapper, LLM client (buildless TS)
+apps/example-shared    Kexi Coffee Shop domain data, shared by both fixtures
+apps/example-android   The Expo build, driven over adb
+apps/example-web       The browser build, driven over CDP
+apps/web               Vite + React dashboard
+packages/*             agent core, adb and cdp clients, LLM client (buildless TS)
 ```
+
+## Two platforms, three adapters
+
+The loop knows three things — how to act, how to observe, how to record — and
+each platform supplies its own half of each. Nothing else in the loop branches.
+
+| Concept | Android | Web |
+| --- | --- | --- |
+| `Driver` (act) | `AndroidDriver` over `AdbClient` | `WebDriver` over `CdpClient` |
+| `UiNode` (observe) | `parseUiDump` (uiautomator XML) | DOM walker (`Runtime.evaluate`) |
+| `Recorder` (record) | `ScrcpyRecorder` | `CdpRecorder` (screencast → ffmpeg) |
+
+Because a page arrives as the same `UiNode` tree a device produces, the
+serializer, the ref numbering, the `Action` vocabulary and the system prompt are
+single implementations. See
+[knowledge/cdp-web-driver.md](knowledge/cdp-web-driver.md).
 
 ## Decisions
 
@@ -108,6 +130,7 @@ One file each, under [knowledge/](knowledge/index.md).
 | Decision | Concept |
 | --- | --- |
 | UI capture: `adb shell uiautomator dump` | [ui-capture-uiautomator-dump.md](knowledge/ui-capture-uiautomator-dump.md) |
+| Web driver: raw Chrome DevTools Protocol, no Puppeteer | [cdp-web-driver.md](knowledge/cdp-web-driver.md) |
 | Model input: UI tree text only | [model-input-ui-tree-text.md](knowledge/model-input-ui-tree-text.md) |
 | LM Studio + Gemma 4, called through Genkit with Zod | [lm-studio-genkit-zod.md](knowledge/lm-studio-genkit-zod.md) |
 
@@ -126,6 +149,7 @@ One file each, under [knowledge/](knowledge/index.md).
 | SSE stays; Firestore listeners are a later option | [sse-over-firestore-listeners.md](knowledge/sse-over-firestore-listeners.md) |
 | Live device view: gRPC `streamScreenshot` over a WebSocket | [live-device-view.md](knowledge/live-device-view.md) |
 | Per-case screen recording: `scrcpy --no-playback --record` | [per-case-screen-recording.md](knowledge/per-case-screen-recording.md) |
+| Web recording: `Page.startScreencast` muxed through ffmpeg | [cdp-screencast-recording.md](knowledge/cdp-screencast-recording.md) |
 | Browser target: latest Chrome, Baseline Newly available, no polyfills | [latest-chrome-baseline-newly.md](knowledge/latest-chrome-baseline-newly.md) |
 
 ### Platform and tooling

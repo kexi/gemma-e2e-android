@@ -21,6 +21,7 @@ The overview and data-flow diagrams live in
 ## Agent loop
 
 - [ui-capture-uiautomator-dump.md](ui-capture-uiautomator-dump.md) — UI capture: `adb shell uiautomator dump`
+- [cdp-web-driver.md](cdp-web-driver.md) — Web driver: raw Chrome DevTools Protocol, no Puppeteer
 - [model-input-ui-tree-text.md](model-input-ui-tree-text.md) — Model input: UI tree text only
 - [lm-studio-genkit-zod.md](lm-studio-genkit-zod.md) — LM Studio + Gemma 4, called through Genkit with Zod
 
@@ -35,6 +36,7 @@ The overview and data-flow diagrams live in
 - [sse-over-firestore-listeners.md](sse-over-firestore-listeners.md) — SSE stays; Firestore listeners are a later option
 - [live-device-view.md](live-device-view.md) — Live device view: gRPC `streamScreenshot` relayed over a WebSocket
 - [per-case-screen-recording.md](per-case-screen-recording.md) — Per-case screen recording: `scrcpy --no-playback --record`
+- [cdp-screencast-recording.md](cdp-screencast-recording.md) — Web recording: `Page.startScreencast` muxed through ffmpeg
 - [latest-chrome-baseline-newly.md](latest-chrome-baseline-newly.md) — Browser target: latest Chrome, Baseline Newly available, no polyfills
 
 ## Platform and tooling

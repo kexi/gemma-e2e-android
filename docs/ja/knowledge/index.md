@@ -21,6 +21,7 @@ English: [../../knowledge/index.md](../../knowledge/index.md)
 ## エージェントループ
 
 - [ui-capture-uiautomator-dump.md](ui-capture-uiautomator-dump.md) — UI 取得: `adb shell uiautomator dump`
+- [cdp-web-driver.md](cdp-web-driver.md) — Web ドライバ: Chrome DevTools Protocol を直接叩く(Puppeteer 不使用)
 - [model-input-ui-tree-text.md](model-input-ui-tree-text.md) — モデル入力: UI ツリーのテキストのみ
 - [lm-studio-genkit-zod.md](lm-studio-genkit-zod.md) — LM Studio + Gemma 4 / Genkit + Zod
 
@@ -35,6 +36,7 @@ English: [../../knowledge/index.md](../../knowledge/index.md)
 - [sse-over-firestore-listeners.md](sse-over-firestore-listeners.md) — SSE は維持し、Firestore リスナーは将来の選択肢
 - [live-device-view.md](live-device-view.md) — デバイスのライブビュー: gRPC `streamScreenshot` を WebSocket で中継
 - [per-case-screen-recording.md](per-case-screen-recording.md) — ケース単位の画面録画: `scrcpy --no-playback --record`
+- [cdp-screencast-recording.md](cdp-screencast-recording.md) — Web の録画: `Page.startScreencast` を ffmpeg で mux する
 - [latest-chrome-baseline-newly.md](latest-chrome-baseline-newly.md) — 対象ブラウザ: 最新 Chrome / Baseline Newly available / ポリフィルなし
 
 ## プラットフォームとツール

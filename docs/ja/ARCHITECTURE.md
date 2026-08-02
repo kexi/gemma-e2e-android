@@ -12,15 +12,18 @@ English: [../ARCHITECTURE.md](../ARCHITECTURE.md)
 
 ## ドメイン: シナリオはテストケースの束
 
-**テストケース**は 1 つの判定を得る自然言語のゴール、**シナリオ**は対象アプリと
-(多くの場合)モデルを共有するケースの束です。
+**テストケース**は 1 つの判定を得る自然言語のゴール、**シナリオ**は対象
+(target)と、多くの場合モデルを共有するケースの束です。
 
 ```
    Scenario (scenarios/login.yaml)
-   ├─ id, title, app?, model?
+   ├─ id, title, target?, model?
    └─ cases: TestCase[]            (1 つ以上・宣言順に実行)
-      ├─ TestCase { id (slug), title?, prompt, model?, maxSteps=20 }
+      ├─ TestCase { id (slug), title?, prompt, model?, target?, maxSteps=20 }
       └─ TestCase { … }
+
+   Target = { platform: "android", package, activity? }
+          | { platform: "web", url, viewport? }
 
    シナリオ 1 回の実行:
 
@@ -43,9 +46,9 @@ English: [../ARCHITECTURE.md](../ARCHITECTURE.md)
                   ┌──────────────────────────────────────────┐
                   │                                          │
    ┌──────────────▼───────────────┐                          │
-   │ Android 実機 / エミュレータ  │                          │
+   │ Android 実機/エミュ | Chrome │                          │
    └──────────────┬───────────────┘                          │
-                  │ adb shell uiautomator dump               │
+                  │ uiautomator dump | CDP の DOM 走査       │
                   ▼                                          │
    ┌──────────────────────────────┐                          │
    │ UI ツリー(XML → テキスト)  │                          │
@@ -76,10 +79,27 @@ English: [../ARCHITECTURE.md](../ARCHITECTURE.md)
 ## リポジトリ構成
 
 ```
-apps/example    テスト対象の Expo アプリ(Kexi Coffee Shop)
-apps/web        Vite + React ダッシュボード
-packages/*      エージェント本体・adb ラッパ・LLM クライアント(ビルドレス TS)
+apps/example-shared    Kexi Coffee Shop のドメインデータ(両フィクスチャで共有)
+apps/example-android   Expo ビルド。adb で駆動
+apps/example-web       ブラウザビルド。CDP で駆動
+apps/web               Vite + React ダッシュボード
+packages/*             エージェント本体・adb / cdp クライアント・LLM クライアント
 ```
+
+## 2 つのプラットフォームと 3 つの Adapter
+
+ループが知っているのは「操作する」「観測する」「記録する」の 3 つだけで、各
+プラットフォームがそれぞれの片側を提供します。ループ内はこれ以外に分岐しません。
+
+| 概念 | Android | Web |
+| --- | --- | --- |
+| `Driver`(操作) | `AdbClient` を包む `AndroidDriver` | `CdpClient` を包む `WebDriver` |
+| `UiNode`(観測) | `parseUiDump`(uiautomator XML) | DOM walker(`Runtime.evaluate`) |
+| `Recorder`(記録) | `ScrcpyRecorder` | `CdpRecorder`(screencast → ffmpeg) |
+
+ページがデバイスと同じ `UiNode` ツリーとして届くため、シリアライザ・ref の
+採番・`Action` の語彙・システムプロンプトはいずれも実装 1 本です。詳細は
+[knowledge/cdp-web-driver.md](knowledge/cdp-web-driver.md)。
 
 ## 各判断
 
@@ -97,6 +117,7 @@ packages/*      エージェント本体・adb ラッパ・LLM クライアン�
 | 判断 | ファイル |
 | --- | --- |
 | UI 取得: `adb shell uiautomator dump` | [ui-capture-uiautomator-dump.md](knowledge/ui-capture-uiautomator-dump.md) |
+| Web ドライバ: CDP を直接叩く(Puppeteer 不使用) | [cdp-web-driver.md](knowledge/cdp-web-driver.md) |
 | モデル入力: UI ツリーのテキストのみ | [model-input-ui-tree-text.md](knowledge/model-input-ui-tree-text.md) |
 | LM Studio + Gemma 4 / Genkit + Zod | [lm-studio-genkit-zod.md](knowledge/lm-studio-genkit-zod.md) |
 
@@ -115,6 +136,7 @@ packages/*      エージェント本体・adb ラッパ・LLM クライアン�
 | SSE は維持し、Firestore リスナーは将来の選択肢 | [sse-over-firestore-listeners.md](knowledge/sse-over-firestore-listeners.md) |
 | デバイスのライブビュー: gRPC `streamScreenshot` の中継 | [live-device-view.md](knowledge/live-device-view.md) |
 | ケース単位の画面録画: `scrcpy --no-playback --record` | [per-case-screen-recording.md](knowledge/per-case-screen-recording.md) |
+| Web の録画: `Page.startScreencast` を ffmpeg で mux | [cdp-screencast-recording.md](knowledge/cdp-screencast-recording.md) |
 | 対象ブラウザ: 最新 Chrome / Baseline Newly available / ポリフィルなし | [latest-chrome-baseline-newly.md](knowledge/latest-chrome-baseline-newly.md) |
 
 ### プラットフォームとツール
