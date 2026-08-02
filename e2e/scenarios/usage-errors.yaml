@@ -81,6 +81,33 @@ steps:
       code: 2
       timeout: 10s
 
+  # An empty --prompt is a prompt the user typed, not the absence of one: there
+  # is nothing to instruct the agent with, so it is refused rather than run.
+  #
+  # Written `--prompt=` rather than `--prompt ''`: pitty word-splits the spawn
+  # line, so the quotes survive as a literal two-character prompt and the run
+  # would actually start. The `=` form carries the empty value with no quoting.
+  - spawn: "${GEMMA_E2E_BIN} run start --prompt="
+  - expect:
+      contains: "--prompt cannot be empty"
+      timeout: 10s
+  - expect:
+      contains: "Try 'gemma-e2e run start --help' for more information."
+      timeout: 10s
+  - expect_exit:
+      code: 2
+      timeout: 10s
+
+  # ...and it still counts as a prompt for the conflict check, so pairing it with
+  # a scenario id is refused rather than quietly starting the scenario.
+  - spawn: "${GEMMA_E2E_BIN} run start login --prompt="
+  - expect:
+      contains: "give either a scenario id or --prompt, not both"
+      timeout: 10s
+  - expect_exit:
+      code: 2
+      timeout: 10s
+
   # A stored scenario carries its own title and model, so these flags belong to
   # --prompt alone. Refused rather than sent: the server ignores them on the
   # scenario branch, which would make a wrong --model look accepted.

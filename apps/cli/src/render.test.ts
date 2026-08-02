@@ -200,16 +200,23 @@ describe("renderEvent", () => {
     expect(
       renderEvent(
         {
-          type: "action_decided",
+          type: "step_recorded",
           runId: "r",
           caseId: "valid",
-          index: 2,
-          action: { type: "tap", ref: 7 },
-          llmDurationMs: 830,
+          step: {
+            runId: "r",
+            caseId: "valid",
+            index: 2,
+            action: { type: "tap", ref: 7 },
+            uiText: "",
+            screenshotPath: null,
+            note: null,
+            createdAt: "2026-08-02T10:00:02.000Z",
+          },
         },
         plain,
       ),
-    ).toBe("    2  tap [7] (830ms)");
+    ).toBe("    2  tap [7]");
 
     expect(
       renderEvent(
@@ -240,6 +247,17 @@ describe("renderEvent", () => {
         caseId: "c",
         index: 0,
         action: { type: "tap", ref: 1 },
+      },
+      // Suppressed so a live step is not printed twice: it is followed by the
+      // step_recorded frame that describes the same action, and that one is the
+      // frame a replayed timeline also carries.
+      {
+        type: "action_decided",
+        runId: "r",
+        caseId: "c",
+        index: 0,
+        action: { type: "tap", ref: 1 },
+        llmDurationMs: 830,
       },
     ] as const;
 

@@ -105,8 +105,9 @@ and asserts its output, exit codes, and argument handling. It ships with the
 devshell, so no separate install is needed.
 
 ```sh
-just cli-e2e         # compiles the binary, then runs e2e/scenarios/
-just cli-e2e-server  # the server-dependent half; needs `just web` up
+just cli-e2e                # compiles the binary, then runs e2e/scenarios/
+just cli-e2e-server         # needs `just web` up
+just cli-e2e-server-models  # needs `just web` up *and* LM Studio serving
 ```
 
 `e2e/scenarios/` needs no server: it covers `--help` / `--version`, usage errors
@@ -114,6 +115,12 @@ and their exit codes, the `--` option terminator, colour suppression, local
 scenario-file validation, and the guidance shown when the dashboard is
 unreachable. `e2e/scenarios/server/` is kept separate because it expects a live
 dashboard on `:5175`; `just cli-e2e` does not descend into it.
+
+Within that directory `models.yaml` is split off again and run only by
+`just cli-e2e-server-models`, because `models` is the one read-only command that
+reaches past the dashboard: `/api/models` proxies LM Studio, and with LM Studio
+down the server answers 503 and the CLI exits 2. `just cli-e2e-server` names
+`read-only.yaml` explicitly so it stays green with only `just web` running.
 
 `just check` deliberately leaves these out — pitty has to compile the binary
 first, which is far slower than the rest of the gates. Run `just cli-e2e`

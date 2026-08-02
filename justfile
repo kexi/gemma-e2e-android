@@ -86,9 +86,18 @@ cli-dist:
 cli-e2e: cli
     GEMMA_E2E_BIN="$PWD/apps/cli/dist/gemma-e2e" pitty run e2e/scenarios
 
-# The server-dependent half. Assumes `just web` is already up on :5175.
+# The server-dependent half. Assumes `just web` is already up on :5175, and
+# nothing else: models.yaml is named explicitly by the recipe below rather than
+# swept up here, because it also needs LM Studio.
 cli-e2e-server: cli
-    GEMMA_E2E_BIN="$PWD/apps/cli/dist/gemma-e2e" pitty run e2e/scenarios/server
+    GEMMA_E2E_BIN="$PWD/apps/cli/dist/gemma-e2e" pitty run e2e/scenarios/server/read-only.yaml
+
+# `models` proxies LM Studio, so this one needs `just web` *and* LM Studio
+# serving on the URL LLM_BASE_URL names. Without it the dashboard
+# answers 503 and the CLI exits 2, which is correct behaviour but not what this
+# scenario asserts.
+cli-e2e-server-models: cli
+    GEMMA_E2E_BIN="$PWD/apps/cli/dist/gemma-e2e" pitty run e2e/scenarios/server/models.yaml
 
 # Run the dashboard: Firestore emulator on :8790, Hono API on :5175, and the
 # Vite dev server on :5173.

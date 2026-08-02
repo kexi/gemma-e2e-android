@@ -87,7 +87,7 @@ describe("scenario get", () => {
       async (client) => {
         const { context } = captureContext(client);
 
-        expect(scenarioCommand([], context, "get")).rejects.toBeInstanceOf(UsageError);
+        await expect(scenarioCommand([], context, "get")).rejects.toBeInstanceOf(UsageError);
       },
     );
   });
@@ -207,7 +207,7 @@ describe("scenario apply", () => {
       async (client) => {
         const { context } = captureContext(client);
 
-        expect(scenarioCommand([], context, "apply")).rejects.toBeInstanceOf(UsageError);
+        await expect(scenarioCommand([], context, "apply")).rejects.toBeInstanceOf(UsageError);
       },
     );
   });
@@ -237,7 +237,7 @@ describe("scenario delete", () => {
       async (client) => {
         const { context } = captureContext(client);
 
-        expect(scenarioCommand(["ghost"], context, "delete")).rejects.toThrow(
+        await expect(scenarioCommand(["ghost"], context, "delete")).rejects.toThrow(
           "no such scenario: ghost",
         );
       },
@@ -246,11 +246,11 @@ describe("scenario delete", () => {
 });
 
 describe("scenario", () => {
-  test("rejects an unknown subcommand and a missing one", () => {
+  test("rejects an unknown subcommand and a missing one", async () => {
     const { context } = captureContext(undefined as never);
 
-    expect(scenarioCommand([], context, "bogus")).rejects.toBeInstanceOf(UsageError);
-    expect(scenarioCommand([], context, null)).rejects.toBeInstanceOf(UsageError);
+    await expect(scenarioCommand([], context, "bogus")).rejects.toBeInstanceOf(UsageError);
+    await expect(scenarioCommand([], context, null)).rejects.toBeInstanceOf(UsageError);
   });
 
   test("answers --help for a subcommand without contacting the server", async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { Run, RunStatus } from "@gemma-e2e/core/schema";
+import type { Run, RunStatus, Step } from "@gemma-e2e/core/schema";
 import type { ExitCode } from "../exit-codes.ts";
 import { runCommand, type RunTiming } from "./run.ts";
 import { captureContext, rejection, sseFrame, sseResponse, withServer } from "../testing.ts";
@@ -25,6 +25,20 @@ function runDoc(overrides: Partial<Run> = {}): Run {
     startedAt: "2026-08-02T10:00:00.000Z",
     finishedAt: "2026-08-02T10:01:00.000Z",
     cases: [],
+    ...overrides,
+  };
+}
+
+function stepDoc(overrides: Partial<Step> = {}): Step {
+  return {
+    runId: "run-1",
+    caseId: "valid",
+    index: 0,
+    action: { type: "tap", ref: 0 },
+    uiText: "",
+    screenshotPath: null,
+    note: null,
+    createdAt: "2026-08-02T10:00:30.000Z",
     ...overrides,
   };
 }
@@ -187,7 +201,7 @@ describe("run start", () => {
       async (client) => {
         const { context } = captureContext(client);
 
-        expect(runCommand([], context, "start", FAST)).rejects.toBeInstanceOf(UsageError);
+        await expect(runCommand([], context, "start", FAST)).rejects.toBeInstanceOf(UsageError);
       },
     );
   });
@@ -198,9 +212,52 @@ describe("run start", () => {
       async (client) => {
         const { context } = captureContext(client);
 
-        expect(
+        await expect(
           runCommand(["login", "--prompt", "buy a coffee"], context, "start", FAST),
         ).rejects.toBeInstanceOf(UsageError);
+      },
+    );
+  });
+
+  test("refuses an empty --prompt instead of starting a run without one", async () => {
+    let posted = false;
+    await withServer(
+      () => {
+        posted = true;
+        return Response.json({ runId: "run-9" }, { status: 202 });
+      },
+      async (client) => {
+        const { context } = captureContext(client);
+
+        const error = await rejection(runCommand(["--prompt", ""], context, "start", FAST));
+
+        expect(error).toBeInstanceOf(UsageError);
+        expect(error.message).toContain("--prompt cannot be empty");
+        expect(posted).toBe(false);
+      },
+    );
+  });
+
+  test("treats an empty --prompt as a prompt for the conflict check, not as its absence", async () => {
+    let posted = false;
+    await withServer(
+      () => {
+        posted = true;
+        return Response.json({ runId: "run-9" }, { status: 202 });
+      },
+      async (client) => {
+        const { context } = captureContext(client);
+
+        // The bug this pins: `--prompt ""` used to read as "no prompt", so the
+        // scenario id took over and a run started under a flag the user had
+        // typed but never got.
+        const error = await rejection(
+          runCommand(["login", "--prompt", ""], context, "start", FAST),
+        );
+
+        expect(error).toBeInstanceOf(UsageError);
+        expect(error.message).toContain("not both");
+        expect(posted).toBe(false);
       },
     );
   });
@@ -298,13 +355,11 @@ describe("run watch", () => {
             caseId: "valid",
             caseRun: { title: "Logs in" },
           }),
-          sseFrame("action_decided", {
-            type: "action_decided",
+          sseFrame("step_recorded", {
+            type: "step_recorded",
             runId: "run-1",
             caseId: "valid",
-            index: 0,
-            action: { type: "tap", ref: 3 },
-            llmDurationMs: 500,
+            step: stepDoc({ index: 0, action: { type: "tap", ref: 3 } }),
           }),
           sseFrame("run_finished", {
             type: "run_finished",
@@ -319,8 +374,100 @@ describe("run watch", () => {
 
         expect(await runCommand(["run-1"], context, "watch", FAST)).toBe(1);
         expect(out.join("\n")).toContain("case  valid  Logs in");
-        expect(out.join("\n")).toContain("tap [3] (500ms)");
+        expect(out.join("\n")).toContain("  0  tap [3]");
         expect(out.join("\n")).toContain("failed  run run-1  no login button");
+      },
+    );
+  });
+
+  test("prints every step of a finished run, whose timeline replays as step_recorded alone", async () => {
+    await withServer(
+      (request) => {
+        const isEvents = new URL(request.url).pathname.endsWith("/events");
+        if (!isEvents) {
+          return Response.json({ run: runDoc({ status: "failed" }) });
+        }
+        // What apps/web/server/app.ts replays for a run that is already over:
+        // stored steps arrive as step_recorded, and action_decided -- which
+        // only ever exists live -- is nowhere in the stream.
+        return sseResponse([
+          sseFrame("case_started", {
+            type: "case_started",
+            runId: "run-1",
+            caseId: "valid",
+            caseRun: { title: "Logs in" },
+          }),
+          sseFrame("step_recorded", {
+            type: "step_recorded",
+            runId: "run-1",
+            caseId: "valid",
+            step: stepDoc({ index: 0, action: { type: "input_text", ref: 1, text: "demo" } }),
+          }),
+          sseFrame("step_recorded", {
+            type: "step_recorded",
+            runId: "run-1",
+            caseId: "valid",
+            step: stepDoc({ index: 1, action: { type: "tap", ref: 2 } }),
+          }),
+          sseFrame("run_finished", {
+            type: "run_finished",
+            runId: "run-1",
+            status: "failed",
+            reason: "the login failed",
+          }),
+        ]);
+      },
+      async (client) => {
+        const { context, out } = captureContext(client);
+
+        expect(await runCommand(["run-1"], context, "watch", FAST)).toBe(1);
+        const lines = out.join("\n");
+        expect(lines).toContain('  0  input_text [1] "demo"');
+        expect(lines).toContain("  1  tap [2]");
+      },
+    );
+  });
+
+  test("prints a live step once even though action_decided and step_recorded both arrive", async () => {
+    await withServer(
+      (request) => {
+        const isEvents = new URL(request.url).pathname.endsWith("/events");
+        if (!isEvents) {
+          return Response.json({ run: runDoc({ status: "running" }) });
+        }
+        // The order packages/agent/src/run.ts emits for one live step: the
+        // decision, then the record of it. Both describe the same action, so
+        // exactly one line may reach the terminal.
+        return sseResponse([
+          sseFrame("action_decided", {
+            type: "action_decided",
+            runId: "run-1",
+            caseId: "valid",
+            index: 0,
+            action: { type: "tap", ref: 3 },
+            llmDurationMs: 500,
+          }),
+          sseFrame("step_recorded", {
+            type: "step_recorded",
+            runId: "run-1",
+            caseId: "valid",
+            step: stepDoc({ index: 0, action: { type: "tap", ref: 3 } }),
+          }),
+          sseFrame("run_finished", {
+            type: "run_finished",
+            runId: "run-1",
+            status: "passed",
+            reason: null,
+          }),
+        ]);
+      },
+      async (client) => {
+        const { context, out } = captureContext(client);
+
+        await runCommand(["run-1"], context, "watch", FAST);
+
+        const stepLines = out.filter((line) => line.includes("tap [3]"));
+        expect(stepLines).toEqual(["    0  tap [3]"]);
       },
     );
   });
@@ -449,11 +596,11 @@ describe("run watch", () => {
 });
 
 describe("run", () => {
-  test("rejects an unknown subcommand and a missing one", () => {
+  test("rejects an unknown subcommand and a missing one", async () => {
     const { context } = captureContext(undefined as never);
 
-    expect(runCommand([], context, "bogus", FAST)).rejects.toBeInstanceOf(UsageError);
-    expect(runCommand([], context, null, FAST)).rejects.toBeInstanceOf(UsageError);
+    await expect(runCommand([], context, "bogus", FAST)).rejects.toBeInstanceOf(UsageError);
+    await expect(runCommand([], context, null, FAST)).rejects.toBeInstanceOf(UsageError);
   });
 
   test("answers --help for a subcommand without contacting the server", async () => {

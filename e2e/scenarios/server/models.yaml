@@ -1,0 +1,29 @@
+# `models` against a live dashboard (`just web` on :5175) AND a running LM
+# Studio. Split out of read-only.yaml because it is the only read-only command
+# whose exit code depends on something behind the dashboard: /api/models proxies
+# LM Studio, so with LM Studio down the server answers 503 and the CLI correctly
+# exits 2.
+#
+# The assertion is therefore exit 0, not "either code": pitty's `expect_exit`
+# takes exactly one code, so a scenario tolerant of both would have to drop the
+# exit check altogether -- and the exit code is most of what there is to test
+# about `models`. Keeping the strict assertion and naming the extra prerequisite
+# is the honest version; `just cli-e2e-server-models` says so in the justfile.
+name: server-models
+env:
+  NO_COLOR: "1"
+  TERM: dumb
+steps:
+  - spawn: "${GEMMA_E2E_BIN} models"
+  - expect_exit:
+      code: 0
+      timeout: 30s
+
+  # --json swaps the plain id-per-line listing for one JSON document.
+  - spawn: "${GEMMA_E2E_BIN} models --json"
+  - expect:
+      contains: '"id":'
+      timeout: 30s
+  - expect_exit:
+      code: 0
+      timeout: 30s

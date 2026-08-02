@@ -3,6 +3,11 @@
 # Only listings and lookups are exercised: `run start` would drive the emulator
 # and an LLM, which is neither fast nor deterministic enough to assert on here.
 # Nothing in this scenario writes, so it is safe to re-run.
+#
+# `models` is deliberately not here: it is the one read-only command that needs
+# more than the dashboard, because /api/models proxies LM Studio and answers 503
+# when it is down. Asserting it alongside these would make the whole file red on
+# a machine running only `just web`, so it lives in models.yaml instead.
 name: server-read-only
 env:
   NO_COLOR: "1"
@@ -37,11 +42,6 @@ steps:
   - expect_exit:
       code: 0
       timeout: 15s
-
-  - spawn: "${GEMMA_E2E_BIN} models"
-  - expect_exit:
-      code: 0
-      timeout: 30s
 
   # A lookup that finds nothing is a failed request, not a usage mistake, so it
   # exits 2 without the "Try --help" hint.

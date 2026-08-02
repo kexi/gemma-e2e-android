@@ -187,7 +187,17 @@ export function describeAction(action: Action): string {
 /**
  * One line per interesting event, or null for the ones the terminal should not
  * show. `ui_captured` carries a whole serialized UI tree, and `step_started` /
- * `action_executed` restate what `action_decided` already said.
+ * `action_executed` / `action_decided` restate what `step_recorded` already
+ * said.
+ *
+ * *Why not render `action_decided` instead, or as well:* it is the only event
+ * carrying `llmDurationMs`, so it is the tempting one — but the server replays a
+ * stored timeline as `step_recorded` frames alone (apps/web/server/app.ts), and
+ * a live run emits both for every step. Rendering `action_decided` leaves
+ * `run watch` on a finished run printing no steps at all; rendering both prints
+ * every live step twice. `step_recorded` is the one frame present on both paths,
+ * so it is the one drawn, and the decision timing is given up with it. The
+ * dashboard resolves the same conflict the same way (apps/web/src/pages/RunPage.tsx).
  */
 export function renderEvent(event: RunEvent, style: Style): string | null {
   switch (event.type) {
@@ -195,8 +205,8 @@ export function renderEvent(event: RunEvent, style: Style): string | null {
       return `${style("run", "cyan")}  ${event.scenario.title} (${event.scenario.cases.length} cases)`;
     case "case_started":
       return `${style("case", "cyan")}  ${event.caseId}  ${event.caseRun.title}`;
-    case "action_decided":
-      return `  ${String(event.index).padStart(3)}  ${describeAction(event.action)} ${style(`(${event.llmDurationMs}ms)`, "dim")}`;
+    case "step_recorded":
+      return `  ${String(event.step.index).padStart(3)}  ${describeAction(event.step.action)}`;
     case "case_finished": {
       const reason = event.reason === null ? "" : `  ${event.reason}`;
       return `${style(event.status, statusColor(event.status))}  ${event.caseId}${reason}`;

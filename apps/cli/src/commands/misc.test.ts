@@ -35,7 +35,7 @@ describe("models", () => {
       async (client) => {
         const { context } = captureContext(client);
 
-        expect(modelsCommand([], context)).rejects.toThrow("no model endpoint configured");
+        await expect(modelsCommand([], context)).rejects.toThrow("no model endpoint configured");
       },
     );
   });
@@ -46,7 +46,7 @@ describe("models", () => {
       async (client) => {
         const { context } = captureContext(client);
 
-        expect(modelsCommand(["extra"], context)).rejects.toBeInstanceOf(UsageError);
+        await expect(modelsCommand(["extra"], context)).rejects.toBeInstanceOf(UsageError);
       },
     );
   });
@@ -75,7 +75,7 @@ describe("device", () => {
       async (client) => {
         const { context } = captureContext(client);
 
-        expect(deviceCommand([], context)).rejects.toThrow("emulator is not running");
+        await expect(deviceCommand([], context)).rejects.toThrow("emulator is not running");
       },
     );
   });

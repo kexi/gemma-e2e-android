@@ -146,7 +146,10 @@ async function startRun(
   options: { watch?: boolean; prompt?: string; title?: string; model?: string },
   timing: RunTiming,
 ): Promise<ExitCode> {
-  const hasPrompt = options.prompt !== undefined && options.prompt !== "";
+  // "Was --prompt typed" and "is its value usable" are kept apart on purpose:
+  // conflating them made `--prompt ""` read as no prompt at all, so it slipped
+  // past the checks below and silently started whatever the scenario id said.
+  const hasPrompt = options.prompt !== undefined;
   const hasScenario = scenarioId !== undefined;
 
   const hasNeither = !hasPrompt && !hasScenario;
@@ -156,6 +159,12 @@ async function startRun(
   const hasBoth = hasPrompt && hasScenario;
   if (hasBoth) {
     throw new UsageError("give either a scenario id or --prompt, not both", ["run", "start"]);
+  }
+  // Refused rather than sent: there is nothing for the agent to attempt, so the
+  // run would burn a device and a model only to fail for want of an instruction.
+  const isPromptEmpty = options.prompt === "";
+  if (isPromptEmpty) {
+    throw new UsageError("--prompt cannot be empty", ["run", "start"]);
   }
 
   // Refused rather than passed along: POST /api/runs reads title and model only
