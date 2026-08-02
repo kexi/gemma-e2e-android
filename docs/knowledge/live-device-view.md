@@ -45,3 +45,20 @@ delivery at ~20 fps so an animation cannot flood the socket.
 *Why insecure gRPC:* the bridge binds to localhost and is started without
 `-grpc-use-token`, so there is no credential to present. Nothing else in the
 repo depends on the flag; dropping it costs only the live view.
+
+*Why the browser reuses the same relay:* the relay was written against gRPC's
+server-streaming call -- an emitter with `data`/`error`/`end` and a `cancel` --
+so the CDP screencast is presented in that shape rather than the relay learning
+a second protocol. Both platforms then share one throttle and one teardown
+path, and the WebSocket endpoint and the frontend are unchanged.
+
+*Why the live view is chosen rather than derived:* there is one Device page and
+one socket, so it can show one platform at a time. Deriving it from the running
+scenario would make the page flip mid-run on a scenario that spans both, and
+leave it showing nothing at all when no run is in flight. `LIVE_VIEW` picks it;
+android stays the default because it is what the page was built for.
+
+*Why the browser view opens a page of its own:* the pages a run creates are
+disposed with their browser contexts at the end of each case, which is what
+isolates one case from the next. Sharing one would blank the view between cases
+and hold a context open past the case it belonged to.

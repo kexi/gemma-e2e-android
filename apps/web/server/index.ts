@@ -13,6 +13,7 @@ import {
 import { createLogger, errorFields, parseLogLevel } from "@gemma-e2e/logger";
 import { Store } from "@gemma-e2e/store";
 import { createApp, type StartRunInput, websocket } from "./app.ts";
+import { CdpDeviceSource } from "./cdp-device.ts";
 import { DEFAULT_EMULATOR_GRPC_TARGET, EmulatorClient } from "./device-stream.ts";
 import { listModels } from "./models.ts";
 
@@ -115,9 +116,24 @@ const isProduction = await Bun.file(join(clientDir, "index.html")).exists();
 
 // Constructed unconditionally: grpc-js connects lazily, so an emulator that is
 // absent (or started without -grpc) costs nothing here and instead surfaces as
-// a 503 on /api/device/status, which the Device page renders as guidance.
+// a 503 on /api/device/status, which the Device page renders as guidance. The
+// CDP source behaves the same way, for the same reason.
 const emulatorGrpcTarget = process.env["EMULATOR_GRPC"] ?? DEFAULT_EMULATOR_GRPC_TARGET;
-const device = new EmulatorClient(emulatorGrpcTarget, { logger });
+
+// One live view, so which platform it watches is a choice rather than
+// something derived: a run may name either, and the page cannot show both at
+// once. Android stays the default because it is what the view was built for.
+const livePlatform = process.env["LIVE_VIEW"] === "web" ? "web" : "android";
+const device =
+  livePlatform === "web"
+    ? new CdpDeviceSource(cdp, {
+        ...(process.env["LIVE_VIEW_URL"] === undefined
+          ? {}
+          : { url: process.env["LIVE_VIEW_URL"] }),
+        viewport: CHROME_VIEWPORT,
+        logger,
+      })
+    : new EmulatorClient(emulatorGrpcTarget, { logger });
 
 const app = createApp({
   store,
@@ -137,6 +153,7 @@ logger.info("server.started", {
   varDir,
   emulatorGrpcTarget,
   chromePort,
+  livePlatform,
   defaultModel,
   recording: isRecording,
   firestoreEmulator: process.env["FIRESTORE_EMULATOR_HOST"] ?? null,

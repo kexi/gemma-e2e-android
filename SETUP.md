@@ -199,6 +199,13 @@ static image rather than a stalled one. The view is read-only. If it will not
 connect, `just mirror` opens the same screen in scrcpy independently of the
 dashboard. Point the server at a different bridge with `EMULATOR_GRPC=host:port`.
 
+`LIVE_VIEW=web` points the same page at Chrome instead, through the screencast
+the recorder already uses. There is one live view, so this is a choice rather
+than something derived from the scenario being run; `LIVE_VIEW_URL` sets where
+it looks when no run is driving it. The browser view opens a page of its own
+rather than sharing the ones a run creates, since those are disposed with their
+contexts at the end of each case.
+
 ### Screen recordings
 
 Every case is recorded end to end with scrcpy and saved as
