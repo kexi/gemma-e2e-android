@@ -13,7 +13,10 @@ export type {
   CommandRunner,
 } from "./client.ts";
 
-export { centerOf, parseBounds, parseUiDump, UiDumpParseError } from "./parse.ts";
+export { parseBounds, parseUiDump, UiDumpParseError } from "./parse.ts";
 
-export { serializeForLlm } from "./serialize.ts";
-export type { SerializedUi, UiRef } from "./serialize.ts";
+// Re-exported from core, where the serializer moved once a second platform
+// needed it: a web driver has no business depending on the adb package. Kept
+// here so existing imports keep resolving.
+export { centerOf, serializeForLlm } from "@gemma-e2e/core";
+export type { SerializedUi, UiRef } from "@gemma-e2e/core";

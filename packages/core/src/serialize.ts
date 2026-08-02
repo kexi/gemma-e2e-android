@@ -1,5 +1,4 @@
-import type { UiNode } from "@gemma-e2e/core";
-import { centerOf } from "./parse.ts";
+import type { Bounds, UiNode } from "./schema.ts";
 
 /** A numbered, actionable element the model may target by `ref`. */
 export interface UiRef {
@@ -13,17 +12,35 @@ export interface SerializedUi {
   refs: Map<number, UiRef>;
 }
 
-const EDITABLE_CLASS_PATTERN = /EditText|AutoCompleteTextView|SearchView/i;
+/** Tap target for a node: the rectangle's centre, rounded down. */
+export function centerOf(bounds: Bounds): { x: number; y: number } {
+  return {
+    x: Math.floor((bounds.x1 + bounds.x2) / 2),
+    y: Math.floor((bounds.y1 + bounds.y2) / 2),
+  };
+}
+
+/**
+ * Fields a model may type into, in both platforms' vocabularies: uiautomator
+ * names an Android widget class, a DOM walker names the tag. Matched as one
+ * pattern rather than per platform because a `UiNode` deliberately carries no
+ * record of where it came from -- that is what lets one serializer serve both.
+ */
+const EDITABLE_CLASS_PATTERN =
+  /EditText|AutoCompleteTextView|SearchView|^input$|^textarea$|^contenteditable$/i;
 const INDENT = "  ";
 
-/** `com.example:id/login_button` -> `login_button`; ids are noise beyond the leaf. */
+/**
+ * `com.example:id/login_button` -> `login_button`; ids are noise beyond the
+ * leaf. A DOM `id` has no such prefix, so this is the identity there.
+ */
 function shortResourceId(resourceId: string): string {
   const slash = resourceId.lastIndexOf("/");
   const hasPackagePrefix = slash >= 0;
   return hasPackagePrefix ? resourceId.slice(slash + 1) : resourceId;
 }
 
-/** `android.widget.Button` -> `Button`. */
+/** `android.widget.Button` -> `Button`; a DOM tag like `button` is unchanged. */
 function shortClassName(className: string): string {
   const dot = className.lastIndexOf(".");
   const isQualified = dot >= 0;
