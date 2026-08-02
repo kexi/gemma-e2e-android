@@ -49,6 +49,28 @@ export class ConnectionError extends Error {
   }
 }
 
+/**
+ * A --server / GEMMA_E2E_SERVER value that is not a URL at all. Separated from
+ * ConnectionError because no amount of starting the dashboard fixes it, and the
+ * request is refused before it is attempted.
+ */
+export class InvalidServerError extends Error {
+  override readonly name = "InvalidServerError";
+
+  constructor(readonly server: string) {
+    // Why not UsageError: that class appends "Try '<command path>' --help",
+    // and the path it carries is the subcommand that happened to be typed
+    // ("run list"). --server is a global flag, so that hint would point at a
+    // help page which does not document it -- misdirection on top of the
+    // mistake. main's fallback branch already prints "gemma-e2e: <msg>" and
+    // exits 2, which is the GNU shape this needs without the wrong hint.
+    super(
+      `invalid --server value ${JSON.stringify(server)}: not a URL. ` +
+        `Give an absolute URL with a scheme, e.g. \`--server=${DEFAULT_SERVER}\`.`,
+    );
+  }
+}
+
 export class ApiClient {
   readonly #server: string;
 
@@ -151,9 +173,32 @@ async function toApiError(res: Response, method: string, path: string): Promise<
   return new ApiError(res.status, detail ?? `${method} ${path} failed (${res.status})`);
 }
 
-/** Resolution order: flag, then environment, then the dashboard's default port. */
+/**
+ * Resolution order: flag, then environment, then the dashboard's default port.
+ * The chosen value is checked here rather than at request time so a typo is
+ * reported as the mistake it is, instead of surfacing as "is the server
+ * running?" from the fetch that could never have been addressed.
+ */
 export function resolveServer(flag: string | undefined, env: NodeJS.ProcessEnv): string {
   const fromEnv = env.GEMMA_E2E_SERVER;
   const hasEnv = fromEnv !== undefined && fromEnv !== "";
-  return flag ?? (hasEnv ? fromEnv : DEFAULT_SERVER);
+  const server = flag ?? (hasEnv ? fromEnv : DEFAULT_SERVER);
+
+  const parsed = URL.parse(server);
+  const isUrl = parsed !== null;
+  if (!isUrl) {
+    throw new InvalidServerError(server);
+  }
+
+  // Why not accept any parseable URL: "mailto:x" and "ftp://host" parse
+  // cleanly but fetch cannot address them, so they would fail later with a
+  // message about the server being down. Kept to a scheme check rather than
+  // host/port rules, so private hostnames, default ports, and trailing
+  // slashes all pass untouched.
+  const isHttp = parsed.protocol === "http:" || parsed.protocol === "https:";
+  if (!isHttp) {
+    throw new InvalidServerError(server);
+  }
+
+  return server;
 }

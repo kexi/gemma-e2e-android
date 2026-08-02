@@ -116,6 +116,10 @@ function report(error: unknown, io: Io): ExitCode {
     return EXIT_ERROR;
   }
 
+  // InvalidServerError needs no branch of its own: the fallback below already
+  // prints "gemma-e2e: <msg>" and exits 2, and unlike UsageError it must not
+  // gain a "--help" hint.
+
   io.err(`${PROGRAM}: ${error instanceof Error ? error.message : String(error)}`);
   return EXIT_ERROR;
 }

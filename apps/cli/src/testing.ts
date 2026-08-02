@@ -68,6 +68,19 @@ export async function rejection(promise: Promise<unknown>): Promise<Error> {
   throw new Error("expected the promise to reject, but it resolved");
 }
 
+/**
+ * The synchronous counterpart to `rejection`, for asserting on the message of
+ * an error a plain call is expected to throw.
+ */
+export function rejectionOf(call: () => unknown): Error {
+  try {
+    call();
+  } catch (error) {
+    return error as Error;
+  }
+  throw new Error("expected the call to throw, but it returned");
+}
+
 /** Serialises one SSE frame the way `hono/streaming`'s writeSSE does. */
 export function sseFrame(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;

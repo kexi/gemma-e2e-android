@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { ApiClient, ApiError, ConnectionError, resolveServer } from "./client.ts";
-import { rejection, withServer } from "./testing.ts";
+import {
+  ApiClient,
+  ApiError,
+  ConnectionError,
+  InvalidServerError,
+  resolveServer,
+} from "./client.ts";
+import { rejection, rejectionOf, withServer } from "./testing.ts";
 
 describe("ApiClient", () => {
   test("returns the parsed body of a successful request", async () => {
@@ -106,5 +112,53 @@ describe("resolveServer", () => {
   test("falls back to the local dashboard port when nothing is set", () => {
     expect(resolveServer(undefined, {})).toBe("http://127.0.0.1:5175");
     expect(resolveServer(undefined, { GEMMA_E2E_SERVER: "" })).toBe("http://127.0.0.1:5175");
+  });
+
+  test("rejects a value that is not a URL instead of blaming the server", () => {
+    const resolve = () => resolveServer("not-a-url", {});
+
+    expect(resolve).toThrow(InvalidServerError);
+    expect(resolve).toThrow("not a URL");
+    // The offending value is quoted so an empty or blank one is still visible.
+    expect(resolve).toThrow('"not-a-url"');
+    // The "is it running?" guidance would be wrong here: nothing was
+    // contacted. Read off the thrown value rather than `not.toThrow`, which
+    // would also pass if the call stopped throwing altogether.
+    expect(rejectionOf(resolve).message).not.toContain("just web");
+  });
+
+  test("rejects an empty --server rather than reporting an empty address", () => {
+    // `--server=` reaches resolveServer as "", which the old code passed
+    // straight to fetch and reported as "cannot reach the server at .".
+    expect(() => resolveServer("", {})).toThrow(InvalidServerError);
+    expect(() => resolveServer("", {})).toThrow('""');
+  });
+
+  test("rejects a scheme fetch cannot address", () => {
+    expect(() => resolveServer("ftp://example.test", {})).toThrow(InvalidServerError);
+    expect(() => resolveServer("mailto:someone@example.test", {})).toThrow(InvalidServerError);
+  });
+
+  test("rejects an unusable GEMMA_E2E_SERVER the same way as the flag", () => {
+    expect(() => resolveServer(undefined, { GEMMA_E2E_SERVER: "not-a-url" })).toThrow(
+      InvalidServerError,
+    );
+  });
+
+  // The guard above must not creep into rejecting addresses that work. Without
+  // this, tightening it (requiring a port, a dotted host, no trailing slash)
+  // would pass the suite while breaking real deployments.
+  test.each([
+    "http://localhost:5175",
+    "http://127.0.0.1:5175",
+    "http://127.0.0.1:5175/",
+    "http://localhost:5175/base/path",
+    "https://gemma.example.com",
+    "https://gemma.example.com/",
+    "http://build-box",
+    "http://ci-runner.internal:8080",
+    "http://[::1]:5175",
+  ])("accepts the usable address %s", (server) => {
+    expect(resolveServer(server, {})).toBe(server);
   });
 });
