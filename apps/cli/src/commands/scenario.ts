@@ -1,7 +1,7 @@
 import { loadScenario } from "@gemma-e2e/core";
 import type { Scenario } from "@gemma-e2e/core/schema";
 import { parseCommand, rejectExtraOperands, requireOperand } from "../args.ts";
-import { ApiError } from "../client.ts";
+import { ApiError, ConnectionError, InvalidServerError } from "../client.ts";
 import { type Context, printJson } from "../context.ts";
 import { EXIT_ERROR, EXIT_OK, type ExitCode } from "../exit-codes.ts";
 import { renderScenario, renderScenarioList } from "../render.ts";
@@ -108,8 +108,9 @@ async function getScenario(context: Context, id: string): Promise<ExitCode> {
 
 /**
  * Validates locally, then upserts. Every file is attempted even after one
- * fails: `apply scenarios/*.yaml` reporting only the first problem would make
- * fixing a directory a one-error-per-run affair.
+ * fails on its own merits: `apply scenarios/*.yaml` reporting only the first
+ * problem would make fixing a directory a one-error-per-run affair. A failure
+ * that is about the server rather than a file stops the whole run instead.
  */
 async function applyScenarios(context: Context, paths: string[]): Promise<ExitCode> {
   let failed = false;
@@ -132,6 +133,16 @@ async function applyScenarios(context: Context, paths: string[]): Promise<ExitCo
       }
       context.out(`${result.action} ${scenario.id}  ${result.path}`);
     } catch (error) {
+      // Why not report these per file like the rest: they are verdicts on the
+      // --server value, not on this scenario, so every remaining file would
+      // fail identically -- printing the same address once per file, none of
+      // which is the file's fault. Rethrown to main's report(), which prints it
+      // once with the "gemma-e2e:" prefix the other commands already get.
+      const isInvocationWide =
+        error instanceof InvalidServerError || error instanceof ConnectionError;
+      if (isInvocationWide) {
+        throw error;
+      }
       context.err(error instanceof Error ? error.message : String(error));
       failed = true;
     }

@@ -1,4 +1,7 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { DEFAULT_SERVER, resolveServer } from "./client.ts";
 import { type Io, main } from "./main.ts";
 import { PROGRAM, VERSION } from "./usage.ts";
@@ -199,6 +202,56 @@ describe("--help and --version under an unusable server", () => {
 
     expect(session.code).toBe(2);
     expect(session.err).toContain("not a URL");
+  });
+
+  /**
+   * `scenario apply` catches per-file failures so a bad file does not hide the
+   * rest, and the server setting is not one of those: it is one mistake about
+   * the invocation, so it is reported once, prefixed like every other command's
+   * failure -- not repeated bare, once per file.
+   */
+  describe("scenario apply over an unusable server", () => {
+    let dir: string;
+    let files: string[];
+
+    beforeEach(async () => {
+      dir = await mkdtemp(join(tmpdir(), "gemma-cli-apply-server-"));
+      const bodies = [
+        ["title: Login", "cases:", "  - id: valid", "    prompt: log in"].join("\n"),
+        ["title: Shop", "cases:", "  - id: buy", "    prompt: buy a thing"].join("\n"),
+      ];
+      files = await Promise.all(
+        ["login.yaml", "shop.yaml"].map(async (name, index) => {
+          const path = join(dir, name);
+          await writeFile(path, bodies[index] ?? "", "utf8");
+          return path;
+        }),
+      );
+    });
+
+    afterEach(async () => {
+      await rm(dir, { recursive: true, force: true });
+    });
+
+    test("reports an invalid --server once, with the program prefix", async () => {
+      const session = await cli(["--server=not-a-url", "scenario", "apply", ...files]);
+
+      expect(session.code).toBe(2);
+      const lines = session.err.split("\n").filter((line) => line !== "");
+      expect(lines).toEqual([
+        `${PROGRAM}: invalid --server value "not-a-url": not a URL. ` +
+          "Give an absolute URL with a scheme, e.g. `--server=http://127.0.0.1:5175`.",
+      ]);
+    });
+
+    test("reports an unreachable server once, with the program prefix", async () => {
+      const session = await cli(["scenario", "apply", ...files]);
+
+      expect(session.code).toBe(2);
+      const lines = session.err.split("\n").filter((line) => line !== "");
+      expect(lines.length).toBe(1);
+      expect(lines[0]).toContain(`${PROGRAM}: cannot reach the server at http://127.0.0.1:1`);
+    });
   });
 });
 

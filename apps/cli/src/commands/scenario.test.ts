@@ -3,7 +3,8 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { scenarioCommand } from "./scenario.ts";
-import { captureContext, withServer } from "../testing.ts";
+import { ApiClient, ConnectionError } from "../client.ts";
+import { captureContext, rejection, withServer } from "../testing.ts";
 import { UsageError } from "../usage.ts";
 
 let dir: string;
@@ -199,6 +200,58 @@ describe("scenario apply", () => {
         expect(err.length).toBe(1);
       },
     );
+  });
+
+  /**
+   * The counterpart to the invocation-wide rethrow: a verdict the server
+   * reached about one scenario is that scenario's problem, so the files after
+   * it are still applied and the failure is reported per file rather than
+   * ending the run.
+   */
+  test("keeps a per-file server rejection from stopping the remaining files", async () => {
+    const rejected = await write("rejected.yaml", VALID);
+    const good = await write("login.yaml", VALID);
+    const seen: string[] = [];
+
+    await withServer(
+      async (request) => {
+        const body = (await request.json()) as { id: string };
+        seen.push(body.id);
+        const isRejected = body.id === "rejected";
+        return isRejected
+          ? Response.json({ error: "id must be a lowercase slug" }, { status: 400 })
+          : Response.json(
+              { scenario: SCENARIOS[0], path: "scenarios/login.yaml" },
+              { status: 201 },
+            );
+      },
+      async (client) => {
+        const { context, out, err } = captureContext(client);
+
+        expect(await scenarioCommand([rejected, good], context, "apply")).toBe(2);
+        expect(seen).toEqual(["rejected", "login"]);
+        expect(out.join("\n")).toContain("created login");
+        expect(err).toEqual(["id must be a lowercase slug"]);
+      },
+    );
+  });
+
+  /**
+   * A server that is not listening is a fact about the invocation, not about
+   * the file being applied, so it ends the run instead of being repeated once
+   * per file. Thrown rather than printed so main() gives it the same
+   * "gemma-e2e:" prefix every other command's failure carries.
+   */
+  test("stops at the first file when the server cannot be reached at all", async () => {
+    const first = await write("login.yaml", VALID);
+    const second = await write("shop.yaml", VALID);
+    // Port 1 is privileged and unbound, so the connection is refused at once.
+    const { context, err } = captureContext(new ApiClient("http://127.0.0.1:1"));
+
+    const error = await rejection(scenarioCommand([first, second], context, "apply"));
+
+    expect(error).toBeInstanceOf(ConnectionError);
+    expect(err).toEqual([]);
   });
 
   test("requires at least one file", async () => {
