@@ -1,0 +1,4 @@
+# Deliberately unparseable: the flow sequence is never closed. Used by
+# scenario-apply-validation.yaml to prove `scenario apply` rejects a file
+# locally before it ever contacts the server.
+id: [broken

@@ -1,0 +1,63 @@
+# Every command group answers --help with its own usage block and exits 0.
+# One scenario rather than four so the four spawns share a single PTY session.
+name: cli-help-subcommands
+env:
+  NO_COLOR: "1"
+  TERM: dumb
+steps:
+  - spawn: "${GEMMA_E2E_BIN} scenario --help"
+  - expect:
+      contains: "Usage: gemma-e2e scenario COMMAND [ARG]..."
+      timeout: 10s
+  - expect:
+      contains: "apply FILE..."
+      timeout: 10s
+  - expect_exit:
+      code: 0
+      timeout: 10s
+
+  - spawn: "${GEMMA_E2E_BIN} run --help"
+  - expect:
+      contains: "Usage: gemma-e2e run COMMAND [ARG]..."
+      timeout: 10s
+  - expect:
+      contains: "watch RUN_ID"
+      timeout: 10s
+  - expect_exit:
+      code: 0
+      timeout: 10s
+
+  - spawn: "${GEMMA_E2E_BIN} run start --help"
+  - expect:
+      contains: "Usage: gemma-e2e run start [OPTION]... SCENARIO_ID"
+      timeout: 10s
+  - expect:
+      contains: "-p, --prompt=TEXT"
+      timeout: 10s
+  - expect_exit:
+      code: 0
+      timeout: 10s
+
+  - spawn: "${GEMMA_E2E_BIN} scenario apply --help"
+  - expect:
+      contains: "Usage: gemma-e2e scenario apply [OPTION]... FILE..."
+      timeout: 10s
+  - expect_exit:
+      code: 0
+      timeout: 10s
+
+  - spawn: "${GEMMA_E2E_BIN} models --help"
+  - expect:
+      contains: "Usage: gemma-e2e models [OPTION]..."
+      timeout: 10s
+  - expect_exit:
+      code: 0
+      timeout: 10s
+
+  - spawn: "${GEMMA_E2E_BIN} device --help"
+  - expect:
+      contains: "Usage: gemma-e2e device [OPTION]..."
+      timeout: 10s
+  - expect_exit:
+      code: 0
+      timeout: 10s

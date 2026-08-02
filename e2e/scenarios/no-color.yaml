@@ -1,0 +1,33 @@
+# Colour is suppressed by NO_COLOR and by --no-color.
+#
+# pitty runs the CLI on a real PTY, so isTTY is true and the colour path is the
+# one that would otherwise be taken -- which is what makes these assertions
+# meaningful rather than vacuous. Help text is used as the subject because it
+# needs no server, and the escape byte is matched literally: expect sees raw PTY
+# bytes with no ANSI stripping, so a stray SGR sequence would show up here.
+name: cli-no-color
+env:
+  TERM: dumb
+steps:
+  - spawn:
+      command: "${GEMMA_E2E_BIN} --help"
+      env:
+        NO_COLOR: "1"
+  - expect:
+      contains: "Usage: gemma-e2e"
+      timeout: 10s
+  - expect_not:
+      contains: "\x1b["
+  - expect_exit:
+      code: 0
+      timeout: 10s
+
+  - spawn: "${GEMMA_E2E_BIN} --no-color --server=http://127.0.0.1:1 scenario list"
+  - expect:
+      contains: "cannot reach the server"
+      timeout: 15s
+  - expect_not:
+      contains: "\x1b["
+  - expect_exit:
+      code: 2
+      timeout: 15s

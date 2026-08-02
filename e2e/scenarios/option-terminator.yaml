@@ -1,0 +1,28 @@
+# `--` ends option parsing, so a run id that looks like a flag reaches the
+# command as an operand. Pointed at a dead port so the assertion is about
+# argument parsing alone: reaching the connection error proves "--version" was
+# taken as an id, since printing the banner would have exited 0 instead.
+name: cli-option-terminator
+env:
+  NO_COLOR: "1"
+  TERM: dumb
+steps:
+  - spawn: "${GEMMA_E2E_BIN} --server=http://127.0.0.1:1 run get -- --version"
+  - expect_not:
+      contains: "License MIT"
+  - expect:
+      contains: "cannot reach the server"
+      timeout: 15s
+  - expect_exit:
+      code: 2
+      timeout: 15s
+
+  # Without the terminator the same word is a flag again, which is what makes
+  # the case above meaningful rather than vacuous.
+  - spawn: "${GEMMA_E2E_BIN} --server=http://127.0.0.1:1 run get --version"
+  - expect:
+      contains: "gemma-e2e 0."
+      timeout: 10s
+  - expect_exit:
+      code: 0
+      timeout: 10s

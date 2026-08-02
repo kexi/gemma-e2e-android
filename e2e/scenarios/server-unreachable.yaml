@@ -1,0 +1,48 @@
+# A server that is not listening produces actionable guidance, not a raw fetch
+# error, and exits 2 ("could not be carried out") rather than 1 ("run failed").
+# Port 1 is used because nothing binds it, so the connection is refused
+# immediately instead of hanging on a timeout.
+name: cli-server-unreachable
+env:
+  NO_COLOR: "1"
+  TERM: dumb
+steps:
+  - spawn: "${GEMMA_E2E_BIN} --server=http://127.0.0.1:1 scenario list"
+  - expect:
+      contains: "cannot reach the server at http://127.0.0.1:1"
+      timeout: 15s
+  - expect:
+      contains: "Start it with `just web`."
+      timeout: 15s
+  - expect_exit:
+      code: 2
+      timeout: 15s
+
+  # GEMMA_E2E_SERVER is the fallback when --server is absent, so an unreachable
+  # one has to fail the same way.
+  - spawn:
+      command: "${GEMMA_E2E_BIN} run list"
+      env:
+        GEMMA_E2E_SERVER: "http://127.0.0.1:1"
+  - expect:
+      contains: "cannot reach the server at http://127.0.0.1:1"
+      timeout: 15s
+  - expect_exit:
+      code: 2
+      timeout: 15s
+
+  - spawn: "${GEMMA_E2E_BIN} --server=http://127.0.0.1:1 models"
+  - expect:
+      contains: "cannot reach the server"
+      timeout: 15s
+  - expect_exit:
+      code: 2
+      timeout: 15s
+
+  - spawn: "${GEMMA_E2E_BIN} --server=http://127.0.0.1:1 device"
+  - expect:
+      contains: "cannot reach the server"
+      timeout: 15s
+  - expect_exit:
+      code: 2
+      timeout: 15s

@@ -1,0 +1,54 @@
+# `scenario apply` validates each file locally before sending it. Every case
+# here points at a dead server, so reaching a validation message instead of a
+# connection error is what proves the check happens client-side.
+name: cli-scenario-apply-validation
+env:
+  NO_COLOR: "1"
+  TERM: dumb
+workspace:
+  cwd: ..
+steps:
+  - spawn: "${GEMMA_E2E_BIN} --server=http://127.0.0.1:1 scenario apply fixtures/does-not-exist.yaml"
+  - expect:
+      contains: "fixtures/does-not-exist.yaml: cannot be read"
+      timeout: 10s
+  - expect_not:
+      contains: "cannot reach the server"
+  - expect_exit:
+      code: 2
+      timeout: 10s
+
+  - spawn: "${GEMMA_E2E_BIN} --server=http://127.0.0.1:1 scenario apply fixtures/malformed.yaml"
+  - expect:
+      contains: "fixtures/malformed.yaml: is not valid YAML"
+      timeout: 10s
+  - expect_not:
+      contains: "cannot reach the server"
+  - expect_exit:
+      code: 2
+      timeout: 10s
+
+  - spawn: "${GEMMA_E2E_BIN} --server=http://127.0.0.1:1 scenario apply fixtures/incomplete.yaml"
+  - expect:
+      contains: "fixtures/incomplete.yaml: is not a valid scenario"
+      timeout: 10s
+  - expect:
+      contains: "cases: Required"
+      timeout: 10s
+  - expect_not:
+      contains: "cannot reach the server"
+  - expect_exit:
+      code: 2
+      timeout: 10s
+
+  # apply takes at least one file; with none there is nothing to validate.
+  - spawn: "${GEMMA_E2E_BIN} scenario apply"
+  - expect:
+      contains: "gemma-e2e: missing scenario file"
+      timeout: 10s
+  - expect:
+      contains: "Try 'gemma-e2e scenario apply --help' for more information."
+      timeout: 10s
+  - expect_exit:
+      code: 2
+      timeout: 10s
