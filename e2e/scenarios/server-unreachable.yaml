@@ -1,0 +1,96 @@
+# A server the CLI cannot get an answer from produces actionable guidance, not a
+# raw fetch error, and exits 2 ("could not be carried out") rather than 1 ("run
+# failed"). Two causes with two different remedies: a dashboard that is not
+# listening (start it) and a --server value that is not an address at all (fix
+# the typo). Port 1 is used for the first because nothing binds it, so the
+# connection is refused immediately instead of hanging on a timeout.
+name: cli-server-unreachable
+env:
+  NO_COLOR: "1"
+  TERM: dumb
+steps:
+  - spawn: "${GEMMA_E2E_BIN} --server=http://127.0.0.1:1 scenario list"
+  - expect:
+      contains: "cannot reach the server at http://127.0.0.1:1"
+      timeout: 15s
+  - expect:
+      contains: "Start it with `just web`."
+      timeout: 15s
+  - expect_exit:
+      code: 2
+      timeout: 15s
+
+  # GEMMA_E2E_SERVER is the fallback when --server is absent, so an unreachable
+  # one has to fail the same way.
+  - spawn:
+      command: "${GEMMA_E2E_BIN} run list"
+      env:
+        GEMMA_E2E_SERVER: "http://127.0.0.1:1"
+  - expect:
+      contains: "cannot reach the server at http://127.0.0.1:1"
+      timeout: 15s
+  - expect_exit:
+      code: 2
+      timeout: 15s
+
+  - spawn: "${GEMMA_E2E_BIN} --server=http://127.0.0.1:1 models"
+  - expect:
+      contains: "cannot reach the server"
+      timeout: 15s
+  - expect_exit:
+      code: 2
+      timeout: 15s
+
+  - spawn: "${GEMMA_E2E_BIN} --server=http://127.0.0.1:1 device"
+  - expect:
+      contains: "cannot reach the server"
+      timeout: 15s
+  - expect_exit:
+      code: 2
+      timeout: 15s
+
+  # A --server that is not a URL is a typo, not a stopped dashboard: starting one
+  # would not fix it, so it must not be met with "Start it with `just web`".
+  # Rejected before any request, which is why these need no server and no
+  # connection timeout.
+  - spawn: "${GEMMA_E2E_BIN} --server=not-a-url run list"
+  - expect:
+      contains: 'gemma-e2e: invalid --server value "not-a-url": not a URL'
+      timeout: 10s
+  - expect_exit:
+      code: 2
+      timeout: 10s
+
+  # Written `--server=` rather than `--server ''`: pitty word-splits the spawn
+  # line, so the quotes would survive as a literal two-character value.
+  # The empty value used to render as "cannot reach the server at ." -- a
+  # message with the address missing entirely.
+  - spawn: "${GEMMA_E2E_BIN} --server= run list"
+  - expect:
+      contains: 'gemma-e2e: invalid --server value "": not a URL'
+      timeout: 10s
+  - expect_exit:
+      code: 2
+      timeout: 10s
+
+  # The remedy names the shape that works, and the "--help" hint stays off:
+  # --server is global, so pointing at `run list --help` would be misdirection.
+  - spawn: "${GEMMA_E2E_BIN} --server=not-a-url run list"
+  - expect:
+      contains: "Give an absolute URL with a scheme"
+      timeout: 10s
+  - expect_exit:
+      code: 2
+      timeout: 10s
+
+  # The same check guards the environment fallback.
+  - spawn:
+      command: "${GEMMA_E2E_BIN} run list"
+      env:
+        GEMMA_E2E_SERVER: "not-a-url"
+  - expect:
+      contains: "not a URL"
+      timeout: 10s
+  - expect_exit:
+      code: 2
+      timeout: 10s

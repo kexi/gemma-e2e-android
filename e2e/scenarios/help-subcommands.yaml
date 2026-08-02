@@ -1,0 +1,104 @@
+# Every command group answers --help with its own usage block and exits 0.
+# One scenario rather than four so the four spawns share a single PTY session.
+name: cli-help-subcommands
+env:
+  NO_COLOR: "1"
+  TERM: dumb
+steps:
+  - spawn: "${GEMMA_E2E_BIN} scenario --help"
+  - expect:
+      contains: "Usage: gemma-e2e scenario COMMAND [ARG]..."
+      timeout: 10s
+  - expect:
+      contains: "apply FILE..."
+      timeout: 10s
+  - expect_exit:
+      code: 0
+      timeout: 10s
+
+  - spawn: "${GEMMA_E2E_BIN} run --help"
+  - expect:
+      contains: "Usage: gemma-e2e run COMMAND [ARG]..."
+      timeout: 10s
+  - expect:
+      contains: "watch RUN_ID"
+      timeout: 10s
+  - expect_exit:
+      code: 0
+      timeout: 10s
+
+  - spawn: "${GEMMA_E2E_BIN} run start --help"
+  - expect:
+      contains: "Usage: gemma-e2e run start [OPTION]... SCENARIO_ID"
+      timeout: 10s
+  - expect:
+      contains: "-p, --prompt=TEXT"
+      timeout: 10s
+  - expect_exit:
+      code: 0
+      timeout: 10s
+
+  - spawn: "${GEMMA_E2E_BIN} scenario apply --help"
+  - expect:
+      contains: "Usage: gemma-e2e scenario apply [OPTION]... FILE..."
+      timeout: 10s
+  - expect_exit:
+      code: 0
+      timeout: 10s
+
+  - spawn: "${GEMMA_E2E_BIN} models --help"
+  - expect:
+      contains: "Usage: gemma-e2e models [OPTION]..."
+      timeout: 10s
+  - expect_exit:
+      code: 0
+      timeout: 10s
+
+  - spawn: "${GEMMA_E2E_BIN} device --help"
+  - expect:
+      contains: "Usage: gemma-e2e device [OPTION]..."
+      timeout: 10s
+  - expect_exit:
+      code: 0
+      timeout: 10s
+
+  # --help describes the program, so it must answer whatever --server says: it
+  # never addresses the server. A nested subcommand answers only after its own
+  # strict parse, which once ran behind the server check and turned these into
+  # exit 2. The unusable value is given on the flag here and in the environment
+  # below, since the two reach the check by different routes.
+  - spawn: "${GEMMA_E2E_BIN} --server=not-a-url run start --help"
+  - expect:
+      contains: "Usage: gemma-e2e run start [OPTION]... SCENARIO_ID"
+      timeout: 10s
+  - expect_exit:
+      code: 0
+      timeout: 10s
+
+  - spawn: "${GEMMA_E2E_BIN} --server=not-a-url scenario apply --help"
+  - expect:
+      contains: "Usage: gemma-e2e scenario apply [OPTION]... FILE..."
+      timeout: 10s
+  - expect_exit:
+      code: 0
+      timeout: 10s
+
+  - spawn:
+      command: "${GEMMA_E2E_BIN} models --help"
+      env:
+        GEMMA_E2E_SERVER: "not-a-url"
+  - expect:
+      contains: "Usage: gemma-e2e models [OPTION]..."
+      timeout: 10s
+  - expect_exit:
+      code: 0
+      timeout: 10s
+
+  # --version takes the same path and regressed with it.
+  - spawn: "${GEMMA_E2E_BIN} --server=not-a-url run get --version"
+  - expect:
+      contains: "gemma-e2e 0.1.0"
+      timeout: 10s
+  - expect_exit:
+      code: 0
+      timeout: 10s

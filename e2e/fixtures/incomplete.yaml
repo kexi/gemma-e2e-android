@@ -1,0 +1,5 @@
+# Valid YAML but not a valid scenario: `cases` is required. Used by
+# scenario-apply-validation.yaml to separate schema rejection from parse
+# rejection.
+id: incomplete-fixture
+title: Missing its cases

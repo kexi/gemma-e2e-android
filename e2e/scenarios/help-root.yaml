@@ -1,0 +1,31 @@
+# `--help` prints the usage line, the command list, and the exit-status legend.
+name: cli-help-root
+env:
+  NO_COLOR: "1"
+  TERM: dumb
+steps:
+  - spawn: "${GEMMA_E2E_BIN} --help"
+  - expect:
+      contains: "Usage: gemma-e2e [OPTION]... COMMAND [ARG]..."
+      timeout: 10s
+  - expect:
+      contains: "Commands:"
+      timeout: 10s
+  - expect:
+      contains: "scenario"
+      timeout: 10s
+  - expect:
+      contains: "run"
+      timeout: 10s
+  - expect:
+      contains: "models"
+      timeout: 10s
+  - expect:
+      contains: "device"
+      timeout: 10s
+  - expect:
+      contains: "Exit status:"
+      timeout: 10s
+  - expect_exit:
+      code: 0
+      timeout: 10s

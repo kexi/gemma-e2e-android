@@ -1,0 +1,139 @@
+# Usage mistakes go to stderr with a "Try ... --help" hint and exit 2.
+# The hint names the subcommand path that was actually typed, not just the root.
+name: cli-usage-errors
+env:
+  NO_COLOR: "1"
+  TERM: dumb
+steps:
+  - spawn: "${GEMMA_E2E_BIN} bogus-subcommand-xyz"
+  - expect:
+      contains: "gemma-e2e: unknown command 'bogus-subcommand-xyz'"
+      timeout: 10s
+  - expect:
+      contains: "Try 'gemma-e2e --help' for more information."
+      timeout: 10s
+  - expect_exit:
+      code: 2
+      timeout: 10s
+
+  - spawn: "${GEMMA_E2E_BIN} --bogus-flag-xyz"
+  - expect:
+      contains: "Unknown option '--bogus-flag-xyz'"
+      timeout: 10s
+  - expect:
+      contains: "Try 'gemma-e2e --help' for more information."
+      timeout: 10s
+  - expect_exit:
+      code: 2
+      timeout: 10s
+
+  - spawn: "${GEMMA_E2E_BIN} scenario bogus-subcommand-xyz"
+  - expect:
+      contains: "unknown scenario subcommand 'bogus-subcommand-xyz'"
+      timeout: 10s
+  - expect:
+      contains: "Try 'gemma-e2e scenario --help' for more information."
+      timeout: 10s
+  - expect_exit:
+      code: 2
+      timeout: 10s
+
+  - spawn: "${GEMMA_E2E_BIN} run bogus-subcommand-xyz"
+  - expect:
+      contains: "unknown run subcommand 'bogus-subcommand-xyz'"
+      timeout: 10s
+  - expect:
+      contains: "Try 'gemma-e2e run --help' for more information."
+      timeout: 10s
+  - expect_exit:
+      code: 2
+      timeout: 10s
+
+  # A missing operand points at the subcommand's help, not the group's.
+  - spawn: "${GEMMA_E2E_BIN} scenario get"
+  - expect:
+      contains: "gemma-e2e: missing scenario id"
+      timeout: 10s
+  - expect:
+      contains: "Try 'gemma-e2e scenario get --help' for more information."
+      timeout: 10s
+  - expect_exit:
+      code: 2
+      timeout: 10s
+
+  - spawn: "${GEMMA_E2E_BIN} run start"
+  - expect:
+      contains: "missing scenario id (or --prompt)"
+      timeout: 10s
+  - expect:
+      contains: "Try 'gemma-e2e run start --help' for more information."
+      timeout: 10s
+  - expect_exit:
+      code: 2
+      timeout: 10s
+
+  # A scenario id and --prompt name two different runs, so asking for both is refused.
+  - spawn: "${GEMMA_E2E_BIN} run start login --prompt hello"
+  - expect:
+      contains: "give either a scenario id or --prompt, not both"
+      timeout: 10s
+  - expect_exit:
+      code: 2
+      timeout: 10s
+
+  # An empty --prompt is a prompt the user typed, not the absence of one: there
+  # is nothing to instruct the agent with, so it is refused rather than run.
+  #
+  # Written `--prompt=` rather than `--prompt ''`: pitty word-splits the spawn
+  # line, so the quotes survive as a literal two-character prompt and the run
+  # would actually start. The `=` form carries the empty value with no quoting.
+  - spawn: "${GEMMA_E2E_BIN} run start --prompt="
+  - expect:
+      contains: "--prompt cannot be empty"
+      timeout: 10s
+  - expect:
+      contains: "Try 'gemma-e2e run start --help' for more information."
+      timeout: 10s
+  - expect_exit:
+      code: 2
+      timeout: 10s
+
+  # ...and it still counts as a prompt for the conflict check, so pairing it with
+  # a scenario id is refused rather than quietly starting the scenario.
+  - spawn: "${GEMMA_E2E_BIN} run start login --prompt="
+  - expect:
+      contains: "give either a scenario id or --prompt, not both"
+      timeout: 10s
+  - expect_exit:
+      code: 2
+      timeout: 10s
+
+  # A stored scenario carries its own title and model, so these flags belong to
+  # --prompt alone. Refused rather than sent: the server ignores them on the
+  # scenario branch, which would make a wrong --model look accepted.
+  - spawn: "${GEMMA_E2E_BIN} run start login --model bogus-model-xyz"
+  - expect:
+      contains: "use --model with --prompt, not with a scenario id"
+      timeout: 10s
+  - expect:
+      contains: "Try 'gemma-e2e run start --help' for more information."
+      timeout: 10s
+  - expect_exit:
+      code: 2
+      timeout: 10s
+
+  - spawn: "${GEMMA_E2E_BIN} run start login --title Mine --model bogus-model-xyz"
+  - expect:
+      contains: "use --title and --model with --prompt, not with a scenario id"
+      timeout: 10s
+  - expect_exit:
+      code: 2
+      timeout: 10s
+
+  - spawn: "${GEMMA_E2E_BIN} scenario"
+  - expect:
+      contains: "missing scenario subcommand"
+      timeout: 10s
+  - expect_exit:
+      code: 2
+      timeout: 10s

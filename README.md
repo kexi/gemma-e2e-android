@@ -28,8 +28,15 @@ scenario prompt ─▶ agent loop:  adb uiautomator dump ─▶ UI tree (text)
 | `packages/agent` | Genkit-based decision loop against LM Studio's OpenAI-compatible API |
 | `packages/store` | Run/step history in Firestore (local emulator via `firebase-admin`) |
 | `apps/web` | Dashboard: Hono API + SSE, Vite/React/MUI frontend |
+| `apps/cli` | `gemma-e2e` command-line client for the dashboard API |
 | `apps/example` | "Kexi Coffee Shop" — the Expo store app the agent is tested against |
-| `scenarios/` | Committed test scenarios (`*.yaml`) |
+| `scenarios/` | Android test scenarios (`*.yaml`) — natural-language goals the agent runs on a device |
+| `e2e/scenarios/` | CLI test scenarios (`*.yaml`) — [pitty](https://github.com/kexi/pitty) cases that drive the `gemma-e2e` binary itself |
+
+The two scenario directories are unrelated despite the similar names.
+`scenarios/` is *input to the product*: prompts Gemma executes against the
+emulator. `e2e/scenarios/` is *test code for the CLI*: PTY sessions asserting
+what `gemma-e2e` prints and which exit code it returns.
 
 ## Quick start
 
@@ -44,6 +51,80 @@ just web          # dashboard → http://localhost:5173
 
 `just --list` shows every task; `just check` runs the same gates as CI.
 Full onboarding, including Nix/direnv and LM Studio setup: [SETUP.md](SETUP.md).
+
+## CLI
+
+`gemma-e2e` drives the same API the dashboard uses, so scenarios and runs can be
+managed from a terminal or a CI job. It needs the dashboard running (`just web`).
+
+```sh
+just cli          # compile ./apps/cli/dist/gemma-e2e for this machine
+just cli-dist     # cross-compile for macOS, Linux, and Windows
+```
+
+```sh
+gemma-e2e scenario list                  # every scenario the server knows
+gemma-e2e scenario get login             # one scenario and its cases
+gemma-e2e scenario apply scenarios/*.yaml  # create or update from YAML
+gemma-e2e scenario delete login
+
+gemma-e2e run start login --watch        # run a scenario, follow it, exit with its verdict
+gemma-e2e run start --prompt "buy a coffee" --title Coffee
+gemma-e2e run list                       # the most recent runs
+gemma-e2e run get <runId>                # one run, its cases and steps
+gemma-e2e run watch <runId>              # follow a run already in flight
+
+gemma-e2e models                         # models the LLM endpoint serves
+gemma-e2e device                         # emulator status
+```
+
+The server is taken from `--server`, then `GEMMA_E2E_SERVER`, then
+`http://127.0.0.1:5175`. `--json` prints raw API responses (`run watch` emits
+one JSON document per line), and colour turns off under `NO_COLOR`, `--no-color`,
+or a non-TTY stdout.
+
+Exit status makes the CLI usable as a CI gate directly:
+
+| Code | Meaning |
+| --- | --- |
+| 0 | the command succeeded, or the run passed |
+| 1 | the run failed |
+| 2 | the command could not be carried out (bad usage, unreachable server, errored run) |
+
+```sh
+gemma-e2e run start checkout --watch || exit $?
+```
+
+Cross-compilation covers macOS (arm64/x64), Linux (x64/arm64), and Windows
+(x64). musl targets such as Alpine are not built yet.
+
+### CLI end-to-end tests
+
+[pitty](https://github.com/kexi/pitty) runs the compiled binary on a real PTY
+and asserts its output, exit codes, and argument handling. It ships with the
+devshell, so no separate install is needed.
+
+```sh
+just cli-e2e                # compiles the binary, then runs e2e/scenarios/
+just cli-e2e-server         # needs `just web` up
+just cli-e2e-server-models  # needs `just web` up *and* LM Studio serving
+```
+
+`e2e/scenarios/` needs no server: it covers `--help` / `--version`, usage errors
+and their exit codes, the `--` option terminator, colour suppression, local
+scenario-file validation, and the guidance shown when the dashboard is
+unreachable. `e2e/scenarios/server/` is kept separate because it expects a live
+dashboard on `:5175`; `just cli-e2e` does not descend into it.
+
+Within that directory `models.yaml` is split off again and run only by
+`just cli-e2e-server-models`, because `models` is the one read-only command that
+reaches past the dashboard: `/api/models` proxies LM Studio, and with LM Studio
+down the server answers 503 and the CLI exits 2. `just cli-e2e-server` names
+`read-only.yaml` explicitly so it stays green with only `just web` running.
+
+`just check` deliberately leaves these out — pitty has to compile the binary
+first, which is far slower than the rest of the gates. Run `just cli-e2e`
+alongside `just check` when touching `apps/cli`.
 
 ## Documentation
 

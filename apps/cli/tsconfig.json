@@ -1,0 +1,10 @@
+{
+  // "bun" types: the CLI reads scenario files through @gemma-e2e/core's
+  // Bun.file loader, compiles with `bun build --compile`, and tests on
+  // bun:test. Declared per package for the same reason as packages/core.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["bun"]
+  },
+  "include": ["src/**/*.ts"]
+}

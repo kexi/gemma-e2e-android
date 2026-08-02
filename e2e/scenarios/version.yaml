@@ -1,0 +1,18 @@
+# `--version` prints the GNU-style version banner and exits 0.
+# GEMMA_E2E_BIN is resolved from the parent environment (pitty's ${var}
+# fallback), so this scenario is portable across machines.
+name: cli-version
+env:
+  NO_COLOR: "1"
+  TERM: dumb
+steps:
+  - spawn: "${GEMMA_E2E_BIN} --version"
+  - expect:
+      contains: "gemma-e2e 0."
+      timeout: 10s
+  - expect:
+      contains: "License MIT"
+      timeout: 10s
+  - expect_exit:
+      code: 0
+      timeout: 10s

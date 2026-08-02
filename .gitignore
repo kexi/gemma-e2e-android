@@ -25,3 +25,6 @@ apps/*/dist/
 # Emulator and Firebase CLI debug logs, written into the repo root on every run.
 firestore-debug.log
 firebase-debug.log
+
+# pitty writes a per-scenario PTY transcript next to the scenarios it runs.
+e2e/scenarios/**/logs/
