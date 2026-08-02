@@ -120,9 +120,9 @@ export class CdpDeviceSource {
           }
           seq += 1;
           handlers.data?.({
-            image: Uint8Array.from(atob(frame.data), (c) =>
-              c.charCodeAt(0),
-            ) as Uint8Array<ArrayBuffer>,
+            // Decoded once per frame, so the cheap path matters more here than
+            // anywhere else the protocol's base64 is unpacked.
+            image: new Uint8Array(Buffer.from(frame.data, "base64")) as Uint8Array<ArrayBuffer>,
             seq,
           });
         });

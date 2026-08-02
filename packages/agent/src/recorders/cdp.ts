@@ -144,7 +144,10 @@ export class CdpRecorder implements Recorder {
     let frameCount = 0;
 
     const unsubscribe = await this.#subscribe((frame) => {
-      const jpeg = Uint8Array.from(atob(frame.data), (character) => character.charCodeAt(0));
+      // Buffer rather than atob: the protocol hands over base64 and this runs
+      // once per frame, where `atob` plus a per-character map is ~35x slower
+      // for no benefit. `screencap` decodes the same way.
+      const jpeg = new Uint8Array(Buffer.from(frame.data, "base64"));
 
       firstTimestampMs ??= frame.timestampMs;
       // Relative to the first frame, so the recording starts at zero however
