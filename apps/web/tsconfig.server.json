@@ -3,7 +3,13 @@
   // Bun.file for the SPA-dist probe) and its tests run on bun:test.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "types": ["bun"]
+    "types": ["bun"],
+    // A client test may import a .tsx module for the pure helpers it exports.
+    "jsx": "react-jsx",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"]
   },
-  "include": ["server/**/*.ts", "vite.config.ts"]
+  // Client tests live here rather than in tsconfig.json because they run on
+  // bun:test, and the client config must stay free of Bun's types so the SPA
+  // cannot reach for APIs the browser lacks.
+  "include": ["server/**/*.ts", "vite.config.ts", "src/**/*.test.ts", "src/**/*.test.tsx"]
 }
