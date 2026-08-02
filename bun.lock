@@ -11,6 +11,13 @@
         "typescript": "^5.9.3",
       },
     },
+    "apps/cli": {
+      "name": "@gemma-e2e/cli",
+      "version": "0.1.0",
+      "dependencies": {
+        "@gemma-e2e/core": "workspace:*",
+      },
+    },
     "apps/example": {
       "name": "@gemma-e2e/example",
       "version": "0.0.0",
@@ -358,6 +365,8 @@
     "@gemma-e2e/adb": ["@gemma-e2e/adb@workspace:packages/adb"],
 
     "@gemma-e2e/agent": ["@gemma-e2e/agent@workspace:packages/agent"],
+
+    "@gemma-e2e/cli": ["@gemma-e2e/cli@workspace:apps/cli"],
 
     "@gemma-e2e/core": ["@gemma-e2e/core@workspace:packages/core"],
 
