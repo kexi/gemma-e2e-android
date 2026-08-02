@@ -7,6 +7,7 @@ import {
   rejection,
   sseFrame,
   sseResponse,
+  withRefusedSseServer,
   withServer,
   withTruncatedSseServer,
 } from "../testing.ts";
@@ -669,6 +670,90 @@ describe("run watch", () => {
         await expect(runCommand(["run-1"], context, "watch", FAST)).rejects.toThrow("no such run");
         // One lookup for waitForRun, then the single poll whose 404 ended it.
         expect(lookups).toBe(2);
+      },
+    );
+  });
+
+  test("falls back to polling when the stream cannot be opened at all", async () => {
+    let lookups = 0;
+    await withRefusedSseServer(
+      () => {
+        lookups += 1;
+        // The connection for /events is refused while the run itself is
+        // answered: the same restart the other fallbacks cover, arriving a
+        // moment earlier. The run is fine, so its verdict must still be
+        // reported rather than the refusal escaping as the command's failure.
+        const isFirst = lookups === 1;
+        return Response.json({
+          run: runDoc(isFirst ? { status: "running" } : { status: "passed" }),
+        });
+      },
+      async (client) => {
+        const { context, out } = captureContext(client);
+
+        expect(await runCommand(["run-1"], context, "watch", FAST)).toBe(0);
+        expect(out.join("\n")).toContain("passed  run run-1");
+        // One lookup for waitForRun, one poll that resolved it.
+        expect(lookups).toBe(2);
+      },
+    );
+  });
+
+  test("falls back to polling when the stream is refused with a 503", async () => {
+    let lookups = 0;
+    await withServer(
+      (request) => {
+        const isEvents = new URL(request.url).pathname.endsWith("/events");
+        if (isEvents) {
+          // A proxy answering for a dashboard that is on its way back up. It
+          // says nothing about the run, so it must not end the watch.
+          return Response.json({ error: "restarting" }, { status: 503 });
+        }
+        lookups += 1;
+        const isFirst = lookups === 1;
+        return Response.json({
+          run: runDoc(
+            isFirst
+              ? { status: "running" }
+              : { status: "failed", verdictReason: "one case failed" },
+          ),
+        });
+      },
+      async (client) => {
+        const { context, out } = captureContext(client);
+
+        expect(await runCommand(["run-1"], context, "watch", FAST)).toBe(1);
+        expect(out.join("\n")).toContain("failed  run run-1  one case failed");
+        // One lookup for waitForRun, one poll that resolved it.
+        expect(lookups).toBe(2);
+      },
+    );
+  });
+
+  test("gives up at once when the stream is refused with a 404", async () => {
+    let lookups = 0;
+    await withServer(
+      (request) => {
+        const isEvents = new URL(request.url).pathname.endsWith("/events");
+        if (isEvents) {
+          // The run was deleted between watch finding it and asking for its
+          // timeline. Polling cannot bring it back, so the fallback must not
+          // swallow this the way it swallows a restart.
+          return Response.json({ error: "no such run" }, { status: 404 });
+        }
+        lookups += 1;
+        return Response.json({ run: runDoc({ status: "running" }) });
+      },
+      async (client) => {
+        const { context } = captureContext(client);
+
+        // Raised rather than polled through, which main reports as exit 2. The
+        // guard against a fallback so eager it swallows every failure.
+        await expect(runCommand(["run-1"], context, "watch", FAST)).rejects.toThrow(
+          "cannot watch run run-1 (404)",
+        );
+        // Only waitForRun's lookup: the 404 ended it before any poll.
+        expect(lookups).toBe(1);
       },
     );
   });

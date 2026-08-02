@@ -245,6 +245,14 @@ async function getRun(context: Context, runId: string, timing: RunTiming): Promi
  * refusing to poll exactly when the connection proved unreliable would give up
  * on the run in the one case the fallback exists for.
  *
+ * Failing to *open* the stream falls through on the same terms: a restart that
+ * lands a moment earlier refuses the connection or answers 502 instead of
+ * cutting a live socket, and which side of that instant the CLI arrives on is
+ * not something a user chose. The line between "wait for the server to come
+ * back" and "this will never work" is the one isTransientPollFailure already
+ * draws, so it is asked here too rather than restated -- a 404 from /events
+ * still leaves as it came.
+ *
  * The stream is drained to its close rather than broken out of on
  * `run_finished`: the timeline is replayed from the start, so a finished run
  * can deliver that frame with events still behind it, and breaking early would
@@ -254,18 +262,48 @@ async function getRun(context: Context, runId: string, timing: RunTiming): Promi
 async function watchRun(context: Context, runId: string, timing: RunTiming): Promise<ExitCode> {
   await waitForRun(context, runId, timing, RUN_APPEAR_ATTEMPTS);
 
-  const response = await context.client.fetch(`/api/runs/${encodeURIComponent(runId)}/events`);
-  if (!response.ok) {
-    throw new ApiError(response.status, `cannot watch run ${runId} (${response.status})`);
-  }
-
-  const finish = await streamEvents(context, response).catch(() => null);
-  const sawVerdict = finish !== null;
-  if (sawVerdict) {
-    return exitCodeForStatus(finish.status);
+  const response = await openEvents(context, runId);
+  const isOpen = response !== null;
+  if (isOpen) {
+    const finish = await streamEvents(context, response).catch(() => null);
+    const sawVerdict = finish !== null;
+    if (sawVerdict) {
+      return exitCodeForStatus(finish.status);
+    }
   }
 
   return await pollToVerdict(context, runId, timing);
+}
+
+/**
+ * The event stream if it opened, null if the failure was the kind polling can
+ * outlast. Anything else -- a 404 for a run that has been deleted, a 4xx that
+ * will not become a 2xx on the next try -- is raised, since polling it would
+ * only spend POLL_MAX_ATTEMPTS to reach the failure already in hand.
+ */
+async function openEvents(context: Context, runId: string): Promise<Response | null> {
+  let response: Response;
+  try {
+    response = await context.client.fetch(`/api/runs/${encodeURIComponent(runId)}/events`);
+  } catch (error) {
+    if (isTransientPollFailure(error)) {
+      return null;
+    }
+    throw error;
+  }
+
+  if (response.ok) {
+    return response;
+  }
+
+  // Built before it is classified rather than after: isTransientPollFailure
+  // reads a status off an ApiError, and handing it the same value the throw
+  // would carry keeps one shape flowing through one judgement.
+  const failure = new ApiError(response.status, `cannot watch run ${runId} (${response.status})`);
+  if (isTransientPollFailure(failure)) {
+    return null;
+  }
+  throw failure;
 }
 
 type RunFinished = Extract<RunEvent, { type: "run_finished" }>;
@@ -328,15 +366,18 @@ async function waitForRun(
 }
 
 /**
- * A failed poll that says nothing about the run, as opposed to one that says
- * the run is gone or the request was wrong.
+ * A failed request that says nothing about the run, as opposed to one that says
+ * the run is gone or the request was wrong. The single place that line is
+ * drawn: openEvents asks it of the request that opens the stream and pollOnce
+ * of each poll after one is abandoned, and the two must not drift, or a status
+ * would decide the run's fate by which of them happened to meet it.
  *
- * The stream is only ever abandoned because something went wrong with the
- * connection or the server, so the first polls land in exactly that weather: a
- * refused connection while the dashboard restarts, a 502 from a proxy ahead of
- * it, a 503 while it comes back up. Treating those as answers would make the
- * fallback fail precisely when it is needed, so they count as an attempt spent
- * and nothing more.
+ * Both land in the same weather, because the stream is only ever abandoned --
+ * or refused at the outset -- when something has gone wrong with the connection
+ * or the server: a refused connection while the dashboard restarts, a 502 from
+ * a proxy ahead of it, a 503 while it comes back up. Treating those as answers
+ * would make the fallback fail precisely when it is needed, so they cost an
+ * attempt and nothing more.
  *
  * *Why not retry everything:* a 404 means the run was deleted and a 4xx means
  * this request will never succeed, so retrying either burns the whole
