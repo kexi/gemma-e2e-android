@@ -89,6 +89,119 @@ describe("--help", () => {
   });
 });
 
+/**
+ * --help and --version describe the program itself, so they must answer
+ * whatever the server setting says -- they never address it. Guarding every
+ * nesting level because the paths differ: the root is answered before any
+ * context exists, a bare group by dispatch, and a subcommand only after its own
+ * strict parse, which is the one that regressed.
+ */
+describe("--help and --version under an unusable server", () => {
+  const UNUSABLE = ["not-a-url", "", "ftp://example.test"];
+
+  const helpPaths: [string[], string][] = [
+    [["--help"], `Usage: ${PROGRAM} [OPTION]... COMMAND [ARG]...`],
+    [["scenario", "--help"], "Usage: gemma-e2e scenario COMMAND"],
+    [["scenario", "list", "--help"], "Usage: gemma-e2e scenario list"],
+    [["scenario", "get", "--help"], "Usage: gemma-e2e scenario get"],
+    [["scenario", "apply", "--help"], "Usage: gemma-e2e scenario apply"],
+    [["scenario", "delete", "--help"], "Usage: gemma-e2e scenario delete"],
+    [["run", "--help"], "Usage: gemma-e2e run COMMAND"],
+    [["run", "start", "--help"], "Usage: gemma-e2e run start"],
+    [["run", "list", "--help"], "Usage: gemma-e2e run list"],
+    [["run", "get", "--help"], "Usage: gemma-e2e run get"],
+    [["run", "watch", "--help"], "Usage: gemma-e2e run watch"],
+    [["models", "--help"], "Usage: gemma-e2e models"],
+    [["device", "--help"], "Usage: gemma-e2e device"],
+  ];
+
+  test("answers --help from the --server flag at every nesting level", async () => {
+    for (const server of UNUSABLE) {
+      for (const [argv, usage] of helpPaths) {
+        const session = await cli([`--server=${server}`, ...argv]);
+
+        expect(session.code).toBe(0);
+        expect(session.out).toContain(usage);
+        expect(session.err).toBe("");
+      }
+    }
+  });
+
+  test("answers --help from GEMMA_E2E_SERVER at every nesting level", async () => {
+    for (const [argv, usage] of helpPaths) {
+      const session = await cli(argv, { GEMMA_E2E_SERVER: "not-a-url" });
+
+      expect(session.code).toBe(0);
+      expect(session.out).toContain(usage);
+      expect(session.err).toBe("");
+    }
+  });
+
+  test("answers --help when the flag trails the operands", async () => {
+    const session = await cli(["run", "get", "run-1", "--server=not-a-url", "--help"]);
+
+    expect(session.code).toBe(0);
+    expect(session.out).toContain("Usage: gemma-e2e run get");
+    expect(session.err).toBe("");
+  });
+
+  const versionPaths = [
+    ["--version"],
+    ["scenario", "--version"],
+    ["scenario", "apply", "--version"],
+    ["run", "--version"],
+    ["run", "get", "--version"],
+    ["run", "start", "--version"],
+    ["models", "--version"],
+    ["device", "--version"],
+    ["-V"],
+  ];
+
+  test("answers --version at every nesting level", async () => {
+    for (const argv of versionPaths) {
+      const session = await cli(["--server=not-a-url", ...argv]);
+
+      expect(session.code).toBe(0);
+      expect(session.out.split("\n")[0]).toBe(`${PROGRAM} ${VERSION}`);
+      expect(session.err).toBe("");
+    }
+  });
+
+  // The counterpart to the above: deferring the check must not disarm it. A
+  // command that does address the server still refuses to run, and says the
+  // value is wrong rather than blaming a dashboard that was never contacted.
+  test("still refuses a command that would reach the server", async () => {
+    const reaching: string[][] = [
+      ["run", "list"],
+      ["run", "get", "run-1"],
+      ["run", "watch", "run-1"],
+      ["run", "start", "--prompt", "hello"],
+      ["scenario", "list"],
+      ["scenario", "get", "s-1"],
+      ["models"],
+      ["device"],
+    ];
+
+    for (const argv of reaching) {
+      const session = await cli(["--server=not-a-url", ...argv]);
+
+      expect(session.code).toBe(2);
+      expect(session.out).toBe("");
+      expect(session.err).toContain('invalid --server value "not-a-url": not a URL');
+      expect(session.err).not.toContain("just web");
+      // --server is global, so a hint at the subcommand's help would misdirect.
+      expect(session.err).not.toContain("--help");
+    }
+  });
+
+  test("still refuses an unusable GEMMA_E2E_SERVER on a reaching command", async () => {
+    const session = await cli(["run", "list"], { GEMMA_E2E_SERVER: "not-a-url" });
+
+    expect(session.code).toBe(2);
+    expect(session.err).toContain("not a URL");
+  });
+});
+
 describe("usage errors", () => {
   test("reports a missing command on stderr with the help hint and exits 2", async () => {
     const session = await cli([]);
