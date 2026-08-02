@@ -18,7 +18,7 @@ curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix 
 
 既存の Nix を使う場合は `~/.config/nix/nix.conf` に次を入れてください。
 
-```
+```text
 experimental-features = nix-command flakes
 ```
 
@@ -208,7 +208,7 @@ API(`http://localhost:5175`)、Vite の開発サーバ(`http://localhost:5173`)�
 
 各ケースは scrcpy で最初から最後まで録画され、次の場所に保存されます。
 
-```
+```text
 var/videos/{runId}/{caseId}.mp4
 ```
 
@@ -223,9 +223,10 @@ var/videos/{runId}/{caseId}.mp4
 
 Web のケースも録画されますが、経路は異なります。CDP には動画キャプチャが無いため、
 ページの screencast フレームを `ffmpeg` で mux します。scrcpy と同様 `flake.nix`
-で宣言済みで devshell に入っているのでインストール作業は不要ですが、裏を返せば
-録画が動くのは devshell の中だけです。scrcpy より画質は劣り、速いスクロールでは
-フレームが落ちますが、保存先は同じでダッシュボードでも同じように再生できます。
+で宣言済みなので devshell が用意し、インストール作業は不要です。レコーダは `PATH`
+(または設定されたパス)から `ffmpeg` を解決するので他の入れ方でも動きますが、
+確実なのは devshell です。scrcpy より画質は劣り、速いスクロールではフレームが
+落ちますが、保存先は同じでダッシュボードでも同じように再生できます。
 
 `var/` は gitignore 済みなので録画がコミットに入ることはありません。run が生成する
 成果物の中では最も容量を食うので、ディスクが厳しいときは `var/videos/` を削除して

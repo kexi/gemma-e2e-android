@@ -78,9 +78,20 @@ async function webSession(
 
   const session = await platform.cdp.openSession(target.viewport);
 
+  // Built inside a guard because the page is already open by now: a recorder
+  // that throws would otherwise strand the context, since the caller never
+  // receives the object whose `close` disposes it.
+  let recorder: Recorder | undefined;
+  try {
+    recorder = platform.recorder?.(session);
+  } catch (error) {
+    await platform.cdp.closeSession(session).catch(() => undefined);
+    throw error;
+  }
+
   return {
     driver: new WebDriver(platform.cdp, session, target),
-    ...(platform.recorder === undefined ? {} : { recorder: platform.recorder(session) }),
+    ...(recorder === undefined ? {} : { recorder }),
     close: async () => {
       await platform.cdp.closeSession(session);
     },

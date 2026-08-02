@@ -160,4 +160,37 @@ logger.info("server.started", {
   mode: isProduction ? "prod" : "dev",
 });
 
+/**
+ * Releases what outlives a request before the process goes.
+ *
+ * The live view holds a browser context open across the whole session, and
+ * `--watch` restarts this file on every edit. Without a teardown each restart
+ * strands another context, and a morning's work leaves a browser full of
+ * orphaned pages. The device sources own that, so they are asked to close;
+ * anything that fails is logged rather than raised, since the process is
+ * leaving either way.
+ */
+let shuttingDown = false;
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  process.on(signal, () => {
+    // Guarded because a second Ctrl-C while the first teardown is in flight
+    // would otherwise close the same context twice.
+    if (shuttingDown) {
+      return;
+    }
+    shuttingDown = true;
+
+    void (async () => {
+      try {
+        await device.close();
+      } catch (error) {
+        logger.warn("server.shutdown_failed", errorFields(error));
+      }
+      cdp.close();
+      logger.info("server.stopped", { signal });
+      process.exit(0);
+    })();
+  });
+}
+
 export default { port, fetch: app.fetch, websocket };

@@ -212,6 +212,14 @@ export class CdpRecorder implements Recorder {
         ffmpeg.kill();
         throw new Error(`ffmpeg did not exit within ${STOP_TIMEOUT_MS}ms: ${path}`);
       }
+
+      // A non-zero exit means the same thing as the timeout above -- whatever
+      // is at `path` is not a video -- so it has to be reported the same way.
+      // Silence here would hand the dashboard a player pointed at a broken file.
+      const failed = outcome !== 0;
+      if (failed) {
+        throw new Error(`ffmpeg exited with ${outcome}: ${path}`);
+      }
     } finally {
       clearTimeout(timer);
     }

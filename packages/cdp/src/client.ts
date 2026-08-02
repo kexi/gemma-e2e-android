@@ -80,6 +80,16 @@ export class CdpClient {
   readonly #frameSubscribers = new Map<string, Set<FrameHandler>>();
   readonly #frameUnsubscribers = new Map<string, () => void>();
   #connection: CdpConnection | null = null;
+  /**
+   * The open in flight, so concurrent callers share one socket.
+   *
+   * `#connection` is only assigned after two awaits, so without this every
+   * caller that arrives during the handshake starts a connection of its own --
+   * and all but the last are then leaked, since `close()` can only drop the one
+   * it can see. Reachable in production: the Device page polls `getStatus()`
+   * while a run drives cases through the same client.
+   */
+  #connecting: Promise<CdpConnection> | null = null;
 
   constructor(options: CdpClientOptions = {}) {
     this.#endpoint = options.endpoint ?? endpointOf();
@@ -100,6 +110,24 @@ export class CdpClient {
       return existing;
     }
 
+    const inFlight = this.#connecting;
+    const isConnecting = inFlight !== null;
+    if (isConnecting) {
+      return await inFlight;
+    }
+
+    // Cleared in a finally rather than on success only, so a browser that was
+    // not running when the first caller tried does not poison every later one.
+    const connecting = this.#openConnection();
+    this.#connecting = connecting;
+    try {
+      return await connecting;
+    } finally {
+      this.#connecting = null;
+    }
+  }
+
+  async #openConnection(): Promise<CdpConnection> {
     // The browser-level endpoint, not a per-page one: only this socket can
     // issue Target.* and Browser.* commands.
     const url = `${this.#endpoint}/json/version`;
@@ -337,12 +365,22 @@ export class CdpClient {
     const cdp = await this.#connect();
 
     switch (key) {
-      case "back":
+      // Both are navigations, and both return the moment they are queued, so
+      // the step that follows would dump the page being left rather than the
+      // one arrived at. Waited on the same signal `navigate` uses -- and with
+      // the same bound, since a page that never goes idle must not hang a run.
+      case "back": {
+        const settled = this.#waitForLifecycle(session, "networkIdle");
         await this.#evaluate(session, "(() => { history.back(); return true })()");
+        await settled;
         return;
-      case "home":
+      }
+      case "home": {
+        const settled = this.#waitForLifecycle(session, "networkIdle");
         await this.#evaluate(session, "(() => { location.href = '/'; return true })()");
+        await settled;
         return;
+      }
       case "enter": {
         const stroke = { key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, text: "\r" };
         await cdp.send("Input.dispatchKeyEvent", { ...stroke, type: "keyDown" }, session.sessionId);
@@ -385,9 +423,19 @@ export class CdpClient {
    * Frames are acknowledged as they arrive. Chromium caps how many may be
    * outstanding and simply stops sending once the cap is reached, so a missed
    * ack does not slow the stream down, it ends it.
+   *
+   * `onClosed` reports the socket going away. A frame consumer has no command
+   * in flight to be rejected, so without it a dropped connection simply stops
+   * delivering -- indistinguishable from a page that has gone quiet, and a
+   * relay downstream would hold its own socket open forever.
    */
-  async onFrames(session: CdpSession, handler: FrameHandler): Promise<() => void> {
+  async onFrames(
+    session: CdpSession,
+    handler: FrameHandler,
+    onClosed?: (error: Error) => void,
+  ): Promise<() => void> {
     const cdp = await this.#connect();
+    const offClosed = onClosed === undefined ? () => {} : cdp.onClosed(onClosed);
 
     const existing = this.#frameSubscribers.get(session.sessionId);
     const subscribers = existing ?? new Set<FrameHandler>();
@@ -417,7 +465,13 @@ export class CdpClient {
 
         const frame: ScreencastFrame = {
           data: params.data,
-          timestampMs: (params.metadata?.timestamp ?? 0) * 1000,
+          // Falls back to arrival, not to zero: an absent timestamp treated as
+          // epoch would place the frame at the very start of the recording and
+          // stretch everything after it across the gap.
+          timestampMs:
+            params.metadata?.timestamp === undefined
+              ? Date.now()
+              : params.metadata.timestamp * 1000,
         };
         for (const subscriber of Array.from(subscribers)) {
           subscriber(frame);
@@ -433,6 +487,7 @@ export class CdpClient {
     }
 
     return () => {
+      offClosed();
       subscribers.delete(handler);
       const isLast = subscribers.size === 0;
       if (!isLast) {

@@ -16,7 +16,7 @@ restate the reasoning, so there is only ever one copy to keep current.
 A **test case** is one natural-language goal that earns one verdict. A
 **scenario** is a bundle of cases that share a target and, usually, a model.
 
-```
+```text
    Scenario (scenarios/login.yaml)
    ├─ id, title, target?, model?
    └─ cases: TestCase[]            (at least one, run in order)
@@ -43,7 +43,7 @@ Why cases are the unit that earns a verdict, why they run sequentially, and how
 Each case runs a perceive → decide → act → judge loop until its goal is met or
 its step budget is exhausted.
 
-```
+```text
                   ┌──────────────────────────────────────────┐
                   │                                          │
    ┌──────────────▼───────────────┐                          │
@@ -90,7 +90,7 @@ its step budget is exhausted.
 
 ## Repository layout
 
-```
+```text
 apps/example-shared    Kexi Coffee Shop domain data, shared by both fixtures
 apps/example-android   The Expo build, driven over adb
 apps/example-web       The browser build, driven over CDP

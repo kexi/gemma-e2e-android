@@ -41,8 +41,15 @@ export const COLLECT_JS = String.raw`(() => {
    * tell a filled field from a blank one.
    */
   const ownText = (el, tag) => {
-    if (tag === "input" || tag === "textarea" || tag === "select") {
+    if (tag === "input" || tag === "textarea") {
       return (el.value || "").replace(/\s+/g, " ").trim();
+    }
+    // A select's value is the option's value attribute, which is often a code
+    // the user never sees ("us", "1"). The model reads the screen, so it needs
+    // the label the screen shows.
+    if (tag === "select") {
+      const chosen = el.selectedOptions && el.selectedOptions[0];
+      return ((chosen ? chosen.textContent : "") || "").replace(/\s+/g, " ").trim();
     }
     let out = "";
     for (const child of el.childNodes) {
@@ -76,10 +83,18 @@ export const COLLECT_JS = String.raw`(() => {
     if (CLICKABLE_ROLES.has(role)) return true;
     if (el.hasAttribute("onclick") || el.tabIndex >= 0) return true;
     // A pointer cursor is only a hint, and it inherits: the spans inside a
-    // button all compute to pointer, so trusting it alone numbers a button
-    // and each of its labels as separate targets that do the same thing.
-    // Only an element whose nearest clickable ancestor is itself qualifies.
-    return style.cursor === "pointer" && el.closest("a,button,[role],[onclick]") === el;
+    // button all compute to pointer, so trusting it alone numbers a button and
+    // each of its labels as separate targets that do the same thing.
+    //
+    // The element that owns the cursor is the outermost one showing it, so an
+    // element qualifies only when its parent does not. That keeps a
+    // <div style="cursor:pointer"> with a JS listener -- which matches no tag
+    // and no attribute -- while still collapsing a button's children onto the
+    // button. Matching against a list of clickable tags instead would drop the
+    // div, which was the bug this replaces.
+    if (style.cursor !== "pointer") return false;
+    const parent = el.parentElement;
+    return parent === null || getComputedStyle(parent).cursor !== "pointer";
   };
 
   const checkedOf = (el, tag) => {

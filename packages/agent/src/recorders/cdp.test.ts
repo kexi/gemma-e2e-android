@@ -222,6 +222,32 @@ describe("CdpRecorder", () => {
     });
   });
 
+  test("reports a recording ffmpeg rejected, rather than a broken path", async () => {
+    // A non-zero exit means whatever is at the path is not a video, exactly as
+    // a timeout does. Reporting success would hand the dashboard a player
+    // pointed at a file no browser can open.
+    await withVideoDir(async (dir) => {
+      const page = new FakePage();
+      const sink = new FakeFfmpeg();
+      const recording = await new CdpRecorder({
+        videoDir: dir,
+        subscribe: page.subscribe,
+        width: 320,
+        height: 240,
+        spawn: () => ({
+          exited: Promise.resolve(1),
+          write: (chunk) => sink.write(chunk),
+          end: () => sink.end(),
+          kill: () => sink.kill(),
+        }),
+      }).start({ runId: "run-1", caseId: "logs-in" });
+
+      page.emit(0);
+
+      await expect(recording.stop()).rejects.toThrow(/ffmpeg exited with 1/);
+    });
+  });
+
   test("reports a recording ffmpeg never finalised, rather than a broken path", async () => {
     // A file with no moov atom opens in no player, so the caller has to hear
     // about it and report no video at all.

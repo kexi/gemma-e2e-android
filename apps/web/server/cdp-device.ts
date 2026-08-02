@@ -30,6 +30,15 @@ export class CdpDeviceSource {
   readonly #viewport: Viewport | undefined;
   readonly #log: Logger;
   #session: CdpSession | null = null;
+  /**
+   * The open in flight, so the status poll and the frame stream share a page.
+   *
+   * Without it both observe `null`, both open a context, and the second
+   * assignment strands the first -- `close()` can only dispose the one it can
+   * see. The two paths overlap by design: the Device page polls while the
+   * relay streams.
+   */
+  #opening: Promise<CdpSession> | null = null;
 
   constructor(cdp: CdpClient, options: CdpDeviceOptions = {}) {
     this.#cdp = cdp;
@@ -58,6 +67,22 @@ export class CdpDeviceSource {
       }
     }
 
+    const inFlight = this.#opening;
+    const isOpening = inFlight !== null;
+    if (isOpening) {
+      return await inFlight;
+    }
+
+    const opening = this.#openPage();
+    this.#opening = opening;
+    try {
+      return await opening;
+    } finally {
+      this.#opening = null;
+    }
+  }
+
+  async #openPage(): Promise<CdpSession> {
     const session = await this.#cdp.openSession(this.#viewport);
     await this.#cdp.navigate(session, this.#url);
     this.#session = session;
@@ -107,25 +132,40 @@ export class CdpDeviceSource {
     let cancelled = false;
     let seq = 0;
 
-    // Subscription is async while `FrameStream` is not, so it is started here
-    // and its failure reported through the same `error` the relay already
-    // handles -- which is how a browser that is not running reaches the
-    // client as a closed socket rather than an unhandled rejection.
+    // Every way this stream can end reports through `error`: the relay closes
+    // the client's socket on either that or `end`, and each of these is a
+    // failure rather than a stream that ran to completion. Without it a dropped
+    // connection merely stops delivering -- indistinguishable from a quiet page
+    // -- and the browser holds its socket open forever.
+    const terminate = (error: Error): void => {
+      const isStale = cancelled;
+      if (isStale) {
+        return;
+      }
+      cancelled = true;
+      this.#log.warn("device.screencast_ended", errorFields(error));
+      handlers.error?.(error);
+    };
+
     void this.#page()
       .then(async (session) => {
-        const off = await this.#cdp.onFrames(session, (frame) => {
-          const isStale = cancelled;
-          if (isStale) {
-            return;
-          }
-          seq += 1;
-          handlers.data?.({
-            // Decoded once per frame, so the cheap path matters more here than
-            // anywhere else the protocol's base64 is unpacked.
-            image: new Uint8Array(Buffer.from(frame.data, "base64")) as Uint8Array<ArrayBuffer>,
-            seq,
-          });
-        });
+        const off = await this.#cdp.onFrames(
+          session,
+          (frame) => {
+            const isStale = cancelled;
+            if (isStale) {
+              return;
+            }
+            seq += 1;
+            handlers.data?.({
+              // Decoded once per frame, so the cheap path matters more here
+              // than anywhere else the protocol's base64 is unpacked.
+              image: new Uint8Array(Buffer.from(frame.data, "base64")) as Uint8Array<ArrayBuffer>,
+              seq,
+            });
+          },
+          terminate,
+        );
 
         const wasCancelledWhileOpening = cancelled;
         if (wasCancelledWhileOpening) {
@@ -135,8 +175,7 @@ export class CdpDeviceSource {
         unsubscribe = off;
       })
       .catch((error: unknown) => {
-        this.#log.warn("device.screencast_failed", errorFields(error));
-        handlers.error?.(error instanceof Error ? error : new Error(String(error)));
+        terminate(error instanceof Error ? error : new Error(String(error)));
       });
 
     return {

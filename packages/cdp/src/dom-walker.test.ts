@@ -86,6 +86,16 @@ describe("toUiNode", () => {
 
   test("leaves a real input's tag alone, editable though it is", () => {
     expect(toUiNode(tree([raw({ tag: "input", editable: true })])).className).toBe("input");
+    expect(toUiNode(tree([raw({ tag: "textarea", editable: true })])).className).toBe("textarea");
+  });
+
+  test("renames any editable tag, not only div", () => {
+    // contenteditable can sit on anything -- a p, a span, a td -- and each has
+    // to reach the serializer named for what it does, or the model cannot type
+    // into it.
+    for (const tag of ["p", "span", "td", "section"]) {
+      expect(toUiNode(tree([raw({ tag, editable: true })])).className).toBe("contenteditable");
+    }
   });
 
   test("gathers several roots under one container, so nothing is lost", () => {

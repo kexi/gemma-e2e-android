@@ -125,6 +125,63 @@ describe("connecting", () => {
     await expect(cdp.openSession()).rejects.toThrow(/--remote-debugging-port=9222/);
   });
 
+  test("opens one socket for callers that arrive together", async () => {
+    // The Device page polls getStatus() while a run drives cases through the
+    // same client, so this overlap happens in production. Without it each
+    // caller opened its own socket and all but the last were leaked, since
+    // close() can only drop the connection it can see.
+    const chrome = new FakeChrome();
+    let sockets = 0;
+    const cdp = new CdpClient({
+      endpoint: "http://127.0.0.1:9222",
+      fetch: (async () =>
+        new Response(
+          JSON.stringify({ webSocketDebuggerUrl: "ws://127.0.0.1:9222/devtools/browser/x" }),
+        )) as unknown as typeof globalThis.fetch,
+      connection: {
+        socket: () => {
+          sockets += 1;
+          return chrome;
+        },
+      },
+    });
+    chrome.results["Target.createBrowserContext"] = { browserContextId: "C1" };
+    chrome.results["Target.createTarget"] = { targetId: "T1" };
+    chrome.results["Target.attachToTarget"] = { sessionId: "S1" };
+
+    await Promise.all([cdp.openSession(), cdp.openSession(), cdp.openSession()]);
+
+    expect(sockets).toBe(1);
+  });
+
+  test("retries after a failed connect rather than caching the failure", async () => {
+    // The in-flight promise is cleared however it settles, so a browser that
+    // was not running when the first caller tried does not poison later ones.
+    const chrome = new FakeChrome();
+    let attempts = 0;
+    const cdp = new CdpClient({
+      endpoint: "http://127.0.0.1:9222",
+      fetch: (async () => {
+        attempts += 1;
+        const isFirst = attempts === 1;
+        if (isFirst) {
+          throw new Error("ECONNREFUSED");
+        }
+        return new Response(
+          JSON.stringify({ webSocketDebuggerUrl: "ws://127.0.0.1:9222/devtools/browser/x" }),
+        );
+      }) as unknown as typeof globalThis.fetch,
+      connection: { socket: () => chrome },
+    });
+    chrome.results["Target.createBrowserContext"] = { browserContextId: "C1" };
+    chrome.results["Target.createTarget"] = { targetId: "T1" };
+    chrome.results["Target.attachToTarget"] = { sessionId: "S1" };
+
+    await expect(cdp.openSession()).rejects.toThrow(/ECONNREFUSED/);
+
+    expect((await cdp.openSession()).sessionId).toBe("S1");
+  });
+
   test("refuses an endpoint that answers without a debugger url", async () => {
     const cdp = new CdpClient({
       endpoint: "http://127.0.0.1:9222",
@@ -366,11 +423,65 @@ describe("input", () => {
     const session = await openSession(chrome, cdp);
     chrome.results["Runtime.evaluate"] = { result: { value: true } };
 
-    await cdp.keyevent(session, "back");
+    const pressed = cdp.keyevent(session, "back");
+    await Bun.sleep(10);
+    chrome.announceLifecycle("networkIdle", session.sessionId);
+    await pressed;
 
     expect(chrome.ofMethod("Runtime.evaluate")[0]?.params["expression"]).toContain(
       "history.back()",
     );
+  });
+
+  test("waits for the page to settle after back, so the next dump is the new one", async () => {
+    // history.back() returns the moment it is queued, so without this the step
+    // that follows reads the page being left rather than the one arrived at.
+    const chrome = new FakeChrome();
+    const cdp = client(chrome);
+    const session = await openSession(chrome, cdp);
+    chrome.results["Runtime.evaluate"] = { result: { value: true } };
+
+    let settled = false;
+    void cdp.keyevent(session, "back").then(() => {
+      settled = true;
+    });
+    await Bun.sleep(20);
+
+    expect(settled).toBe(false);
+
+    chrome.announceLifecycle("networkIdle", session.sessionId);
+    await Bun.sleep(10);
+    expect(settled).toBe(true);
+  });
+
+  test("waits for the page to settle after home too", async () => {
+    const chrome = new FakeChrome();
+    const cdp = client(chrome);
+    const session = await openSession(chrome, cdp);
+    chrome.results["Runtime.evaluate"] = { result: { value: true } };
+
+    let settled = false;
+    void cdp.keyevent(session, "home").then(() => {
+      settled = true;
+    });
+    await Bun.sleep(20);
+
+    expect(settled).toBe(false);
+
+    chrome.announceLifecycle("networkIdle", session.sessionId);
+    await Bun.sleep(10);
+    expect(settled).toBe(true);
+  });
+
+  test("enter needs no settle, being a keystroke rather than a navigation", async () => {
+    const chrome = new FakeChrome();
+    const cdp = client(chrome);
+    const session = await openSession(chrome, cdp);
+
+    // Resolving without any lifecycle event is the assertion.
+    await cdp.keyevent(session, "enter");
+
+    expect(chrome.ofMethod("Input.dispatchKeyEvent")).toHaveLength(2);
   });
 });
 

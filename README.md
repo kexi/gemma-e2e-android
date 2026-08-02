@@ -12,7 +12,7 @@ and the prompts stay the same on either.
 
 ## How it works
 
-```
+```text
               ┌── adb uiautomator dump ──┐
 scenario ─▶   │                          ├─▶ UI tree (text)
 prompt        └── CDP DOM walk ──────────┘         │

@@ -24,8 +24,9 @@ and it delivers base64 JPEG frames over the protocol; those are wrapped in
 Matroska and piped to ffmpeg, which encodes the MP4.
 
 ffmpeg is declared in `flake.nix` alongside scrcpy, so it arrives with the
-devshell and there is nothing to install -- and, by the same token, recording
-only works from inside it.
+devshell and there is nothing to install. The recorder resolves it from `PATH`
+or from a configured path, so another install works too; the devshell is only
+the one that is guaranteed.
 
 *Why not something better:* there is nothing better to reach for. Playwright
 records Chromium through exactly this API, so no private path is being missed.

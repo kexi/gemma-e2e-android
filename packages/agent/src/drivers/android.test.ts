@@ -19,7 +19,7 @@ describe("AndroidDriver", () => {
     ]);
   });
 
-  test("resetting with no target touches the device at all", async () => {
+  test("resetting with no target does not touch the device at all", async () => {
     const adb = new FakeAdb([LOGIN_XML]);
 
     await new AndroidDriver(adb).reset();

@@ -18,7 +18,7 @@ curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix 
 
 With an existing Nix install, make sure `~/.config/nix/nix.conf` contains:
 
-```
+```text
 experimental-features = nix-command flakes
 ```
 
@@ -210,7 +210,7 @@ contexts at the end of each case.
 
 Every case is recorded end to end with scrcpy and saved as
 
-```
+```text
 var/videos/{runId}/{caseId}.mp4
 ```
 
@@ -220,10 +220,11 @@ emulators and physical devices, and there is no time limit on a clip.
 
 Web cases are filmed too, by a different route: CDP has no video capture, so
 the page's screencast frames are muxed through `ffmpeg`. Like scrcpy, it is
-declared in `flake.nix` and comes with the devshell, so there is nothing to
-install — but it does mean recording only works from inside it. The result is
-lossier than scrcpy's and drops frames under fast scrolling, though it lands in
-the same place and plays back in the same dashboard.
+declared in `flake.nix`, so the devshell supplies it and there is nothing to
+install. The recorder resolves `ffmpeg` from `PATH` (or a configured path), so
+any install will do — the devshell is simply the one that is guaranteed. The
+result is lossier than scrcpy's and drops frames under fast scrolling, though
+it lands in the same place and plays back in the same dashboard.
 
 Recording is on by default and needs no setup — scrcpy comes from the devshell.
 Turn it off with `RECORD_RUNS=0` in `.env` (or in the environment). It is best

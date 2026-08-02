@@ -57,7 +57,11 @@ export function toUiNode(raw: RawTree): UiNode {
     }
 
     return {
-      className: element.editable && element.tag === "div" ? "contenteditable" : element.tag,
+      // An editable element whose tag does not already say so is renamed, since
+      // the serializer reads editability from the class name. Any tag can carry
+      // contenteditable -- a p, a span, a td -- so this cannot be limited to
+      // div without silently dropping the rest.
+      className: isRenamedForEditing(element) ? "contenteditable" : element.tag,
       resourceId: element.id,
       text: element.text,
       // Dropped when it merely repeats the text: the serializer omits a
@@ -100,6 +104,18 @@ export function toUiNode(raw: RawTree): UiNode {
 
 export class DomWalkError extends Error {
   override readonly name = "DomWalkError";
+}
+
+/** Tags the serializer already treats as editable, so they keep their own name. */
+const SELF_DESCRIBING_EDITABLE = new Set(["input", "textarea"]);
+
+/**
+ * True when an editable element's tag would not tell the serializer so.
+ * `<div contenteditable>` and `<p contenteditable>` both land here; `<input>`
+ * does not, because "input" already matches the editable pattern.
+ */
+function isRenamedForEditing(element: RawElement): boolean {
+  return element.editable && !SELF_DESCRIBING_EDITABLE.has(element.tag);
 }
 
 /**

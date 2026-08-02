@@ -246,6 +246,59 @@ describe("CdpConnection teardown", () => {
     await expect(pending).rejects.toThrow(/ECONNRESET/);
   });
 
+  test("tells event subscribers the socket died, who have nothing pending", async () => {
+    // A command in flight is rejected, but a screencast consumer is waiting on
+    // events only -- so without this it waits forever on a dead socket.
+    const socket = new FakeSocket();
+    const cdp = await connect(socket);
+    const seen: string[] = [];
+    cdp.onClosed((error) => seen.push(error.message));
+
+    socket.drop();
+
+    expect(seen).toEqual(["the devtools connection closed"]);
+  });
+
+  test("calls back immediately when the socket is already gone", async () => {
+    // Otherwise a subscriber that arrives a moment late never hears about it.
+    const socket = new FakeSocket();
+    const cdp = await connect(socket);
+    socket.drop();
+
+    const seen: string[] = [];
+    cdp.onClosed((error) => seen.push(error.message));
+
+    expect(seen).toHaveLength(1);
+  });
+
+  test("reports the close once, not once per event that noticed it", async () => {
+    const socket = new FakeSocket();
+    const cdp = await connect(socket);
+    let count = 0;
+    cdp.onClosed(() => {
+      count += 1;
+    });
+
+    socket.drop();
+    socket.fail(new Error("ECONNRESET"));
+
+    expect(count).toBe(1);
+  });
+
+  test("stops telling a subscriber that unsubscribed", async () => {
+    const socket = new FakeSocket();
+    const cdp = await connect(socket);
+    let called = false;
+    const off = cdp.onClosed(() => {
+      called = true;
+    });
+
+    off();
+    socket.drop();
+
+    expect(called).toBe(false);
+  });
+
   test("refuses new commands once closed, rather than hanging until the timeout", async () => {
     const socket = new FakeSocket();
     const cdp = await connect(socket);

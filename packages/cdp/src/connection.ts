@@ -65,6 +65,12 @@ export class CdpConnection {
   readonly #socket: SocketLike;
   readonly #pending = new Map<number, Pending>();
   readonly #handlers = new Map<string, Set<EventHandler>>();
+  /**
+   * Told when the socket dies, so a subscriber waiting on events -- rather
+   * than on a command -- learns about it. A command in flight is rejected, but
+   * a screencast consumer has nothing pending and would otherwise wait forever.
+   */
+  readonly #closeHandlers = new Set<(error: Error) => void>();
   readonly #timeoutMs: number;
   readonly #log: Logger;
   #nextId = 1;
@@ -167,6 +173,24 @@ export class CdpConnection {
     };
   }
 
+  /**
+   * Subscribes to the connection going away. Returns the unsubscribe function.
+   * Fires once; a connection that has already died calls back immediately, so
+   * a late subscriber cannot miss it.
+   */
+  onClosed(handler: (error: Error) => void): () => void {
+    const alreadyClosed = this.#closed !== null;
+    if (alreadyClosed) {
+      handler(this.#closed as Error);
+      return () => {};
+    }
+
+    this.#closeHandlers.add(handler);
+    return () => {
+      this.#closeHandlers.delete(handler);
+    };
+  }
+
   close(): void {
     this.#fail(new CdpError("the devtools connection was closed"));
     this.#socket.close();
@@ -263,6 +287,17 @@ export class CdpConnection {
       pending.reject(error);
     }
     this.#pending.clear();
+
+    // Copied before iterating for the same reason `#dispatch` does it: a
+    // handler that unsubscribes itself would otherwise mutate the set mid-loop.
+    for (const handler of Array.from(this.#closeHandlers)) {
+      try {
+        handler(error);
+      } catch (failure) {
+        this.#log.warn("cdp.close_handler_failed", { ...errorFields(failure) });
+      }
+    }
+    this.#closeHandlers.clear();
   }
 }
 

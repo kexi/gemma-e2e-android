@@ -24,7 +24,8 @@ base64 JPEG フレームだけなので、それを Matroska に包んで ffmpeg
 MP4 にエンコードさせる。
 
 ffmpeg は scrcpy と並んで `flake.nix` に宣言してあるので devshell に入っており、
-インストール作業は不要 — 裏を返せば録画が動くのは devshell の中だけである。
+インストール作業は不要。レコーダは `PATH` か設定されたパスから解決するので他の
+入れ方でも動くが、確実なのは devshell。
 
 *もっと良い手段が無いのか*: 無い。Playwright も Chromium の録画をこの API で
 行っているので、見落としている非公開の経路は存在しない。

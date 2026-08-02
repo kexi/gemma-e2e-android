@@ -51,14 +51,27 @@ class FakeCdp {
     return this.label;
   };
 
-  onFrames = async (_session: CdpSession, handler: FrameHandler): Promise<() => void> => {
+  #onClosed: ((error: Error) => void) | null = null;
+
+  onFrames = async (
+    _session: CdpSession,
+    handler: FrameHandler,
+    onClosed?: (error: Error) => void,
+  ): Promise<() => void> => {
     this.calls.push("onFrames");
     this.#handler = handler;
+    this.#onClosed = onClosed ?? null;
     return () => {
       this.unsubscribed += 1;
       this.#handler = null;
+      this.#onClosed = null;
     };
   };
+
+  /** The devtools socket going away, as the connection reports it. */
+  dropConnection(reason = "the devtools connection closed"): void {
+    this.#onClosed?.(new Error(reason));
+  }
 
   emit(data = FRAME_DATA): void {
     this.#handler?.({ data, timestampMs: 0 });
@@ -204,6 +217,35 @@ describe("CdpDeviceSource frames", () => {
     await Bun.sleep(10);
 
     expect(cdp.streaming).toBe(false);
+  });
+
+  test("reports a dropped devtools connection, so the client socket closes", async () => {
+    // A frame consumer has no command in flight to be rejected, so without
+    // this the stream merely stops delivering -- indistinguishable from a
+    // quiet page -- and the browser's WebSocket stays open indefinitely.
+    const cdp = new FakeCdp();
+    const errors: Error[] = [];
+
+    const stream = source(cdp).openFrameStream();
+    stream.on("error", (error) => errors.push(error));
+    await Bun.sleep(10);
+    cdp.dropConnection();
+
+    expect(errors[0]?.message).toMatch(/devtools connection closed/);
+  });
+
+  test("delivers nothing after the connection drops", async () => {
+    const cdp = new FakeCdp();
+    const frames: DeviceFrame[] = [];
+
+    const stream = source(cdp).openFrameStream();
+    stream.on("data", (frame) => frames.push(frame));
+    stream.on("error", () => {});
+    await Bun.sleep(10);
+    cdp.dropConnection();
+    cdp.emit();
+
+    expect(frames).toHaveLength(0);
   });
 
   test("reports a browser it cannot reach through the relay's error path", async () => {

@@ -142,4 +142,17 @@ describe("createDriverResolver: web", () => {
 
     expect(session.recorder).toBeUndefined();
   });
+
+  test("disposes the page when the recorder cannot be built", async () => {
+    // The page is already open by the time the recorder is constructed, so a
+    // throw there would strand the browser context: the caller never receives
+    // the object whose close() disposes it.
+    const cdp = new FakeCdp();
+    const openDriver = resolver(cdp, () => {
+      throw new Error("ffmpeg is not installed");
+    });
+
+    await expect(openDriver(WEB_TARGET)).rejects.toThrow(/ffmpeg is not installed/);
+    expect(cdp.closed).toEqual(["S1"]);
+  });
 });

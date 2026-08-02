@@ -15,7 +15,7 @@ English: [../ARCHITECTURE.md](../ARCHITECTURE.md)
 **テストケース**は 1 つの判定を得る自然言語のゴール、**シナリオ**は対象
 (target)と、多くの場合モデルを共有するケースの束です。
 
-```
+```text
    Scenario (scenarios/login.yaml)
    ├─ id, title, target?, model?
    └─ cases: TestCase[]            (1 つ以上・宣言順に実行)
@@ -42,7 +42,7 @@ English: [../ARCHITECTURE.md](../ARCHITECTURE.md)
 各ケースが、知覚 → 判断 → 操作 → 判定のループを、ゴール達成かステップ上限まで
 繰り返します。
 
-```
+```text
                   ┌──────────────────────────────────────────┐
                   │                                          │
    ┌──────────────▼───────────────┐                          │
@@ -51,7 +51,8 @@ English: [../ARCHITECTURE.md](../ARCHITECTURE.md)
                   │ uiautomator dump | CDP の DOM 走査       │
                   ▼                                          │
    ┌──────────────────────────────┐                          │
-   │ UI ツリー(XML → テキスト)  │                          │
+   │ UiNode ツリー → テキスト     │                          │
+   │ (どちらでも同じ変換)         │                          │
    └──────────────┬───────────────┘                          │
                   │ prompt: ゴール + UI ツリー + 履歴        │
                   ▼                                          │
@@ -78,7 +79,7 @@ English: [../ARCHITECTURE.md](../ARCHITECTURE.md)
 
 ## リポジトリ構成
 
-```
+```text
 apps/example-shared    Kexi Coffee Shop のドメインデータ(両フィクスチャで共有)
 apps/example-android   Expo ビルド。adb で駆動
 apps/example-web       ブラウザビルド。CDP で駆動
