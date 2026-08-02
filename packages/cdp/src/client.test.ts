@@ -30,6 +30,7 @@ class FakeChrome implements SocketLike {
   lifecycleOnNavigate: string | null = "networkIdle";
 
   #onMessage: ((event: { data: unknown }) => void) | undefined;
+  #onClose: (() => void) | undefined;
 
   send(data: string): void {
     const message = JSON.parse(data) as {
@@ -65,6 +66,11 @@ class FakeChrome implements SocketLike {
   }
 
   /** Pushes a lifecycle event a test controls the timing of. */
+  /** The socket dying, which the connection reports to its close-watchers. */
+  dropConnection(): void {
+    this.#onClose?.();
+  }
+
   /** Pushes a screencast frame, as the page would when it repaints. */
   announceFrame(sessionId: string, data = btoa("\xff\xd8\xff\xd9")): void {
     this.#deliver({
@@ -90,6 +96,7 @@ class FakeChrome implements SocketLike {
 
   addEventListener(type: string, handler: (event: never) => void): void {
     if (type === "message") this.#onMessage = handler as (event: { data: unknown }) => void;
+    if (type === "close") this.#onClose = handler as () => void;
   }
 
   /** Every command of one method, in the order they were sent. */
@@ -240,6 +247,41 @@ describe("sessions", () => {
     await cdp.onFrames(session, () => {});
 
     await cdp.closeSession(session);
+
+    expect(chrome.ofMethod("Page.stopScreencast")).toHaveLength(1);
+  });
+
+  test("releases the close-watcher too, not only the frame listener", async () => {
+    // Registered per subscriber but held per session, so disposing the page
+    // drops it. Left behind, the connection would call back about a page that
+    // no longer exists the next time the socket died.
+    const chrome = new FakeChrome();
+    const cdp = client(chrome);
+    const session = await openSession(chrome, cdp);
+    const closes: string[] = [];
+    await cdp.onFrames(
+      session,
+      () => {},
+      (error) => closes.push(error.message),
+    );
+
+    await cdp.closeSession(session);
+    chrome.dropConnection();
+
+    expect(closes).toHaveLength(0);
+  });
+
+  test("unsubscribing after the session closed is a no-op", async () => {
+    // A recorder stops after its case errored, by which point closeSession has
+    // released everything. A second stopScreencast would go to a page that is
+    // gone.
+    const chrome = new FakeChrome();
+    const cdp = client(chrome);
+    const session = await openSession(chrome, cdp);
+    const off = await cdp.onFrames(session, () => {});
+
+    await cdp.closeSession(session);
+    expect(() => off()).not.toThrow();
 
     expect(chrome.ofMethod("Page.stopScreencast")).toHaveLength(1);
   });

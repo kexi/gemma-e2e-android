@@ -79,6 +79,15 @@ export class CdpClient {
   /** Per page, so a recording and a live view can share one screencast. */
   readonly #frameSubscribers = new Map<string, Set<FrameHandler>>();
   readonly #frameUnsubscribers = new Map<string, () => void>();
+  /**
+   * Close-watchers per session, alongside the frame listener above.
+   *
+   * Held here rather than only in each subscriber's unsubscribe closure so
+   * that disposing a session releases them: a case that errors closes its page
+   * while the recorder is still subscribed, and a watcher left behind would be
+   * called for a page that no longer exists.
+   */
+  readonly #frameCloseWatchers = new Map<string, Set<() => void>>();
   #connection: CdpConnection | null = null;
   /**
    * The open in flight, so concurrent callers share one socket.
@@ -206,10 +215,8 @@ export class CdpClient {
     // Stopped before the context goes: afterwards the page no longer exists
     // and the command would only reject.
     const wasStreaming = this.#frameSubscribers.has(session.sessionId);
+    this.#releaseFrames(session.sessionId);
     if (wasStreaming) {
-      this.#frameUnsubscribers.get(session.sessionId)?.();
-      this.#frameUnsubscribers.delete(session.sessionId);
-      this.#frameSubscribers.delete(session.sessionId);
       await cdp.send("Page.stopScreencast", {}, session.sessionId).catch(() => undefined);
     }
 
@@ -452,13 +459,23 @@ export class CdpClient {
     onClosed?: (error: Error) => void,
   ): Promise<() => void> {
     const cdp = await this.#connect();
-    const offClosed = onClosed === undefined ? () => {} : cdp.onClosed(onClosed);
 
     const existing = this.#frameSubscribers.get(session.sessionId);
     const subscribers = existing ?? new Set<FrameHandler>();
     const isFirst = subscribers.size === 0;
     subscribers.add(handler);
     this.#frameSubscribers.set(session.sessionId, subscribers);
+
+    // Kept with the session rather than with this subscriber, so `closeSession`
+    // releases it too. A case that fails before its recorder unsubscribes would
+    // otherwise leave the connection calling back for a page that is gone.
+    const offClosed = onClosed === undefined ? undefined : cdp.onClosed(onClosed);
+    const isWatchingForClose = offClosed !== undefined;
+    if (isWatchingForClose) {
+      const perSession = this.#frameCloseWatchers.get(session.sessionId) ?? new Set();
+      perSession.add(offClosed);
+      this.#frameCloseWatchers.set(session.sessionId, perSession);
+    }
 
     if (isFirst) {
       const off = cdp.on("Page.screencastFrame", (event) => {
@@ -503,17 +520,24 @@ export class CdpClient {
       );
     }
 
+    // Idempotent because `closeSession` may have released everything already:
+    // a recorder unsubscribing after its case errored must be a no-op rather
+    // than a second `stopScreencast` against a page that is gone.
     return () => {
-      offClosed();
+      const isReleased = offClosed !== undefined;
+      if (isReleased) {
+        offClosed();
+        this.#frameCloseWatchers.get(session.sessionId)?.delete(offClosed);
+      }
+
       subscribers.delete(handler);
       const isLast = subscribers.size === 0;
-      if (!isLast) {
+      const isStillTracked = this.#frameSubscribers.get(session.sessionId) === subscribers;
+      if (!isLast || !isStillTracked) {
         return;
       }
 
-      this.#frameSubscribers.delete(session.sessionId);
-      this.#frameUnsubscribers.get(session.sessionId)?.();
-      this.#frameUnsubscribers.delete(session.sessionId);
+      this.#releaseFrames(session.sessionId);
       // Not awaited: the caller is tearing down, and a page already disposed
       // would reject here for a stream that no longer exists.
       void this.#connection
@@ -522,11 +546,24 @@ export class CdpClient {
     };
   }
 
+  /** Drops every per-session frame registration. Safe to call more than once. */
+  #releaseFrames(sessionId: string): void {
+    this.#frameSubscribers.delete(sessionId);
+    this.#frameUnsubscribers.get(sessionId)?.();
+    this.#frameUnsubscribers.delete(sessionId);
+
+    for (const off of this.#frameCloseWatchers.get(sessionId) ?? []) {
+      off();
+    }
+    this.#frameCloseWatchers.delete(sessionId);
+  }
+
   /** Drops the socket. Sessions opened on it are gone with it. */
   close(): void {
     this.#connection?.close();
     this.#connection = null;
     this.#frameSubscribers.clear();
     this.#frameUnsubscribers.clear();
+    this.#frameCloseWatchers.clear();
   }
 }
