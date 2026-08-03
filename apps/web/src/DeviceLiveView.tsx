@@ -8,16 +8,19 @@ import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import RefreshIcon from "@mui/icons-material/Refresh";
 
+import { type DevicePlatform, failureLabelFor } from "./devicePlatform.ts";
+
+export type { DevicePlatform };
+
 export type ConnectionState = "connecting" | "live" | "disconnected" | "unavailable" | "paused";
 
-/** The gateway sends 1011 when the emulator side failed, not the browser. */
+/** The gateway sends 1011 when the upstream source failed, not the browser. */
 const CLOSE_UPSTREAM_FAILED = 1011;
 
-const STATE_LABEL: Record<ConnectionState, string> = {
+const STATE_LABEL: Record<Exclude<ConnectionState, "unavailable">, string> = {
   connecting: "Connecting",
   live: "Live",
   disconnected: "Disconnected",
-  unavailable: "Emulator unreachable",
   paused: "Paused (off-screen)",
 };
 
@@ -36,8 +39,6 @@ interface ContentVisibilityEvent extends Event {
   readonly skipped: boolean;
 }
 
-export type DevicePlatform = "android" | "web";
-
 function streamUrl(platform: DevicePlatform): string {
   // Same origin as the page: in development Vite proxies /api (ws:true) to the
   // Hono server, in production Hono serves both.
@@ -55,15 +56,16 @@ export interface DeviceLiveViewProps {
 }
 
 /**
- * Live emulator screen, fed by PNG frames the server relays off the emulator's
- * gRPC `streamScreenshot`.
+ * Live screen of whichever source `platform` names, fed by frames the server
+ * relays -- PNG off the emulator's gRPC `streamScreenshot`, JPEG off Chrome's
+ * screencast.
  *
  * The socket is owned by this component, so mounting and unmounting is what
  * opens and closes it: the run pane can drop the element when a run ends and
  * the stream is released without any extra coordination. On top of that, the
  * wrapper carries `content-visibility: auto`, and the browser's own
  * skip/render decision closes and reopens the socket — a scrolled-away or
- * background-tabbed view stops costing the emulator an encode per frame.
+ * background-tabbed view stops costing the source an encode per frame.
  */
 export function DeviceLiveView({
   platform,
@@ -169,11 +171,17 @@ export function DeviceLiveView({
   }, [attempt, rendered, platform]);
 
   const isBroken = state === "unavailable" || state === "disconnected";
+  // "Emulator unreachable" on a browser view names the wrong thing, and this
+  // is the state where the message has to be right -- it is the one the reader
+  // acts on.
+  const isUnreachable = state === "unavailable";
+  const isAndroid = platform === "android";
+  const label = isUnreachable ? failureLabelFor(platform) : STATE_LABEL[state];
 
   return (
     <Stack className="device-live-view" ref={containerRef} spacing={1.5}>
       <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-        <Chip label={STATE_LABEL[state]} color={STATE_COLOR[state]} size="small" />
+        <Chip label={label} color={STATE_COLOR[state]} size="small" />
         <Box sx={{ flexGrow: 1 }} />
         {isBroken && (
           <Button size="small" variant="outlined" startIcon={<RefreshIcon />} onClick={reconnect}>
@@ -183,10 +191,19 @@ export function DeviceLiveView({
       </Stack>
 
       {isBroken && (
-        <Alert severity={state === "unavailable" ? "error" : "warning"}>
-          The live view needs the emulator running with its gRPC bridge: <code>just emu</code>{" "}
-          starts it with <code>-grpc 8554</code>. As a fallback, <code>just mirror</code> opens the
-          same screen in scrcpy.
+        <Alert severity={isUnreachable ? "error" : "warning"}>
+          {isAndroid ? (
+            <>
+              The live view needs the emulator running with its gRPC bridge: <code>just emu</code>{" "}
+              starts it with <code>-grpc 8554</code>. As a fallback, <code>just mirror</code> opens
+              the same screen in scrcpy.
+            </>
+          ) : (
+            <>
+              The live view needs Chrome running with its DevTools port: <code>just chrome</code>{" "}
+              opens one. Set <code>CHROME_ENDPOINT</code> to reach a browser started some other way.
+            </>
+          )}
         </Alert>
       )}
 
