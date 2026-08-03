@@ -6,7 +6,7 @@ import type { CaseRun, Run, Scenario, Step } from "@gemma-e2e/core";
 import { createLogger, type LogEvent } from "@gemma-e2e/logger";
 import type { RunEvent } from "@gemma-e2e/agent";
 import { RunEventBus } from "./bus.ts";
-import { createApp, type StartRunInput, type StoreReader } from "./app.ts";
+import { createApp, type DeviceSource, type StartRunInput, type StoreReader } from "./app.ts";
 
 const LOGIN_YAML = `title: Login
 cases:
@@ -142,7 +142,11 @@ describe("POST /api/scenarios", () => {
   const CHECKOUT = {
     id: "checkout",
     title: "Checkout",
-    app: { package: "dev.kexi.gemmae2e.example", activity: ".MainActivity" },
+    target: {
+      platform: "android",
+      package: "dev.kexi.gemmae2e.example",
+      activity: ".MainActivity",
+    },
     cases: [{ id: "buys-a-bean", title: "Buys a bean", prompt: "Add a bean and pay." }],
   };
 
@@ -151,10 +155,13 @@ describe("POST /api/scenarios", () => {
 
     expect(res.status).toBe(201);
     const listed = (await (await harness().request("/api/scenarios")).json()) as {
-      scenarios: { id: string; title: string; app?: { package: string } }[];
+      scenarios: { id: string; title: string; target?: { package: string } }[];
     };
     const created = listed.scenarios.find((s) => s.id === "checkout");
-    expect(created).toMatchObject({ title: "Checkout", app: { package: CHECKOUT.app.package } });
+    expect(created).toMatchObject({
+      title: "Checkout",
+      target: { platform: "android", package: CHECKOUT.target.package },
+    });
   });
 
   test("omits the id from the file, because the loader takes it from the filename", async () => {
@@ -266,7 +273,7 @@ describe("PUT /api/scenarios/:id", () => {
 
   const EDITED_LOGIN = {
     title: "Login (revised)",
-    app: { package: "dev.kexi.gemmae2e.example" },
+    target: { platform: "android", package: "dev.kexi.gemmae2e.example" },
     cases: [{ id: "valid", title: "Logs in", prompt: "Check that a user can log in." }],
   };
 
@@ -965,5 +972,103 @@ describe("structured logging", () => {
     const res = await app.request("/api/scenarios");
 
     expect(res.status).toBe(200);
+  });
+});
+
+/**
+ * Both sources are attached at once and the request picks, so a run on either
+ * platform can be watched without restarting the server. These pin the
+ * selection; the sources themselves are covered by their own suites.
+ */
+describe("GET /api/device", () => {
+  const source = (label: string): DeviceSource => ({
+    getStatus: async () => ({
+      uptimeMs: null,
+      booted: true,
+      hardwareConfig: { which: label },
+    }),
+    openFrameStream: () => ({
+      on: () => {},
+      cancel: () => {},
+    }),
+  });
+
+  function withDevices(devices: {
+    android?: DeviceSource | undefined;
+    web?: DeviceSource | undefined;
+  }) {
+    return createApp({ store, scenariosDir, startRun: () => {}, devices });
+  }
+
+  /** `res.json()` is `unknown`, and the label is the only field these read. */
+  async function whichSource(res: Response): Promise<string | undefined> {
+    const body = (await res.json()) as { device?: { hardwareConfig?: Record<string, string> } };
+    return body.device?.hardwareConfig?.["which"];
+  }
+
+  test("lists the platforms it can show", async () => {
+    const res = await withDevices({ android: source("a"), web: source("w") }).request(
+      "/api/device/platforms",
+    );
+
+    expect(await res.json()).toEqual({ platforms: ["android", "web"] });
+  });
+
+  test("lists only what is attached, so a picker can hide itself", async () => {
+    const res = await withDevices({ web: source("w") }).request("/api/device/platforms");
+
+    expect(await res.json()).toEqual({ platforms: ["web"] });
+  });
+
+  test("answers from the platform the request names", async () => {
+    const app = withDevices({ android: source("emulator"), web: source("browser") });
+
+    const android = await app.request("/api/device/status?platform=android");
+    const web = await app.request("/api/device/status?platform=web");
+
+    expect(await whichSource(android)).toBe("emulator");
+    expect(await whichSource(web)).toBe("browser");
+  });
+
+  test("falls back to the only source when the request names none", async () => {
+    // A single-platform setup keeps working without a query string.
+    const res = await withDevices({ web: source("browser") }).request("/api/device/status");
+
+    expect(await whichSource(res)).toBe("browser");
+  });
+
+  test("reports a platform that is not attached, rather than showing the other", async () => {
+    const res = await withDevices({ android: source("emulator") }).request(
+      "/api/device/status?platform=web",
+    );
+
+    expect(res.status).toBe(404);
+  });
+
+  test("reports a source that cannot answer as unavailable, not as a crash", async () => {
+    // Which the Device page renders as guidance -- "start the emulator".
+    const app = createApp({
+      store,
+      scenariosDir,
+      startRun: () => {},
+      devices: {
+        android: {
+          getStatus: async () => {
+            throw new Error("connect ECONNREFUSED");
+          },
+          openFrameStream: () => ({ on: () => {}, cancel: () => {} }),
+        },
+      },
+    });
+
+    const res = await app.request("/api/device/status?platform=android");
+
+    expect(res.status).toBe(503);
+  });
+
+  test("serves no device routes at all when neither source is attached", async () => {
+    const res = await withDevices({}).request("/api/device/platforms");
+
+    expect(res.status).toBe(404);
   });
 });

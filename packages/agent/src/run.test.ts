@@ -4,9 +4,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Action } from "@gemma-e2e/core";
 import { createLogger, type LogEvent } from "@gemma-e2e/logger";
-import { type AdbLike, runScenario, type RunEvent } from "./run.ts";
+import { runScenario, type RunEvent } from "./run.ts";
+import type { Driver } from "./driver.ts";
+import type { Recorder } from "./recorder.ts";
 import {
   FakeAdb,
+  FakeDriverFactory,
   FakeRecorder,
   FakeStore,
   HOME_XML,
@@ -33,22 +36,25 @@ const DEFAULT_MODEL = "env-model";
 function harness(
   scripts: (Action | Error)[] | (Action | Error)[][],
   screens = [LOGIN_XML, HOME_XML],
+  recorder?: Recorder,
 ) {
   const perCase = Array.isArray(scripts[0])
     ? (scripts as (Action | Error)[][])
     : [scripts as (Action | Error)[]];
   const adb = new FakeAdb(screens);
+  const drivers = new FakeDriverFactory(adb, recorder);
   const llm = new ScriptedLlmFactory(perCase);
   const store = new FakeStore();
   const events: RunEvent[] = [];
 
   return {
     adb,
+    drivers,
     llm,
     store,
     events,
     deps: {
-      adb,
+      openDriver: drivers.open,
       llm: llm.build,
       store,
       screenshotDir,
@@ -316,13 +322,82 @@ describe("action dispatch", () => {
   });
 });
 
+describe("driver sessions", () => {
+  test("opens one session per case, with that case's own target", async () => {
+    const h = harness([[FINISH_PASSED], [FINISH_PASSED]]);
+
+    await runScenario(
+      scenario({
+        target: { platform: "android", package: "com.example.app" },
+        cases: [
+          testCase({ id: "a" }),
+          // A case naming its own target is what makes a scenario able to
+          // span platforms; here it only overrides the package.
+          testCase({ id: "b", target: { platform: "android", package: "com.other.app" } }),
+        ],
+      }),
+      h.deps,
+    );
+
+    expect(h.drivers.targets).toEqual([
+      { platform: "android", package: "com.example.app" },
+      { platform: "android", package: "com.other.app" },
+    ]);
+  });
+
+  test("closes every session it opens, so nothing leaks between cases", async () => {
+    const h = harness([[FINISH_PASSED], [FINISH_PASSED]]);
+
+    await runScenario(scenario({ cases: [testCase({ id: "a" }), testCase({ id: "b" })] }), h.deps);
+
+    expect(h.drivers.closed).toBe(2);
+  });
+
+  test("closes the session of a case that errored", async () => {
+    const h = harness([new Error("device offline")]);
+
+    const result = await runScenario(scenario(), h.deps);
+
+    expect(result.cases[0]?.status).toBe("error");
+    expect(h.drivers.closed).toBe(1);
+  });
+
+  test("errors the case, not the run, when the driver will not open", async () => {
+    const h = harness([[FINISH_PASSED], [FINISH_PASSED]]);
+    let opened = 0;
+
+    const result = await runScenario(
+      scenario({ cases: [testCase({ id: "a" }), testCase({ id: "b" })] }),
+      {
+        ...h.deps,
+        openDriver: async (target) => {
+          opened += 1;
+          const isFirst = opened === 1;
+          if (isFirst) {
+            throw new Error("chrome is not running");
+          }
+          return h.drivers.open(target);
+        },
+      },
+    );
+
+    expect(result.cases[0]?.status).toBe("error");
+    expect(result.cases[0]?.reason).toBe("chrome is not running");
+    expect(result.cases[1]?.status).toBe("passed");
+  });
+});
+
 describe("app reset between cases", () => {
-  const withApp = { package: "com.example.app", activity: ".MainActivity" };
+  const withApp = {
+    platform: "android",
+    package: "com.example.app",
+    activity: ".MainActivity",
+  } as const;
 
   test("force-stops before launching so a case starts clean", async () => {
     const h = harness([FINISH_PASSED]);
 
-    await runScenario(scenario({ app: withApp }), h.deps);
+    await runScenario(scenario({ target: withApp }), h.deps);
 
     expect(h.adb.calls[0]).toEqual({ method: "stopApp", args: ["com.example.app"] });
     expect(h.adb.calls[1]).toEqual({
@@ -335,7 +410,7 @@ describe("app reset between cases", () => {
     const h = harness([[FINISH_PASSED], [FINISH_PASSED]]);
 
     await runScenario(
-      scenario({ app: withApp, cases: [testCase({ id: "a" }), testCase({ id: "b" })] }),
+      scenario({ target: withApp, cases: [testCase({ id: "a" }), testCase({ id: "b" })] }),
       h.deps,
     );
 
@@ -354,7 +429,11 @@ describe("app reset between cases", () => {
 });
 
 describe("waiting for the app's first screen", () => {
-  const withApp = { package: "com.example.app", activity: ".MainActivity" };
+  const withApp = {
+    platform: "android",
+    package: "com.example.app",
+    activity: ".MainActivity",
+  } as const;
 
   /** A cold start that shows nothing actionable until the second dump. */
   function launching(scripts: (Action | Error)[]) {
@@ -366,7 +445,7 @@ describe("waiting for the app's first screen", () => {
   test("gives the model the drawn screen, not the empty one the launch dumped", async () => {
     const h = launching([FINISH_PASSED]);
 
-    await runScenario(scenario({ app: withApp }), h.deps);
+    await runScenario(scenario({ target: withApp }), h.deps);
 
     const uiText = h.llm.clients[0]?.inputs[0]?.uiText ?? "";
     expect(uiText).toContain("Sign in");
@@ -375,7 +454,7 @@ describe("waiting for the app's first screen", () => {
   test("spends no step on the wait", async () => {
     const h = launching([FINISH_PASSED]);
 
-    const result = await runScenario(scenario({ app: withApp }), h.deps);
+    const result = await runScenario(scenario({ target: withApp }), h.deps);
 
     expect(result.cases[0]?.steps).toBe(1);
     expect(h.store.case("run-1", "logs-in")?.steps).toHaveLength(1);
@@ -385,7 +464,7 @@ describe("waiting for the app's first screen", () => {
     const slept: number[] = [];
     const h = harness([FINISH_PASSED], [LOGIN_XML]);
 
-    await runScenario(scenario({ app: withApp }), {
+    await runScenario(scenario({ target: withApp }), {
       ...h.deps,
       sleep: async (ms: number) => {
         slept.push(ms);
@@ -398,7 +477,7 @@ describe("waiting for the app's first screen", () => {
   test("proceeds after the timeout when the screen never fills in", async () => {
     const h = harness([FINISH_PASSED], [LAUNCHING_XML]);
 
-    const result = await runScenario(scenario({ app: withApp }), h.deps);
+    const result = await runScenario(scenario({ target: withApp }), h.deps);
 
     expect(result.status).toBe("passed");
     expect(h.llm.clients[0]?.inputs[0]?.uiText).toBe("");
@@ -463,11 +542,12 @@ describe("verdicts and errors", () => {
 
   test("a screenshot failure is tolerated and leaves the path null", async () => {
     const adb = new FakeAdb([LOGIN_XML], { screencap: true });
+    const drivers = new FakeDriverFactory(adb);
     const llm = new ScriptedLlmFactory([[FINISH_PASSED]]);
     const store = new FakeStore();
 
     const result = await runScenario(scenario(), {
-      adb,
+      openDriver: drivers.open,
       llm: llm.build,
       store,
       screenshotDir,
@@ -487,17 +567,17 @@ describe("screen recording", () => {
   });
 
   test("films every case start to finish, one recording at a time", async () => {
-    const h = harness([[FINISH_PASSED], [FINISH_PASSED]]);
     const recorder = new FakeRecorder();
+    const h = harness([[FINISH_PASSED], [FINISH_PASSED]], undefined, recorder);
 
-    await runScenario(twoCases, { ...h.deps, recorder });
+    await runScenario(twoCases, h.deps);
 
     expect(recorder.calls).toEqual(["start:valid", "stop:valid", "start:invalid", "stop:invalid"]);
   });
 
   test("starts recording before the app reset, so the clip covers the whole case", async () => {
-    const h = harness([FINISH_PASSED]);
     const recorder = new FakeRecorder();
+    const h = harness([FINISH_PASSED], undefined, recorder);
     const order: string[] = [];
     const stopApp = h.adb.stopApp.bind(h.adb);
     h.adb.stopApp = async (pkg: string) => {
@@ -505,18 +585,18 @@ describe("screen recording", () => {
       await stopApp(pkg);
     };
 
-    await runScenario(scenario({ app: { package: "com.example.app" } }), {
-      ...h.deps,
-      recorder,
-    });
+    await runScenario(
+      scenario({ target: { platform: "android", package: "com.example.app" } }),
+      h.deps,
+    );
 
     expect(order).toEqual(["start:logs-in", "stopApp"]);
   });
 
   test("stores the recording path on the case", async () => {
-    const h = harness([FINISH_PASSED]);
+    const h = harness([FINISH_PASSED], undefined, new FakeRecorder());
 
-    const result = await runScenario(scenario(), { ...h.deps, recorder: new FakeRecorder() });
+    const result = await runScenario(scenario(), h.deps);
 
     expect(result.cases[0]?.videoPath).toBe("/videos/run-1/logs-in.mp4");
     expect(h.store.case("run-1", "logs-in")?.videoPath).toBe("/videos/run-1/logs-in.mp4");
@@ -532,34 +612,28 @@ describe("screen recording", () => {
   });
 
   test("passes the case even when the recorder never starts", async () => {
-    const h = harness([FINISH_PASSED]);
+    const h = harness([FINISH_PASSED], undefined, new FakeRecorder({ start: true }));
 
-    const result = await runScenario(scenario(), {
-      ...h.deps,
-      recorder: new FakeRecorder({ start: true }),
-    });
+    const result = await runScenario(scenario(), h.deps);
 
     expect(result.status).toBe("passed");
     expect(result.cases[0]?.videoPath).toBeNull();
   });
 
   test("passes the case even when the recording cannot be finalised", async () => {
-    const h = harness([FINISH_PASSED]);
+    const h = harness([FINISH_PASSED], undefined, new FakeRecorder({ stop: true }));
 
-    const result = await runScenario(scenario(), {
-      ...h.deps,
-      recorder: new FakeRecorder({ stop: true }),
-    });
+    const result = await runScenario(scenario(), h.deps);
 
     expect(result.status).toBe("passed");
     expect(h.store.case("run-1", "logs-in")?.videoPath).toBeNull();
   });
 
   test("keeps the recording of a case that errored", async () => {
-    const h = harness([[new Error("device offline")], [FINISH_PASSED]]);
     const recorder = new FakeRecorder();
+    const h = harness([[new Error("device offline")], [FINISH_PASSED]], undefined, recorder);
 
-    const result = await runScenario(twoCases, { ...h.deps, recorder });
+    const result = await runScenario(twoCases, h.deps);
 
     expect(result.cases[0]?.status).toBe("error");
     expect(result.cases[0]?.videoPath).toBe("/videos/run-1/valid.mp4");
@@ -567,9 +641,9 @@ describe("screen recording", () => {
   });
 
   test("carries the recording path on case_finished", async () => {
-    const h = harness([FINISH_PASSED]);
+    const h = harness([FINISH_PASSED], undefined, new FakeRecorder());
 
-    await runScenario(scenario(), { ...h.deps, recorder: new FakeRecorder() });
+    await runScenario(scenario(), h.deps);
 
     expect(h.events.find((e) => e.type === "case_finished")).toMatchObject({
       videoPath: "/videos/run-1/logs-in.mp4",
@@ -701,22 +775,24 @@ describe("screen signature", () => {
     expect(h.llm.clients[0]?.inputs[1]?.historySummary).toBe("1. tap [1]");
   });
 
-  test("falls back when the client has no way to report an activity at all", async () => {
+  test("falls back when the driver cannot report a screen label at all", async () => {
     const h = harness([{ type: "tap", ref: 1 }, FINISH_PASSED], [LOGIN_XML, HOME_XML]);
-    // An AdbLike written before signatures existed: the method is absent, not
-    // merely returning "".
-    const adb: AdbLike = {
+    // A driver that omits the optional method entirely, rather than one that
+    // implements it and returns "".
+    const driver: Driver = {
       dumpUi: () => h.adb.dumpUi(),
       tap: (x, y) => h.adb.tap(x, y),
       typeText: (text) => h.adb.typeText(text),
       swipe: (direction) => h.adb.swipe(direction),
       keyevent: (key) => h.adb.keyevent(key),
       screencap: (destPath) => h.adb.screencap(destPath),
-      launchApp: (pkg, activity) => h.adb.launchApp(pkg, activity),
-      stopApp: (pkg) => h.adb.stopApp(pkg),
+      reset: async () => {},
     };
 
-    await runScenario(scenario(), { ...h.deps, adb });
+    await runScenario(scenario(), {
+      ...h.deps,
+      openDriver: async () => ({ driver, close: async () => {} }),
+    });
 
     expect(h.llm.clients[0]?.inputs[1]?.historySummary).toBe("1. tap [1]");
   });

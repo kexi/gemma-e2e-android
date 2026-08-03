@@ -10,5 +10,9 @@
     // No "bun": the SPA must not typecheck against APIs the browser lacks.
     "types": ["vite/client"]
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"]
+  // Tests are excluded here and picked up by tsconfig.server.json instead:
+  // they run on bun:test, and admitting Bun's types to this config would let
+  // the SPA itself typecheck against APIs the browser does not have.
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }

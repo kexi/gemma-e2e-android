@@ -3,7 +3,8 @@
 # what makes them worth running: the history window and the `remember` action
 # only matter once a case outgrows a single screen.
 title: Coffee shop
-app:
+target:
+  platform: android
   package: dev.kexi.gemmae2e.example
   activity: .MainActivity
 cases:

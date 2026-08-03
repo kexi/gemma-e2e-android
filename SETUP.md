@@ -18,7 +18,7 @@ curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix 
 
 With an existing Nix install, make sure `~/.config/nix/nix.conf` contains:
 
-```
+```text
 experimental-features = nix-command flakes
 ```
 
@@ -117,6 +117,30 @@ just android      # expo run:android — prebuilds (CNG) and installs "Kexi Coff
 The first run generates `android/` and downloads Gradle dependencies, so it
 takes a while; later runs are incremental.
 
+## 5b. Chrome, for web scenarios
+
+Scenarios naming a `web` target drive Chrome over the DevTools Protocol. Two
+processes: the app under test, and a browser with the debugging port open.
+
+```sh
+just example-web  # the shop, in the browser → http://localhost:5174
+just chrome       # Chrome --remote-debugging-port=9222
+```
+
+`just chrome` uses a profile of its own under `$TMPDIR`, so an already-running
+Chrome does not have to be closed first — a second instance sharing the default
+profile refuses to open the port. To drive a browser started some other way,
+point `CHROME_ENDPOINT` at it instead.
+
+Nothing needs to be running for the dashboard to boot: the driver connects on
+first use, so a web case simply errors with the flag to start Chrome with. Only
+that case fails; the rest of the run continues.
+
+`just cdp-check` drives the example app through the real client and prints the
+tree the model would read. It is the only thing that exercises the DOM
+collector, which runs inside the page and therefore has no unit tests, so it is
+worth running after touching `packages/cdp`.
+
 ## 6. Firestore emulator
 
 Run history lives in Firestore. Development never touches a real Google
@@ -175,17 +199,35 @@ static image rather than a stalled one. The view is read-only. If it will not
 connect, `just mirror` opens the same screen in scrcpy independently of the
 dashboard. Point the server at a different bridge with `EMULATOR_GRPC=host:port`.
 
+The same page also shows Chrome, through the screencast the recorder already
+uses. Both platforms are always attached -- neither costs anything idle -- so
+the Device page carries a picker rather than the server carrying a setting, and
+an emulator that is down no longer hides the browser view. The choice is
+remembered across pages and reloads. `LIVE_VIEW_URL` sets where the browser
+view looks when no run is driving it.
+
+That view opens a page of its own rather than sharing the ones a run creates,
+since those are disposed with their contexts at the end of each case.
+
 ### Screen recordings
 
 Every case is recorded end to end with scrcpy and saved as
 
-```
+```text
 var/videos/{runId}/{caseId}.mp4
 ```
 
 Once a case finishes, its accordion on the run page grows a player, so a failure
 nobody watched live can still be replayed. The same recording works for
 emulators and physical devices, and there is no time limit on a clip.
+
+Web cases are filmed too, by a different route: CDP has no video capture, so
+the page's screencast frames are muxed through `ffmpeg`. Like scrcpy, it is
+declared in `flake.nix`, so the devshell supplies it and there is nothing to
+install. The recorder resolves `ffmpeg` from `PATH` (or a configured path), so
+any install will do — the devshell is simply the one that is guaranteed. The
+result is lossier than scrcpy's and drops frames under fast scrolling, though
+it lands in the same place and plays back in the same dashboard.
 
 Recording is on by default and needs no setup — scrcpy comes from the devshell.
 Turn it off with `RECORD_RUNS=0` in `.env` (or in the environment). It is best

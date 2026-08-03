@@ -1,6 +1,6 @@
-import type { CaseRun, Run, Scenario, Step, TestCase } from "@gemma-e2e/core/schema";
+import type { CaseRun, Run, Scenario, Step, Target, TestCase } from "@gemma-e2e/core/schema";
 
-export type { CaseRun, Run, Scenario, Step, TestCase };
+export type { CaseRun, Run, Scenario, Step, Target, TestCase };
 
 export interface ModelInfo {
   id: string;
@@ -33,9 +33,16 @@ export function fetchScenarios(): Promise<{ scenarios: Scenario[] }> {
 export interface CreateScenarioRequest {
   id: string;
   title: string;
-  app?: { package: string; activity?: string };
+  target?: Target;
   model?: string;
-  cases: { id: string; title?: string; prompt: string; model?: string; maxSteps?: number }[];
+  cases: {
+    id: string;
+    title?: string;
+    prompt: string;
+    model?: string;
+    target?: Target;
+    maxSteps?: number;
+  }[];
 }
 
 export function createScenario(

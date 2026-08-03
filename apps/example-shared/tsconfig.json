@@ -1,0 +1,10 @@
+{
+  // No "types": this is imported by a React Native app and by a browser SPA,
+  // so it must typecheck against neither Bun's nor the DOM's globals -- it is
+  // plain data and arithmetic, and nothing here should reach for a platform.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": []
+  },
+  "include": ["src/**/*.ts"]
+}

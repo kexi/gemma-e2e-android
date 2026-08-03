@@ -1,0 +1,25 @@
+# The same two assertions as login.yaml, against the browser build of the same
+# app. The prompts are deliberately near-identical: what differs is the target,
+# and a case that reads the same on both is the point -- it says the agent is
+# describing the app rather than the platform.
+title: Login (web)
+target:
+  platform: web
+  url: http://localhost:5174
+cases:
+  - id: valid-credentials
+    title: Logs in with valid credentials
+    prompt: >-
+      Check that a user can log in. Enter the email "demo@example.com" and the
+      password "demo1234", submit the form, and confirm that the app reaches the
+      logged-in shop screen listing coffee beans.
+    maxSteps: 15
+
+  - id: invalid-password
+    title: Shows an error for a wrong password
+    prompt: >-
+      Check that logging in with a wrong password fails visibly. Enter the email
+      "demo@example.com" and the password "wrongpass", submit the form, and
+      confirm that the screen shows the error message "Invalid email or
+      password". Finish with verdict "passed" once that message is visible.
+    maxSteps: 15

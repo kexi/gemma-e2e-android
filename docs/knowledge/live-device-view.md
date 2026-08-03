@@ -45,3 +45,25 @@ delivery at ~20 fps so an animation cannot flood the socket.
 *Why insecure gRPC:* the bridge binds to localhost and is started without
 `-grpc-use-token`, so there is no credential to present. Nothing else in the
 repo depends on the flag; dropping it costs only the live view.
+
+*Why the browser reuses the same relay:* the relay was written against gRPC's
+server-streaming call -- an emitter with `data`/`error`/`end` and a `cancel` --
+so the CDP screencast is presented in that shape rather than the relay learning
+a second protocol. Both platforms then share one throttle and one teardown
+path, and the WebSocket endpoint and the frontend are unchanged.
+
+*Why both sources are attached and the client picks:* one page and one socket
+means one view at a time, but that is a fact about the UI, not the server.
+Neither source costs anything idle -- grpc-js connects lazily and the browser
+page opens on first use -- so making it a startup setting only meant that
+watching the other platform required a restart, and that an emulator being down
+hid the browser view too. `?platform=` selects per request, and
+`/api/device/platforms` lets the picker hide itself where there is only one.
+
+*Why not derive it from the running scenario:* the page would flip mid-run on a
+scenario that spans both, and show nothing at all when no run is in flight.
+
+*Why the browser view opens a page of its own:* the pages a run creates are
+disposed with their browser contexts at the end of each case, which is what
+isolates one case from the next. Sharing one would blank the view between cases
+and hold a context open past the case it belonged to.

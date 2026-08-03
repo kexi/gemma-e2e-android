@@ -24,14 +24,6 @@ export function parseBounds(raw: string): Bounds {
   };
 }
 
-/** Tap target for a node: the rectangle's centre, rounded down. */
-export function centerOf(bounds: Bounds): { x: number; y: number } {
-  return {
-    x: Math.floor((bounds.x1 + bounds.x2) / 2),
-    y: Math.floor((bounds.y1 + bounds.y2) / 2),
-  };
-}
-
 // fast-xml-parser is configured to never coerce values: uiautomator writes
 // booleans as the strings "true"/"false" and resource ids that look numeric
 // ("0", "123") must not silently become numbers.

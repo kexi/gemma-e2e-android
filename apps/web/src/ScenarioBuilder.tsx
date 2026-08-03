@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import EditIcon from "@mui/icons-material/Edit";
+import type { Platform, Target } from "@gemma-e2e/core/schema";
 import {
   createScenario,
   type CreateScenarioRequest,
@@ -25,6 +26,14 @@ interface CaseDraft {
   title: string;
   prompt: string;
   model: string;
+  /**
+   * Carried through untouched, and not editable in this form.
+   *
+   * A case may override the scenario's platform, which is what lets one
+   * scenario span both. Nothing here edits that, but a draft that dropped it
+   * would delete it on save -- silently, since the form never showed it.
+   */
+  target?: Target | undefined;
   maxSteps: string;
 }
 
@@ -33,12 +42,20 @@ function emptyCase(): CaseDraft {
   return { key: nextCaseKey, id: "", title: "", prompt: "", model: SERVER_DEFAULT, maxSteps: "20" };
 }
 
-/** Every editable value, so one object can be swapped in as a unit. */
+/**
+ * Every editable value, so one object can be swapped in as a unit.
+ *
+ * The android and web fields are held side by side rather than in a union: a
+ * user toggling the platform to look at the other form and back would
+ * otherwise lose what they had typed.
+ */
 interface Draft {
   id: string;
   title: string;
+  platform: Platform;
   appPackage: string;
   appActivity: string;
+  url: string;
   model: string;
   cases: CaseDraft[];
 }
@@ -47,8 +64,10 @@ function emptyDraft(): Draft {
   return {
     id: "",
     title: "",
+    platform: "android",
     appPackage: "",
     appActivity: "",
+    url: "",
     model: SERVER_DEFAULT,
     cases: [emptyCase()],
   };
@@ -62,8 +81,10 @@ function draftOf(scenario: Scenario): Draft {
   return {
     id: scenario.id,
     title: scenario.title,
-    appPackage: scenario.app?.package ?? "",
-    appActivity: scenario.app?.activity ?? "",
+    platform: scenario.target?.platform ?? "android",
+    appPackage: scenario.target?.platform === "android" ? scenario.target.package : "",
+    appActivity: scenario.target?.platform === "android" ? (scenario.target.activity ?? "") : "",
+    url: scenario.target?.platform === "web" ? scenario.target.url : "",
     model: scenario.model ?? SERVER_DEFAULT,
     cases: scenario.cases.map((one) => {
       nextCaseKey += 1;
@@ -73,10 +94,41 @@ function draftOf(scenario: Scenario): Draft {
         title: one.title ?? "",
         prompt: one.prompt,
         model: one.model ?? SERVER_DEFAULT,
+        ...(one.target === undefined ? {} : { target: one.target }),
         maxSteps: String(one.maxSteps),
       };
     }),
   };
+}
+
+/**
+ * Builds the target from whichever platform's fields are showing. Returns
+ * undefined when the chosen platform's required field is blank, which is how a
+ * scenario says "drive whatever is already on screen".
+ */
+function buildTarget(
+  draft: Pick<Draft, "platform" | "appPackage" | "appActivity" | "url">,
+): Target | undefined {
+  switch (draft.platform) {
+    case "android": {
+      const pkg = draft.appPackage.trim();
+      const activity = draft.appActivity.trim();
+      const isBlank = pkg === "";
+      if (isBlank) {
+        return undefined;
+      }
+      return {
+        platform: "android",
+        package: pkg,
+        ...(activity === "" ? {} : { activity }),
+      };
+    }
+    case "web": {
+      const url = draft.url.trim();
+      const isBlank = url === "";
+      return isBlank ? undefined : { platform: "web", url };
+    }
+  }
 }
 
 /**
@@ -127,8 +179,10 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
   // user's, so editing never re-slugs it.
   const [idIsCustom, setIdIsCustom] = useState(isEditing);
   const [title, setTitle] = useState(() => initial().title);
+  const [platform, setPlatform] = useState<Platform>(() => initial().platform);
   const [appPackage, setAppPackage] = useState(() => initial().appPackage);
   const [appActivity, setAppActivity] = useState(() => initial().appActivity);
+  const [url, setUrl] = useState(() => initial().url);
   const [model, setModel] = useState(() => initial().model);
   const [cases, setCases] = useState<CaseDraft[]>(() => initial().cases);
   const [saving, setSaving] = useState(false);
@@ -154,8 +208,10 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
     setId(start.id);
     setIdIsCustom(isEditing);
     setTitle(start.title);
+    setPlatform(start.platform);
     setAppPackage(start.appPackage);
     setAppActivity(start.appActivity);
+    setUrl(start.url);
     setModel(start.model);
     setCases(start.cases);
     setError(null);
@@ -195,23 +251,21 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
     setSaving(true);
     setError(null);
 
+    const target = buildTarget({ platform, appPackage, appActivity, url });
+
     const body: CreateScenarioRequest = {
       id,
       title,
-      ...(appPackage.trim() === ""
-        ? {}
-        : {
-            app: {
-              package: appPackage.trim(),
-              ...(appActivity.trim() === "" ? {} : { activity: appActivity.trim() }),
-            },
-          }),
+      ...(target === undefined ? {} : { target }),
       ...(model === SERVER_DEFAULT ? {} : { model }),
       cases: cases.map((one) => ({
         id: one.id,
         ...(one.title.trim() === "" ? {} : { title: one.title.trim() }),
         prompt: one.prompt.trim(),
         ...(one.model === SERVER_DEFAULT ? {} : { model: one.model }),
+        // Sent back as it arrived: this form cannot edit a case's target, so
+        // omitting it would delete an override the user never saw.
+        ...(one.target === undefined ? {} : { target: one.target }),
         ...(one.maxSteps.trim() === "" ? {} : { maxSteps: Number(one.maxSteps) }),
       })),
     };
@@ -338,33 +392,61 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
               </p>
             </div>
 
-            <div className="builder-row">
-              <div className="builder-field">
-                <label htmlFor={`${dialogId}-package`}>App package</label>
-                <input
-                  id={`${dialogId}-package`}
-                  name="appPackage"
-                  value={appPackage}
-                  onChange={(e) => setAppPackage(e.target.value)}
-                  placeholder="dev.kexi.gemmae2e.example"
-                  autoComplete="off"
-                />
-              </div>
-
-              <div className="builder-field">
-                <label htmlFor={`${dialogId}-activity`}>Activity</label>
-                <input
-                  id={`${dialogId}-activity`}
-                  name="appActivity"
-                  value={appActivity}
-                  onChange={(e) => setAppActivity(e.target.value)}
-                  placeholder=".MainActivity"
-                  autoComplete="off"
-                  // Only meaningful alongside a package, so it follows it.
-                  disabled={appPackage.trim() === ""}
-                />
-              </div>
+            <div className="builder-field">
+              <label htmlFor={`${dialogId}-platform`}>Platform</label>
+              <select
+                id={`${dialogId}-platform`}
+                name="platform"
+                value={platform}
+                onChange={(e) => setPlatform(e.target.value as Platform)}
+              >
+                <option value="android">Android</option>
+                <option value="web">Web</option>
+              </select>
             </div>
+
+            {platform === "android" ? (
+              <div className="builder-row">
+                <div className="builder-field">
+                  <label htmlFor={`${dialogId}-package`}>App package</label>
+                  <input
+                    id={`${dialogId}-package`}
+                    name="appPackage"
+                    value={appPackage}
+                    onChange={(e) => setAppPackage(e.target.value)}
+                    placeholder="dev.kexi.gemmae2e.example"
+                    autoComplete="off"
+                  />
+                </div>
+
+                <div className="builder-field">
+                  <label htmlFor={`${dialogId}-activity`}>Activity</label>
+                  <input
+                    id={`${dialogId}-activity`}
+                    name="appActivity"
+                    value={appActivity}
+                    onChange={(e) => setAppActivity(e.target.value)}
+                    placeholder=".MainActivity"
+                    autoComplete="off"
+                    // Only meaningful alongside a package, so it follows it.
+                    disabled={appPackage.trim() === ""}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="builder-field">
+                <label htmlFor={`${dialogId}-url`}>URL</label>
+                <input
+                  id={`${dialogId}-url`}
+                  name="url"
+                  type="url"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="http://localhost:5174"
+                  autoComplete="off"
+                />
+              </div>
+            )}
 
             <div className="builder-field">
               <label htmlFor={`${dialogId}-model`}>Default model</label>

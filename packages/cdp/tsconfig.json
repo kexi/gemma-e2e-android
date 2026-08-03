@@ -1,0 +1,9 @@
+{
+  // "bun" types: the client opens a WebSocket and spawns Chrome through Bun,
+  // and the tests run on bun:test.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["bun"]
+  },
+  "include": ["src/**/*.ts", "scripts/**/*.ts"]
+}

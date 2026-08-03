@@ -1,111 +1,28 @@
 import { StatusBar } from "expo-status-bar";
 import { type ReactNode, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  addLine,
+  type Bean,
+  BEANS,
+  cartTotalOf,
+  type CartLine,
+  codeMatches,
+  CONFIRMATION_CODE,
+  credentialsMatch,
+  findBean,
+  formatPrice,
+  itemCountOf,
+  ORDER_NUMBER,
+  type ScreenName,
+  SIGN_IN_ERROR,
+  WRONG_CODE_ERROR,
+} from "@gemma-e2e/example-shared";
 
-// A fake coffee store, used as the target the E2E agent drives. Everything is
-// hardcoded and deterministic: there is no backend, so a scenario's expected
-// totals and codes are the same on every run and on every machine.
-const DEMO_EMAIL = "demo@example.com";
-const DEMO_PASSWORD = "demo1234";
-
-const SIGN_IN_ERROR = "Invalid email or password";
-
-/** Shown on the checkout screen, typed back on the one after it. */
-const CONFIRMATION_CODE = "4821";
-const WRONG_CODE_ERROR = "Wrong confirmation code";
-const ORDER_NUMBER = "KCS-1001";
-
-interface Bean {
-  id: string;
-  name: string;
-  origin: string;
-  /** Whole dollars: prices render as `$18.00` and totals stay exact in cents. */
-  price: number;
-  roast: string;
-  description: string;
-}
-
-const BEANS: Bean[] = [
-  {
-    id: "yirgacheffe",
-    name: "Yirgacheffe",
-    origin: "Ethiopia",
-    price: 18,
-    roast: "Light",
-    description: "Floral and citric, with a jasmine aroma and a clean tea-like body.",
-  },
-  {
-    id: "huila",
-    name: "Huila",
-    origin: "Colombia",
-    price: 16,
-    roast: "Medium",
-    description: "Caramel sweetness with red apple acidity and a syrupy finish.",
-  },
-  {
-    id: "antigua",
-    name: "Antigua",
-    origin: "Guatemala",
-    price: 17,
-    roast: "Medium",
-    description: "Cocoa and toasted almond, balanced by a gentle orange acidity.",
-  },
-  {
-    id: "sidamo",
-    name: "Sidamo",
-    origin: "Ethiopia",
-    price: 19,
-    roast: "Light",
-    description: "Blueberry and bergamot, fermented slowly on the raised bed.",
-  },
-  {
-    id: "geisha",
-    name: "Geisha",
-    origin: "Panama",
-    price: 42,
-    roast: "Light",
-    description: "Peach, honeysuckle and lime. The most delicate lot on the shelf.",
-  },
-  {
-    id: "toraja",
-    name: "Toraja",
-    origin: "Indonesia",
-    price: 21,
-    roast: "Dark",
-    description: "Earthy and herbal, with cedar, dark chocolate and a heavy body.",
-  },
-];
-
-/** `18` -> `"$18.00"`. One helper so a price reads the same on every screen. */
-function formatPrice(dollars: number): string {
-  return `$${dollars.toFixed(2)}`;
-}
-
-interface CartLine {
-  beanId: string;
-  quantity: number;
-}
-
-/** Which screen is on top. State-based navigation keeps the dependency list to
- *  the Expo template's: a router would add a library to a fixture app. */
-type ScreenName =
-  | { name: "signIn" }
-  | { name: "shop" }
-  | { name: "bean"; beanId: string }
-  | { name: "cart" }
-  | { name: "checkout" }
-  | { name: "confirm" }
-  | { name: "orderComplete" };
-
-function findBean(beanId: string): Bean {
-  const bean = BEANS.find((candidate) => candidate.id === beanId);
-  // The id always comes from BEANS itself, so this is unreachable in practice;
-  // throwing keeps the return type non-optional for every caller.
-  if (bean === undefined) {
-    throw new Error(`unknown bean: ${beanId}`);
-  }
-  return bean;
-}
+// The fake coffee store the E2E agent drives. Its data, its flow and every
+// string a scenario asserts on come from example-shared, which the web app
+// imports too -- so the two fixtures cannot drift apart and start disagreeing
+// about a total or an error message.
 
 export default function App() {
   const [screen, setScreen] = useState<ScreenName>({ name: "signIn" });
@@ -113,22 +30,11 @@ export default function App() {
   const [codeInput, setCodeInput] = useState("");
   const [codeError, setCodeError] = useState("");
 
-  const itemCount = cart.reduce((total, line) => total + line.quantity, 0);
-  const cartTotal = cart.reduce(
-    (total, line) => total + findBean(line.beanId).price * line.quantity,
-    0,
-  );
+  const itemCount = itemCountOf(cart);
+  const cartTotal = cartTotalOf(cart);
 
   const addToCart = (beanId: string) => {
-    setCart((lines) => {
-      const existing = lines.find((line) => line.beanId === beanId);
-      if (existing === undefined) {
-        return [...lines, { beanId, quantity: 1 }];
-      }
-      return lines.map((line) =>
-        line.beanId === beanId ? { ...line, quantity: line.quantity + 1 } : line,
-      );
-    });
+    setCart((lines) => addLine(lines, beanId));
     setScreen({ name: "cart" });
   };
 
@@ -140,8 +46,7 @@ export default function App() {
   };
 
   const placeOrder = () => {
-    const codeMatches = codeInput.trim() === CONFIRMATION_CODE;
-    if (!codeMatches) {
+    if (!codeMatches(codeInput)) {
       setCodeError(WRONG_CODE_ERROR);
       return;
     }
@@ -218,8 +123,7 @@ function SignInScreen(props: { onSignedIn: () => void }) {
   const [error, setError] = useState("");
 
   const signIn = () => {
-    const credentialsMatch = email.trim() === DEMO_EMAIL && password === DEMO_PASSWORD;
-    if (!credentialsMatch) {
+    if (!credentialsMatch(email, password)) {
       setError(SIGN_IN_ERROR);
       return;
     }

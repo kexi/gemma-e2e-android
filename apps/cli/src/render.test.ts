@@ -211,15 +211,28 @@ describe("renderScenario", () => {
     expect(output).toContain("invalid  reject a wrong password");
   });
 
-  test("shows the app target and model only when the scenario names them", () => {
+  test("shows the target and model only when the scenario names them", () => {
     const withApp = renderScenario(
-      { ...SCENARIO, app: { package: "com.example", activity: ".Main" }, model: "gemma" },
+      {
+        ...SCENARIO,
+        target: { platform: "android", package: "com.example", activity: ".Main" },
+        model: "gemma",
+      },
       plain,
     );
 
-    expect(withApp).toContain("app    com.example/.Main");
+    expect(withApp).toContain("target android com.example/.Main");
     expect(withApp).toContain("model  gemma");
-    expect(renderScenario(SCENARIO, plain)).not.toContain("app  ");
+    expect(renderScenario(SCENARIO, plain)).not.toContain("target ");
+  });
+
+  test("shows a web target by its url", () => {
+    const onWeb = renderScenario(
+      { ...SCENARIO, target: { platform: "web", url: "http://localhost:5174" } },
+      plain,
+    );
+
+    expect(onWeb).toContain("target web http://localhost:5174");
   });
 });
 

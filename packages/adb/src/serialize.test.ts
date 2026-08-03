@@ -1,6 +1,10 @@
+// The serializer itself lives in core, which cannot depend on this package.
+// These cases stay here because they drive it through `parseUiDump`, so what
+// they actually pin down is that a real uiautomator dump renders the way the
+// model expects. The platform-neutral cases live in core's own suite.
 import { describe, expect, test } from "bun:test";
+import { serializeForLlm } from "@gemma-e2e/core";
 import { parseUiDump } from "./parse.ts";
-import { serializeForLlm } from "./serialize.ts";
 import { LIST_SCREEN_XML, LOGIN_SCREEN_XML } from "./fixtures.ts";
 
 describe("serializeForLlm: login screen", () => {

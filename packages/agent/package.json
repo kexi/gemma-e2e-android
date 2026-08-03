@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@gemma-e2e/adb": "workspace:*",
+    "@gemma-e2e/cdp": "workspace:*",
     "@gemma-e2e/core": "workspace:*",
     "@gemma-e2e/logger": "workspace:*",
     "@gemma-e2e/store": "workspace:*",

@@ -148,12 +148,55 @@ export const RunSchema = z.object({
 
 export type Run = z.infer<typeof RunSchema>;
 
-export const AppTargetSchema = z.object({
+/**
+ * What a case drives: an installed Android app, or a page in a browser.
+ *
+ * A discriminated union rather than one object with optional fields, so a
+ * target that names a package can never also name a URL, and so the driver
+ * resolver's switch is exhaustive -- adding a platform then fails to compile
+ * until every site handles it.
+ */
+export const AndroidTargetSchema = z.object({
+  platform: z.literal("android"),
   package: z.string().min(1),
   activity: z.string().min(1).optional(),
 });
 
-export type AppTarget = z.infer<typeof AppTargetSchema>;
+export type AndroidTarget = z.infer<typeof AndroidTargetSchema>;
+
+export const WebTargetSchema = z.object({
+  platform: z.literal("web"),
+  url: z.string().url(),
+  /** Omitted, the driver's default viewport applies. */
+  viewport: z
+    .object({
+      width: z.number().int().positive(),
+      height: z.number().int().positive(),
+    })
+    .optional(),
+});
+
+export type WebTarget = z.infer<typeof WebTargetSchema>;
+
+export const TargetSchema = z.discriminatedUnion("platform", [
+  AndroidTargetSchema,
+  WebTargetSchema,
+]);
+
+export type Target = z.infer<typeof TargetSchema>;
+
+/** The discriminant on its own, for code that selects a platform before a target exists. */
+export type Platform = Target["platform"];
+
+/**
+ * The pre-`target` spelling, kept so scenario files written before browsers
+ * existed keep loading. Normalised to an android target on parse, so nothing
+ * downstream of the schema ever sees this shape.
+ */
+const LegacyAppTargetSchema = z.object({
+  package: z.string().min(1),
+  activity: z.string().min(1).optional(),
+});
 
 /**
  * One assertion about the app, in natural language. A case is what actually
@@ -169,6 +212,8 @@ export const TestCaseSchema = z.object({
   prompt: z.string().min(1),
   /** Overrides the scenario's model for this case alone. */
   model: z.string().min(1).optional(),
+  /** Overrides the scenario's target, so one file may mix platforms. */
+  target: TargetSchema.optional(),
   // A wrong turn early can otherwise burn tokens indefinitely; every case is
   // bounded even when the scenario file omits a budget.
   maxSteps: z.number().int().positive().default(20),
@@ -176,14 +221,57 @@ export const TestCaseSchema = z.object({
 
 export type TestCase = z.infer<typeof TestCaseSchema>;
 
-export const ScenarioSchema = z.object({
-  id: z.string().min(1),
-  title: z.string().min(1),
-  app: AppTargetSchema.optional(),
-  /** Default model for every case that does not name its own. */
-  model: z.string().min(1).optional(),
-  cases: z.array(TestCaseSchema).min(1, "a scenario needs at least one case"),
-});
+/**
+ * Rewrites the legacy `app:` key into an android `target:`.
+ *
+ * Done as a preprocess rather than by keeping both keys on the schema: two
+ * spellings of the same thing would then reach every consumer, and each would
+ * have to decide which wins. Here the ambiguity is resolved once, and
+ * everything downstream of the parse sees only `target`.
+ *
+ * An explicit `target:` wins, so a file being migrated can carry both while
+ * the old key is removed.
+ */
+function normalizeTarget(input: unknown): unknown {
+  const isMapping = typeof input === "object" && input !== null && !Array.isArray(input);
+  if (!isMapping) {
+    return input;
+  }
+
+  const { app, ...rest } = input as Record<string, unknown> & { app?: unknown };
+
+  const hasTarget = rest["target"] !== undefined;
+  if (hasTarget) {
+    return rest;
+  }
+
+  const hasApp = app !== undefined;
+  if (!hasApp) {
+    return rest;
+  }
+
+  // A malformed `app:` is forwarded as the target rather than dropped: the
+  // object schema ignores keys it does not know, so discarding it here would
+  // load the scenario as though it had named no target at all -- and the case
+  // would then drive whatever the previous one left on screen.
+  const legacy = LegacyAppTargetSchema.safeParse(app);
+  return legacy.success
+    ? { ...rest, target: { platform: "android", ...legacy.data } }
+    : { ...rest, target: app };
+}
+
+export const ScenarioSchema = z.preprocess(
+  normalizeTarget,
+  z.object({
+    id: z.string().min(1),
+    title: z.string().min(1),
+    /** Default target for every case that does not name its own. */
+    target: TargetSchema.optional(),
+    /** Default model for every case that does not name its own. */
+    model: z.string().min(1).optional(),
+    cases: z.array(TestCaseSchema).min(1, "a scenario needs at least one case"),
+  }),
+);
 
 export type Scenario = z.infer<typeof ScenarioSchema>;
 /** Pre-parse shape: `maxSteps` is optional on disk, defaulted after parsing. */
@@ -200,4 +288,33 @@ export function resolveModel(
   fallback: string,
 ): string {
   return testCase.model ?? scenario.model ?? fallback;
+}
+
+/**
+ * Picks the target for a case, on the same case-then-scenario chain as
+ * {@link resolveModel}. There is no process-wide fallback: a case with no
+ * target anywhere drives whatever is already on screen, which is what a
+ * scenario that omits `target:` has always meant.
+ */
+export function resolveTarget(
+  testCase: Pick<TestCase, "target">,
+  scenario: Pick<Scenario, "target">,
+): Target | undefined {
+  return testCase.target ?? scenario.target;
+}
+
+/**
+ * One-line label for a target, e.g. `com.example/.MainActivity` or
+ * `http://localhost:5174`. Lives here so the CLI and the dashboard cannot
+ * drift into describing the same target two different ways.
+ */
+export function describeTarget(target: Target): string {
+  switch (target.platform) {
+    case "android": {
+      const suffix = target.activity === undefined ? "" : `/${target.activity}`;
+      return `${target.package}${suffix}`;
+    }
+    case "web":
+      return target.url;
+  }
 }

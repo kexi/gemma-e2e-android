@@ -1,0 +1,168 @@
+/*
+ * Plain CSS on plain elements. No component library: the point of this app is
+ * to be read through a DOM walker, and a library that renders every control as
+ * nested divs would hide exactly the semantics the walker is meant to find.
+ */
+
+:root {
+  --brown: #6d4c41;
+  --brown-dark: #4e342e;
+  --brown-light: #efebe9;
+  --border: #e0e0e0;
+  --muted: #5f6368;
+  --error: #c62828;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+  font-size: 16px;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #fff;
+  color: #111;
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0 auto;
+  max-width: 640px;
+  padding: 48px 24px 24px;
+}
+
+h1 {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0;
+}
+
+h2 {
+  font-size: 16px;
+  font-weight: 400;
+  margin: 0;
+}
+
+p {
+  margin: 0;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.total {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.error {
+  color: var(--error);
+  font-size: 14px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+  gap: 4px;
+}
+
+input {
+  border: 1px solid #c7c7cc;
+  border-radius: 8px;
+  font-size: 16px;
+  padding: 12px;
+  width: 100%;
+}
+
+button {
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 14px;
+}
+
+button.primary {
+  background: var(--brown);
+  color: #fff;
+}
+
+button.secondary {
+  background: transparent;
+  border: 1px solid var(--brown);
+  color: var(--brown);
+  font-size: 15px;
+  padding: 12px;
+}
+
+button.small {
+  background: var(--brown-light);
+  border-radius: 6px;
+  color: var(--brown-dark);
+  font-size: 14px;
+  padding: 8px 12px;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+ul.beans {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+ul.beans button {
+  background: transparent;
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  font-weight: 400;
+  gap: 2px;
+  padding: 12px;
+  text-align: left;
+  width: 100%;
+}
+
+.row-title {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.row-meta {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.cart-line {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px;
+}

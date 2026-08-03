@@ -1,15 +1,22 @@
 import type {
   Action,
   CaseRun,
+  KeyName,
   Run,
   RunStatus,
   Scenario,
   Step,
+  SwipeDirection,
+  Target,
   TestCase,
   UiNode,
 } from "@gemma-e2e/core";
 import { parseUiDump } from "@gemma-e2e/adb";
-import type { AdbLike, StoreLike } from "./run.ts";
+import type { CdpSession } from "@gemma-e2e/cdp";
+import type { StoreLike } from "./run.ts";
+import type { DriverSession, OpenDriver } from "./driver.ts";
+import { type AdbLike, AndroidDriver } from "./drivers/android.ts";
+import type { CdpLike } from "./drivers/web.ts";
 import type { DecideInput, Llm } from "./llm.ts";
 import type { Recorder, RecorderProcess, Recording } from "./recorder.ts";
 
@@ -135,6 +142,107 @@ export class FakeAdb implements AdbLike {
     // of resetting between cases.
     this.#screenIndex = 0;
   }
+}
+
+/**
+ * A browser stand-in, recording every call and handing out a fresh session id
+ * per `openSession` so a test can tell one case's page from the next's.
+ */
+export class FakeCdp implements CdpLike {
+  readonly calls: AdbCall[] = [];
+  readonly closed: string[] = [];
+  opened = 0;
+  /** Answers `dumpUi`; defaults to the same login screen the adb fake serves. */
+  screens: string[] = [LOGIN_XML];
+  label = "/ Example";
+
+  #screenIndex = 0;
+
+  async openSession(viewport?: { width: number; height: number }): Promise<CdpSession> {
+    this.calls.push({ method: "openSession", args: [viewport] });
+    this.opened += 1;
+    const id = String(this.opened);
+    return { sessionId: `S${id}`, targetId: `T${id}`, browserContextId: `C${id}` };
+  }
+
+  async closeSession(session: CdpSession): Promise<void> {
+    this.calls.push({ method: "closeSession", args: [session.sessionId] });
+    this.closed.push(session.sessionId);
+  }
+
+  async navigate(session: CdpSession, url: string): Promise<void> {
+    this.calls.push({ method: "navigate", args: [session.sessionId, url] });
+    // A navigation lands on the first screen again, which is what makes a
+    // fresh context a reset.
+    this.#screenIndex = 0;
+  }
+
+  async dumpUi(): Promise<UiNode> {
+    this.calls.push({ method: "dumpUi", args: [] });
+    const index = Math.min(this.#screenIndex, this.screens.length - 1);
+    return parseUiDump(this.screens[index] as string);
+  }
+
+  async screenLabel(): Promise<string> {
+    this.calls.push({ method: "screenLabel", args: [] });
+    return this.label;
+  }
+
+  async tap(_session: CdpSession, x: number, y: number): Promise<void> {
+    this.calls.push({ method: "tap", args: [x, y] });
+    this.#screenIndex++;
+  }
+
+  async typeText(_session: CdpSession, text: string): Promise<void> {
+    this.calls.push({ method: "typeText", args: [text] });
+  }
+
+  async swipe(_session: CdpSession, direction: SwipeDirection): Promise<void> {
+    this.calls.push({ method: "swipe", args: [direction] });
+  }
+
+  async keyevent(_session: CdpSession, key: KeyName): Promise<void> {
+    this.calls.push({ method: "keyevent", args: [key] });
+  }
+
+  async screencap(_session: CdpSession, destPath: string): Promise<string> {
+    this.calls.push({ method: "screencap", args: [destPath] });
+    return destPath;
+  }
+}
+
+/**
+ * An {@link OpenDriver} that wraps one {@link FakeAdb} in the real
+ * {@link AndroidDriver}, so loop tests exercise the adapter rather than
+ * bypassing it, and records the targets and closes it was asked for.
+ */
+export class FakeDriverFactory {
+  /** Targets passed to `open`, in the order cases reached them. */
+  readonly targets: (Target | undefined)[] = [];
+  /** How many sessions have been closed, so a leak shows up as a mismatch. */
+  closed = 0;
+
+  constructor(
+    private readonly adb: AdbLike,
+    private readonly recorder?: Recorder | undefined,
+  ) {}
+
+  open: OpenDriver = async (target) => {
+    this.targets.push(target);
+
+    // Only an android target reaches the android driver; anything else would
+    // be a test asking for a platform this fake does not model.
+    const androidTarget = target?.platform === "android" ? target : undefined;
+
+    const session: DriverSession = {
+      driver: new AndroidDriver(this.adb, androidTarget),
+      ...(this.recorder === undefined ? {} : { recorder: this.recorder }),
+      close: async () => {
+        this.closed += 1;
+      },
+    };
+    return session;
+  };
 }
 
 /** Returns scripted actions in order; the last one repeats. */

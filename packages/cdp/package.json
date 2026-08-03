@@ -1,0 +1,16 @@
+{
+  "name": "@gemma-e2e/cdp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@gemma-e2e/core": "workspace:*",
+    "@gemma-e2e/logger": "workspace:*"
+  }
+}

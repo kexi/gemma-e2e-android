@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { centerOf, parseBounds, parseUiDump, UiDumpParseError } from "./parse.ts";
+import { parseBounds, parseUiDump, UiDumpParseError } from "./parse.ts";
 import { LIST_SCREEN_XML, LOGIN_SCREEN_XML } from "./fixtures.ts";
 
 describe("parseBounds", () => {
@@ -15,16 +15,6 @@ describe("parseBounds", () => {
     expect(() => parseBounds("60,500,1020,640")).toThrow(UiDumpParseError);
     expect(() => parseBounds("[60,500]")).toThrow(UiDumpParseError);
     expect(() => parseBounds("")).toThrow(UiDumpParseError);
-  });
-});
-
-describe("centerOf", () => {
-  test("returns the midpoint", () => {
-    expect(centerOf({ x1: 60, y1: 500, x2: 1020, y2: 640 })).toEqual({ x: 540, y: 570 });
-  });
-
-  test("floors a fractional midpoint so the tap stays inside the rect", () => {
-    expect(centerOf({ x1: 0, y1: 0, x2: 3, y2: 5 })).toEqual({ x: 1, y: 2 });
   });
 });
 

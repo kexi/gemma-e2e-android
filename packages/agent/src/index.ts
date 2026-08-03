@@ -19,7 +19,23 @@ export type {
 } from "./llm.ts";
 
 export { RefResolutionError, runScenario } from "./run.ts";
-export type { AdbLike, CaseResult, RunDeps, RunEvent, RunResult, StoreLike } from "./run.ts";
+export type { CaseResult, RunDeps, RunEvent, RunResult, StoreLike } from "./run.ts";
+
+export type { Driver, DriverSession, OpenDriver } from "./driver.ts";
+export { AndroidDriver } from "./drivers/android.ts";
+export type { AdbLike } from "./drivers/android.ts";
+export { WebDriver } from "./drivers/web.ts";
+export type { CdpLike } from "./drivers/web.ts";
+export { createDriverResolver } from "./drivers/resolve.ts";
+export type { AndroidPlatform, DriverResolverDeps, WebPlatform } from "./drivers/resolve.ts";
+
+export { CdpRecorder } from "./recorders/cdp.ts";
+export type {
+  CdpRecorderOptions,
+  FfmpegProcess,
+  FfmpegSpawn,
+  SubscribeFrames,
+} from "./recorders/cdp.ts";
 
 export { recordCase, RecorderError, ScrcpyRecorder } from "./recorder.ts";
 export type {

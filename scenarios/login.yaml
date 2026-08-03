@@ -1,7 +1,8 @@
 # A scenario bundles test cases; each case is one natural-language goal that
 # gets its own verdict. `id` defaults to the filename when omitted.
 title: Login
-app:
+target:
+  platform: android
   package: dev.kexi.gemmae2e.example
   activity: .MainActivity
 # Every case may name its own `model:`; without one it falls back to this

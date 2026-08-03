@@ -18,7 +18,7 @@ curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix 
 
 既存の Nix を使う場合は `~/.config/nix/nix.conf` に次を入れてください。
 
-```
+```text
 experimental-features = nix-command flakes
 ```
 
@@ -118,6 +118,29 @@ just android      # = expo run:android(prebuild(CNG)→ ビルド → インス�
 初回は `android/` の生成と Gradle 依存のダウンロードで時間がかかります。
 2回目以降は差分ビルドです。
 
+## 5b. Chrome(Web シナリオ用)
+
+`web` を target に持つシナリオは、Chrome を DevTools Protocol 経由で駆動します。
+必要なプロセスは 2 つ — テスト対象のアプリと、デバッグポートを開いたブラウザ。
+
+```sh
+just example-web  # ブラウザ版の Coffee Shop → http://localhost:5174
+just chrome       # Chrome --remote-debugging-port=9222
+```
+
+`just chrome` は `$TMPDIR` 以下に専用プロファイルを作るので、既に起動している
+Chrome を閉じる必要はありません — 既定プロファイルを共有する 2 つ目のインスタンス
+はポートを開いてくれないためです。別の方法で起動したブラウザを使う場合は
+`CHROME_ENDPOINT` をそちらに向けてください。
+
+ダッシュボードの起動自体には何も要りません。ドライバは初回使用時に接続するので、
+Chrome が無ければ Web のケースが「どのフラグで起動すればよいか」を含むメッセージ
+とともに失敗するだけです。失敗するのはそのケースだけで、run の残りは続行します。
+
+`just cdp-check` はサンプルアプリを実際のクライアントで駆動し、モデルが読む
+ツリーを表示します。ページ内で動くため単体テストが届かない DOM collector を
+検証できる唯一の手段なので、`packages/cdp` を触ったあとに実行する価値があります。
+
 ## 6. Firestore エミュレータ
 
 実行履歴は Firestore に保存します。開発中に本物の Google プロジェクトへ触れることは
@@ -174,11 +197,20 @@ API(`http://localhost:5175`)、Vite の開発サーバ(`http://localhost:5173`)�
 `just mirror` でダッシュボードとは独立に scrcpy で同じ画面を開けます。別の
 ブリッジを見せたいときは `EMULATOR_GRPC=host:port` を指定します。
 
+同じページで Chrome も映せます(録画と同じ screencast を使用)。両プラットフォーム
+は常に接続されており — どちらもアイドル時のコストが無いため — サーバ側の設定では
+なく Device ページ上の切り替えで選びます。エミュレータが落ちていてもブラウザ側の
+ビューは見られます。選択はページ遷移やリロードをまたいで保持されます。run が
+駆動していないときにブラウザ側がどこを映すかは `LIVE_VIEW_URL` で指定します。
+
+ブラウザ側のビューは run が作るページを共有せず専用のページを開きます — run の
+ページはケース終了時に context ごと破棄されるためです。
+
 ### 画面録画
 
 各ケースは scrcpy で最初から最後まで録画され、次の場所に保存されます。
 
-```
+```text
 var/videos/{runId}/{caseId}.mp4
 ```
 
@@ -190,6 +222,13 @@ var/videos/{runId}/{caseId}.mp4
 無効にするには `.env`(または環境変数)で `RECORD_RUNS=0` を指定します。いずれに
 してもベストエフォートで、scrcpy が起動できなければ run はそのまま録画なしで続行し、
 サーバは `record.failed` をログに出し、そのケースの `videoPath` は null のままです。
+
+Web のケースも録画されますが、経路は異なります。CDP には動画キャプチャが無いため、
+ページの screencast フレームを `ffmpeg` で mux します。scrcpy と同様 `flake.nix`
+で宣言済みなので devshell が用意し、インストール作業は不要です。レコーダは `PATH`
+(または設定されたパス)から `ffmpeg` を解決するので他の入れ方でも動きますが、
+確実なのは devshell です。scrcpy より画質は劣り、速いスクロールではフレームが
+落ちますが、保存先は同じでダッシュボードでも同じように再生できます。
 
 `var/` は gitignore 済みなので録画がコミットに入ることはありません。run が生成する
 成果物の中では最も容量を食うので、ディスクが厳しいときは `var/videos/` を削除して
