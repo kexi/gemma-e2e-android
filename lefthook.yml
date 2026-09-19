@@ -24,7 +24,7 @@ pre-commit:
       run: bunx oxfmt --check {staged_files}
 
     knowledge:
-      glob: "knowledge/**/*.{md,yml}"
+      glob: "knowledge/*.{md,yml}"
       # Whole-bundle rather than {staged_files}: a tag is validated against
       # tags.yml, so editing either side alone can break the other, and only
       # the staged half would be looked at.
