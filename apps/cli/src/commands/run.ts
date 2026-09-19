@@ -1,4 +1,4 @@
-import type { Run } from "@gemma-e2e/core/schema";
+import { isUnsettledRun, type Run } from "@gemma-e2e/core/schema";
 import { parseCommand, rejectExtraOperands, requireOperand } from "../args.ts";
 import { ApiError, ConnectionError, type CreateRunRequest } from "../client.ts";
 import { type Context, printJson } from "../context.ts";
@@ -416,7 +416,17 @@ async function pollToVerdict(
 ): Promise<ExitCode> {
   for (let attempt = 0; attempt < POLL_MAX_ATTEMPTS; attempt += 1) {
     const run = await pollOnce(context, runId);
-    const isResolved = run !== null && run.status !== "running";
+    // "queued" is as unresolved as "running": the run exists and has an id, but
+    // nothing has touched a device, so there is no verdict to report. Reading
+    // it as resolved made this loop return on its first poll and hand the
+    // caller an exit code derived from a run that had not started.
+    //
+    // Shared with the server's startup sweep through `isUnsettledRun` rather
+    // than spelled out here, so the set of statuses this waits on and the set
+    // that sweep closes out are the same set by construction. They have to be:
+    // the sweep exists to end exactly the waits this loop would otherwise sit
+    // in until it gave up.
+    const isResolved = run !== null && !isUnsettledRun(run.status);
     if (isResolved) {
       reportFinalStatus(context, run);
       return exitCodeForStatus(run.status);

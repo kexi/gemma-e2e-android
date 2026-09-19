@@ -1,4 +1,11 @@
-import type { Action, CaseRun, RunStatus, Scenario, Step } from "@gemma-e2e/core/schema";
+import type {
+  Action,
+  CaseRun,
+  CaseStatus,
+  RunStatus,
+  Scenario,
+  Step,
+} from "@gemma-e2e/core/schema";
 
 /**
  * Mirrors `RunEvent` in packages/agent/src/run.ts:72-96.
@@ -9,6 +16,7 @@ import type { Action, CaseRun, RunStatus, Scenario, Step } from "@gemma-e2e/core
  * that would let this file go away.
  */
 export type RunEvent =
+  | { type: "run_queued"; runId: string; scenario: Scenario }
   | { type: "run_started"; runId: string; scenario: Scenario }
   | { type: "case_started"; runId: string; caseId: string; caseRun: CaseRun }
   | { type: "step_started"; runId: string; caseId: string; index: number }
@@ -27,7 +35,7 @@ export type RunEvent =
       type: "case_finished";
       runId: string;
       caseId: string;
-      status: RunStatus;
+      status: CaseStatus;
       reason: string | null;
       videoPath: string | null;
     }

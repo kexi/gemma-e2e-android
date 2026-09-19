@@ -11,7 +11,7 @@ import { rejection, rejectionOf, withServer } from "./testing.ts";
 describe("ApiClient", () => {
   test("returns the parsed body of a successful request", async () => {
     await withServer(
-      () => Response.json({ scenarios: [{ id: "login", title: "Login", cases: [] }] }),
+      () => Response.json({ scenarios: [{ id: "login", title: "Login", tags: [], cases: [] }] }),
       async (client) => {
         const { scenarios } = await client.listScenarios();
 
@@ -26,7 +26,7 @@ describe("ApiClient", () => {
       () => Response.json({ error: 'scenario "login" already exists' }, { status: 409 }),
       async (client) => {
         const error = await rejection(
-          client.createScenario({ id: "login", title: "Login", cases: [] }),
+          client.createScenario({ id: "login", title: "Login", tags: [], cases: [] }),
         );
 
         expect(error).toBeInstanceOf(ApiError);

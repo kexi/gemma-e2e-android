@@ -16,6 +16,7 @@ import { createApp, type StartRunInput, websocket } from "./app.ts";
 import { CdpDeviceSource } from "./cdp-device.ts";
 import { DEFAULT_EMULATOR_GRPC_TARGET, EmulatorClient } from "./device-stream.ts";
 import { listModels } from "./models.ts";
+import { RunQueue } from "./queue.ts";
 
 const DEFAULT_PORT = 5175;
 
@@ -40,6 +41,36 @@ const logger = createLogger({
 });
 
 const store = Store.open();
+
+/** What an abandoned run's document says, so the reader knows why it has no verdict. */
+const ORPHAN_REASON = "the server restarted before this run finished";
+
+// Awaited before the app is built, so no request can observe the leftovers.
+//
+// *Why the sweep exists at all:* the queue is in memory (see `queue.ts`), so a
+// restart drops every pending job while its document stays at `queued`, and the
+// run that was on the device stays at `running`. Nothing would ever move them
+// again -- yet the dashboard renders both as work still coming and the CLI's
+// poll waits on them forever. `--watch` makes this the common case, not the
+// rare one: every edit to a server file strands whatever was in flight.
+//
+// *Why not resume them instead:* a queued job is only a scenario id; the device
+// it was going to drive is now in whatever state the killed run left it, and
+// under `--watch` a resume would relaunch the same batch on every save.
+//
+// *Why a failure here is logged rather than fatal:* the sweep is bookkeeping
+// about runs that are already over. A Firestore that cannot answer it is a
+// Firestore the dashboard will report on every request anyway, and refusing to
+// boot would take away the page that shows the reader what is wrong.
+try {
+  const settled = await store.settleOrphanedRuns(ORPHAN_REASON);
+  const hasOrphans = settled.length > 0;
+  if (hasOrphans) {
+    logger.warn("runs.orphans_settled", { count: settled.length, runIds: settled });
+  }
+} catch (error: unknown) {
+  logger.error("runs.orphan_sweep_failed", errorFields(error));
+}
 
 // Constructed once and shared: both hold only configuration, and a device or
 // model that is missing surfaces as a run with status=error rather than as a
@@ -93,23 +124,59 @@ const openDriver = createDriverResolver({
   web: { cdp, ...(webRecorder === undefined ? {} : { recorder: webRecorder }) },
 });
 
-function startRun({ runId, scenario, onEvent }: StartRunInput): void {
-  // Deliberately not awaited: POST /api/runs answers 202 immediately and the
-  // client follows progress over SSE. runScenario already converts every
-  // failure into a finished case with status=error, so a rejection here would
-  // only mean the store itself is broken.
-  void runScenario(scenario, {
-    openDriver,
-    llm,
-    store,
-    screenshotDir: screenshotsDir,
-    defaultModel,
-    runId,
-    onEvent,
-    logger,
-  }).catch((error: unknown) => {
-    logger.error("run.crashed", { runId, ...errorFields(error) });
-  });
+// One queue for the whole process, because there is one adb device and one CDP
+// browser behind it. Two runs in flight would tap the same screen and neither
+// verdict would mean anything, so single and batch requests both go through
+// here rather than the batch path getting its own serialisation.
+const queue = new RunQueue({
+  execute: async ({ runId, scenario, onEvent }) => {
+    try {
+      await runScenario(scenario, {
+        openDriver,
+        llm,
+        store,
+        screenshotDir: screenshotsDir,
+        defaultModel,
+        runId,
+        onEvent,
+        logger,
+      });
+    } catch (error: unknown) {
+      logger.error("run.crashed", { runId, ...errorFields(error) });
+
+      const reason = error instanceof Error ? error.message : String(error);
+      // The document is closed out here because `runScenario` did not get to:
+      // a crash that escapes it leaves the run at `running` forever, and the
+      // history would show it as still in progress long after the process
+      // moved on.
+      try {
+        await store.finishRun(runId, { status: "error", verdictReason: reason });
+      } catch (writeError: unknown) {
+        logger.error("run.finish_failed", { runId, ...errorFields(writeError) });
+      }
+
+      // *Why the emit matters as much as the write:* an SSE client watching
+      // this run ends its stream on `run_finished` and on nothing else, so
+      // without this it holds the connection open forever waiting for a run
+      // that is already dead. It is also what puts the run into
+      // `bus.hasFinished`, which is how a client that attaches AFTER the crash
+      // learns not to wait either.
+      onEvent({ type: "run_finished", runId, status: "error", reason });
+    }
+  },
+  logger,
+});
+
+/**
+ * Writes the run down, then hands it to the queue.
+ *
+ * Awaited to the point of durability and no further: the id this run was given
+ * has already been promised to a client in a 202, and that id is only useful
+ * once `getRun` answers on it. The run's own execution is the queue's problem.
+ */
+async function startRun({ runId, scenario, onEvent }: StartRunInput): Promise<void> {
+  await store.enqueueRun({ id: runId, scenarioId: scenario.id, title: scenario.title });
+  queue.enqueue({ runId, scenario, onEvent });
 }
 
 const isProduction = await Bun.file(join(clientDir, "index.html")).exists();

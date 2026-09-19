@@ -730,6 +730,35 @@ describe("run watch", () => {
     );
   });
 
+  test("keeps polling a queued run instead of reporting a verdict it has not reached", async () => {
+    let lookups = 0;
+    await withServer(
+      (request) => {
+        const isEvents = new URL(request.url).pathname.endsWith("/events");
+        if (isEvents) {
+          return Response.json({ error: "restarting" }, { status: 503 });
+        }
+        lookups += 1;
+        // A batch queued this run behind another, so it sits with an id, a
+        // document and no device. Treating that as resolved returned on the
+        // first poll and printed a verdict for a run that had not started.
+        const isWaiting = lookups <= 2;
+        return Response.json({
+          run: runDoc(isWaiting ? { status: "queued" } : { status: "passed" }),
+        });
+      },
+      async (client) => {
+        const { context, out } = captureContext(client);
+
+        expect(await runCommand(["run-1"], context, "watch", FAST)).toBe(0);
+        expect(out.join("\n")).toContain("passed  run run-1");
+        // One lookup for waitForRun, one poll still queued, one that resolved
+        // it: the middle poll is the one the bug used to end on.
+        expect(lookups).toBe(3);
+      },
+    );
+  });
+
   test("gives up at once when the stream is refused with a 404", async () => {
     let lookups = 0;
     await withServer(

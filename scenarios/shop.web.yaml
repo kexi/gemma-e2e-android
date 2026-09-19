@@ -3,6 +3,7 @@
 # in outcome is a difference in the app or the driver rather than in what was
 # asked.
 title: Coffee shop (web)
+tags: [regression, shop, web]
 target:
   platform: web
   url: http://localhost:5174

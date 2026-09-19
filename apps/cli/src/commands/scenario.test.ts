@@ -25,8 +25,17 @@ async function write(name: string, body: string): Promise<string> {
   return path;
 }
 
+// `tags` is spelled out although the schema defaults it, because this stub
+// answers the network directly and the client does not re-parse what it gets:
+// a fixture that omits the key hands the renderers a Scenario the real server
+// would never send.
 const SCENARIOS = [
-  { id: "login", title: "Login", cases: [{ id: "valid", prompt: "log in", maxSteps: 20 }] },
+  {
+    id: "login",
+    title: "Login",
+    tags: ["smoke"],
+    cases: [{ id: "valid", prompt: "log in", maxSteps: 20 }],
+  },
 ];
 
 describe("scenario list", () => {
@@ -37,7 +46,7 @@ describe("scenario list", () => {
         const { context, out } = captureContext(client);
 
         expect(await scenarioCommand([], context, "list")).toBe(0);
-        expect(out.join("\n")).toContain("login  Login  1");
+        expect(out.join("\n")).toContain("login  Login  smoke  1");
       },
     );
   });

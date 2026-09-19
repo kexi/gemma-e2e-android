@@ -1,4 +1,4 @@
-export { DEFAULT_PROJECT_ID, Store, StoreError } from "./store.ts";
+export { DEFAULT_PROJECT_ID, nextAcceptedAt, Store, StoreError } from "./store.ts";
 export type {
   AddStepInput,
   CreateCaseInput,

@@ -1,6 +1,7 @@
 import type {
   Action,
   CaseRun,
+  CaseStatus,
   KeyName,
   Run,
   RunStatus,
@@ -290,10 +291,41 @@ export class ScriptedLlmFactory {
 export class FakeStore implements StoreLike {
   readonly runs = new Map<string, Run>();
 
-  async createRun(input: { id: string; scenarioId: string; title: string }): Promise<Run> {
+  /**
+   * Upserts, mirroring the real store: an id already present was enqueued by
+   * something else and is only being claimed, so it flips to running and keeps
+   * the timestamp it was accepted at.
+   *
+   * *Why not throw on a known id like `createRun` did:* the fake stands in for
+   * a store whose whole job here is to accept both callers, and a fake that
+   * rejected the queued path would let a test pass against behaviour the real
+   * store does not have.
+   */
+  async beginRun(input: { id: string; scenarioId: string; title: string }): Promise<Run> {
+    const existing = this.runs.get(input.id);
+    const wasQueued = existing !== undefined;
+    if (wasQueued) {
+      existing.status = "running";
+      return existing;
+    }
+
     const run: Run = {
       ...input,
       status: "running",
+      verdictReason: null,
+      startedAt: new Date().toISOString(),
+      finishedAt: null,
+      cases: [],
+    };
+    this.runs.set(input.id, run);
+    return run;
+  }
+
+  /** Seeds a run the queue would have written, so tests can exercise the claim. */
+  async enqueueRun(input: { id: string; scenarioId: string; title: string }): Promise<Run> {
+    const run: Run = {
+      ...input,
+      status: "queued",
       verdictReason: null,
       startedAt: new Date().toISOString(),
       finishedAt: null,
@@ -354,7 +386,7 @@ export class FakeStore implements StoreLike {
     runId: string,
     caseId: string,
     input: {
-      status: RunStatus;
+      status: CaseStatus;
       verdictReason?: string | null;
       videoPath?: string | null | undefined;
     },
@@ -488,6 +520,10 @@ export function scenario(overrides: Partial<Scenario> = {}): Scenario {
   return {
     id: "login",
     title: "Login",
+    // Spelled out rather than left to the schema's `.default([])`: this builds a
+    // `Scenario` directly instead of parsing one, so no default ever runs, and
+    // the field is required on the type.
+    tags: [],
     cases: [testCase()],
     ...overrides,
   };

@@ -40,10 +40,18 @@ export interface StartRunInput {
 }
 
 /**
- * Kicks off a run and resolves as soon as it is scheduled, not when it ends.
- * The dashboard answers 202 and then follows the run over SSE.
+ * Persists the run as `queued` and puts it on the serial queue, resolving once
+ * the run is DURABLE -- not when it ends. The dashboard still answers 202 and
+ * follows the rest over SSE.
+ *
+ * *Why this is awaited now, unlike the fire-and-forget it replaces:* the id in
+ * the 202 is only useful if a fetch on it works, so the write has to land
+ * before the answer goes out. A client that reads the id and immediately asks
+ * for `/api/runs/:id` would otherwise race the store and get a 404 for a run
+ * that is perfectly real. The run ITSELF is still not awaited -- the queue owns
+ * that, and this resolves the moment the job is accepted.
  */
-export type StartRun = (input: StartRunInput) => void;
+export type StartRun = (input: StartRunInput) => Promise<void>;
 
 /**
  * The emulator-facing half of the Device page. Optional so the dashboard still
@@ -90,6 +98,30 @@ const SCENARIO_ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim() !== "";
+}
+
+/** Every event that changes a row of `/api/runs`, and nothing that does not. */
+const HISTORY_EVENTS: ReadonlySet<RunEvent["type"]> = new Set([
+  "run_queued",
+  "run_started",
+  "run_finished",
+]);
+
+/**
+ * Whether `/api/events` should wake its clients for this event.
+ *
+ * A named rule rather than a condition inside the stream handler because it is
+ * what decides whether a run is visible to a tab that did not start it: miss
+ * `run_queued` and a batch posted from one window leaves every other window
+ * showing a history that is short by four runs until each one reaches a device.
+ *
+ * *Why not simply forward everything:* the per-step events belong to one run's
+ * timeline, which only the open run page renders. Forwarding them would wake
+ * every connected client to refetch the whole history several times a second
+ * for a change none of them can see.
+ */
+export function movesTheHistory(event: RunEvent): boolean {
+  return HISTORY_EVENTS.has(event.type);
 }
 
 // Bun needs the websocket handler at serve() time, so the entrypoint gets it
@@ -308,6 +340,26 @@ export function createApp(deps: AppDeps) {
     }
   });
 
+  /**
+   * Tells every watching client that a run now exists.
+   *
+   * Published after `startRun` resolves rather than before it, because that is
+   * the point at which the document is durable: a client woken by this refetches
+   * `/api/runs` immediately, and an announcement that outran the write would
+   * send it to a history the run is not in yet -- with nothing to wake it a
+   * second time once it landed.
+   *
+   * *Why not leave this to `run_started`:* that fires when the queue hands the
+   * run to a device, which for everything behind the first job in a batch is
+   * minutes later. Until then a tab that did not post the batch shows a history
+   * missing every queued run, and the row that finally appears is already
+   * `running` -- so the queue depth the dashboard exists to show is never
+   * visible anywhere but the tab that pressed the button.
+   */
+  function announceQueued(runId: string, scenario: Scenario): void {
+    bus.publish({ type: "run_queued", runId, scenario });
+  }
+
   app.post("/api/runs", async (c) => {
     let body: CreateRunBody;
     try {
@@ -327,13 +379,123 @@ export function createApp(deps: AppDeps) {
       scenarioId: scenario.value.id,
       cases: scenario.value.cases.length,
     });
-    deps.startRun({
-      runId,
-      scenario: scenario.value,
-      onEvent: (event) => bus.publish(event),
-    });
+    try {
+      await deps.startRun({
+        runId,
+        scenario: scenario.value,
+        onEvent: (event) => bus.publish(event),
+      });
+    } catch (error) {
+      // A run that could not be written down is a run that did not happen.
+      // Answering 202 with an id nothing will ever serve is worse than a 500:
+      // the client would poll a run that never appears and have no way to tell
+      // that from one still waiting its turn.
+      log.error("run.start_failed", {
+        runId,
+        scenarioId: scenario.value.id,
+        ...errorFields(error),
+      });
+      const message = error instanceof Error ? error.message : String(error);
+      return c.json({ error: message }, 500);
+    }
 
+    announceQueued(runId, scenario.value);
     return c.json({ runId }, 202);
+  });
+
+  // The batch counterpart of POST /api/runs: one run per scenario, not one run
+  // covering several. A synthetic scenario stitched from many would produce a
+  // single verdict for work the user thinks of as separate tests, and the
+  // history would lose which scenario each case came from.
+  app.post("/api/runs/batch", async (c) => {
+    let body: unknown;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: "body must be JSON" }, 400);
+    }
+
+    const given = (body as { scenarioIds?: unknown } | null)?.scenarioIds;
+    const isIdList = Array.isArray(given) && given.every(isNonEmptyString);
+    if (!isIdList) {
+      return c.json({ error: "body must contain scenarioIds: string[]" }, 400);
+    }
+
+    // Refused rather than treated as a no-op success: an empty batch is a
+    // client that computed its selection wrong, and 202 with no ids gives it
+    // nothing to notice that from.
+    const isEmpty = given.length === 0;
+    if (isEmpty) {
+      return c.json({ error: "scenarioIds must not be empty" }, 400);
+    }
+
+    let scenarios: Scenario[];
+    try {
+      scenarios = await loadScenariosDir(deps.scenariosDir);
+    } catch (error) {
+      log.error("http.scenarios_failed", {
+        scenariosDir: deps.scenariosDir,
+        ...errorFields(error),
+      });
+      const message = error instanceof Error ? error.message : String(error);
+      return c.json({ error: message }, 500);
+    }
+
+    // Every id is resolved before anything is enqueued. Why not resolve and
+    // start each in turn: running the first two and then 404ing on the third
+    // leaves no way to say which ones ran -- the response body is an error, so
+    // the ids of the accepted runs have nowhere to go, and the client cannot
+    // safely retry the batch either.
+    const byId = new Map(scenarios.map((one) => [one.id, one] as const));
+    const chosen: Scenario[] = [];
+    for (const id of given) {
+      const found = byId.get(id);
+      const isKnown = found !== undefined;
+      if (!isKnown) {
+        return c.json({ error: `no such scenario: ${id}` }, 404);
+      }
+      // Duplicates are kept rather than collapsed: running the same scenario
+      // twice in one batch is a meaningful request (a flaky case seen twice),
+      // and each occurrence gets its own runId and its own row in the history.
+      chosen.push(found);
+    }
+
+    log.info("run.batch_requested", { scenarios: chosen.length });
+
+    const runIds: string[] = [];
+    for (const scenario of chosen) {
+      const runId = crypto.randomUUID();
+      try {
+        // Awaited one at a time rather than started in parallel: `startedAt` is
+        // the sort key the history lists by, so writing them in order is what
+        // makes the sidebar show the batch in the order the user asked for.
+        // Promise.all would leave the ordering to whichever write returned
+        // first, which is to say to nothing at all.
+        await deps.startRun({
+          runId,
+          scenario,
+          onEvent: (event) => bus.publish(event),
+        });
+      } catch (error) {
+        // Partial rather than rolled back: the runs already accepted are real,
+        // they are on the queue, and they will produce real verdicts. Deleting
+        // them to make the failure tidy would throw away work that is already
+        // happening, so the response names them instead and lets the client
+        // decide whether to retry only the rest.
+        log.error("run.batch_failed", {
+          runId,
+          scenarioId: scenario.id,
+          accepted: runIds.length,
+          ...errorFields(error),
+        });
+        const message = error instanceof Error ? error.message : String(error);
+        return c.json({ error: message, runIds }, 500);
+      }
+      runIds.push(runId);
+      announceQueued(runId, scenario);
+    }
+
+    return c.json({ runIds }, 202);
   });
 
   app.get("/api/runs", async (c) => {
@@ -361,8 +523,7 @@ export function createApp(deps: AppDeps) {
 
       await new Promise<void>((resolve) => {
         const unsubscribe = bus.subscribeAll((event) => {
-          const isRunLevel = event.type === "run_started" || event.type === "run_finished";
-          if (!isRunLevel) {
+          if (!movesTheHistory(event)) {
             return;
           }
 
@@ -399,89 +560,164 @@ export function createApp(deps: AppDeps) {
     sseLog.info("sse.connected", { replayedSteps, cases: run.cases.length, status: run.status });
 
     return streamSSE(c, async (stream) => {
-      // Replay before subscribing so a client that attaches mid-run (or after
-      // it ended) sees the same timeline as one that was there from the start.
-      // Events published during the replay are picked up by the subscription
-      // below; a duplicate step is harmless because the client keys by
-      // (caseId, index).
-      for (const caseRun of run.cases) {
-        await stream.writeSSE({
-          event: "case_started",
-          data: JSON.stringify({
-            type: "case_started",
-            runId,
-            caseId: caseRun.caseId,
-            caseRun: { ...caseRun, steps: [] },
-          }),
-        });
-
-        for (const step of caseRun.steps) {
-          await stream.writeSSE({
-            event: "step_recorded",
-            data: JSON.stringify({ type: "step_recorded", runId, caseId: caseRun.caseId, step }),
-          });
-        }
-
-        const caseIsOver = caseRun.status !== "running";
-        if (caseIsOver) {
-          await stream.writeSSE({
-            event: "case_finished",
-            data: JSON.stringify({
-              type: "case_finished",
-              runId,
-              caseId: caseRun.caseId,
-              status: caseRun.status,
-              reason: caseRun.verdictReason,
-              videoPath: caseRun.videoPath,
-            }),
-          });
-        }
-      }
-
-      const isOver = run.status !== "running";
-      if (isOver) {
-        await stream.writeSSE({
-          event: "run_finished",
-          data: JSON.stringify({
-            type: "run_finished",
-            runId,
-            status: run.status,
-            reason: run.verdictReason,
-          }),
-        });
-        return;
-      }
-
-      const alreadyFinished = bus.hasFinished(runId);
-      if (alreadyFinished) {
-        return;
-      }
+      // Subscribed BEFORE the replay, not after it.
+      //
+      // Why not subscribe after replaying, which reads more naturally: the
+      // replay awaits a write per case and per step, and every one of those
+      // awaits is a window in which the run can finish. A short run that ends
+      // in that window publishes `run_finished` to nobody, and because this
+      // handler would then find `hasFinished()` true it would close the stream
+      // without a terminal event -- leaving the page pinned at whatever the
+      // first fetch saw, forever, since the client does not refetch when the
+      // stream ends. Subscribing first makes the window impossible to lose:
+      // events that land during the replay are buffered here and flushed after
+      // it, so they arrive in the order the reader expects rather than
+      // interleaved with the history.
+      //
+      // Duplicates between replay and buffer are harmless: the client keys
+      // cases by id and steps by (caseId, index).
 
       // Writes are chained rather than fired and forgotten: the bus is
       // synchronous, so two events arriving back to back would otherwise
       // interleave their writes, and the final one could still be in flight
       // when the terminal event closes the stream.
       let pending: Promise<void> = Promise.resolve();
+      // Filled while the replay is still running, drained once it is done. The
+      // listener cannot write directly yet: its events belong after the
+      // history, and `pending` is not yet ordered behind the replay's awaits.
+      const buffered: RunEvent[] = [];
+      let isReplaying = true;
+      let sawTerminal = false;
+      // Set once the replay hands over; until then a terminal event only has to
+      // be remembered, because the code below has not started waiting for it.
+      let resolveStream: (() => void) | null = null;
 
-      await new Promise<void>((resolve) => {
-        const unsubscribe = bus.subscribe(runId, (event) => {
-          pending = pending.then(() =>
-            stream.writeSSE({ event: event.type, data: JSON.stringify(event) }),
-          );
+      const write = (event: RunEvent) => {
+        pending = pending.then(() =>
+          stream.writeSSE({ event: event.type, data: JSON.stringify(event) }),
+        );
+      };
 
-          const isTerminal = event.type === "run_finished";
-          if (isTerminal) {
-            unsubscribe();
-            pending.then(resolve, resolve);
+      const unsubscribe = bus.subscribe(runId, (event) => {
+        if (isReplaying) {
+          buffered.push(event);
+        } else {
+          write(event);
+        }
+
+        const isTerminal = event.type === "run_finished";
+        if (isTerminal) {
+          sawTerminal = true;
+          const isWaiting = resolveStream !== null;
+          if (isWaiting) {
+            pending.then(resolveStream, resolveStream);
           }
-        });
-
-        stream.onAbort(() => {
-          unsubscribe();
-          sseLog.info("sse.aborted", {});
-          resolve();
-        });
+        }
       });
+
+      // Wrapped so every exit path -- replay throwing on a closed socket
+      // included -- drops the listener. One left behind writes into a stream
+      // nobody is reading and keeps it from being collected.
+      try {
+        for (const caseRun of run.cases) {
+          await stream.writeSSE({
+            event: "case_started",
+            data: JSON.stringify({
+              type: "case_started",
+              runId,
+              caseId: caseRun.caseId,
+              caseRun: { ...caseRun, steps: [] },
+            }),
+          });
+
+          for (const step of caseRun.steps) {
+            await stream.writeSSE({
+              event: "step_recorded",
+              data: JSON.stringify({ type: "step_recorded", runId, caseId: caseRun.caseId, step }),
+            });
+          }
+
+          const caseIsOver = caseRun.status !== "running";
+          if (caseIsOver) {
+            await stream.writeSSE({
+              event: "case_finished",
+              data: JSON.stringify({
+                type: "case_finished",
+                runId,
+                caseId: caseRun.caseId,
+                status: caseRun.status,
+                reason: caseRun.verdictReason,
+                videoPath: caseRun.videoPath,
+              }),
+            });
+          }
+        }
+
+        // A queued run has neither started nor ended, so it is not "over" even
+        // though it is not running: there is nothing to replay, but the
+        // subscription above is exactly what it is waiting for. Without the
+        // second clause a queued run would get an immediate synthetic
+        // `run_finished` and the page would render "finished" for a run that
+        // never touched a device.
+        const isOver = run.status !== "running" && run.status !== "queued";
+        if (isOver) {
+          await stream.writeSSE({
+            event: "run_finished",
+            data: JSON.stringify({
+              type: "run_finished",
+              runId,
+              status: run.status,
+              reason: run.verdictReason,
+            }),
+          });
+          return;
+        }
+
+        // Live delivery from here on, starting with whatever the replay's
+        // awaits let through.
+        isReplaying = false;
+        for (const event of buffered) {
+          write(event);
+        }
+
+        // Why a synthetic terminal event rather than just closing: the bus can
+        // have finished this run before the subscription above existed -- the
+        // store said `running`, the run ended, and only then did this handler
+        // get scheduled. Closing silently would leave the client on the status
+        // its first fetch saw, because it does not refetch when the stream
+        // ends. `hasFinished` is checked after the buffer flush so a real
+        // terminal event that IS in the buffer is preferred, reason and all.
+        const missedTerminal = !sawTerminal && bus.hasFinished(runId);
+        if (missedTerminal) {
+          const latest = await deps.store.getRun(runId);
+          write({
+            type: "run_finished",
+            runId,
+            // The store is the authority on the verdict; falling back to the
+            // replayed status only matters if the run vanished, which is a
+            // deleted document rather than a finished run.
+            status: latest?.status ?? run.status,
+            reason: latest?.verdictReason ?? null,
+          });
+        }
+
+        const isDone = sawTerminal || missedTerminal;
+        if (isDone) {
+          await pending;
+          return;
+        }
+
+        await new Promise<void>((resolve) => {
+          resolveStream = resolve;
+
+          stream.onAbort(() => {
+            sseLog.info("sse.aborted", {});
+            resolve();
+          });
+        });
+      } finally {
+        unsubscribe();
+      }
 
       sseLog.info("sse.disconnected", {});
     });
@@ -636,8 +872,13 @@ function foldPrompts(node: YamlDocument | YamlNode): void {
   });
 }
 
-/** The scenario keys, in the order `toScenarioYaml` emits them. */
-const SCENARIO_KEYS = ["title", "target", "model", "cases"] as const;
+/**
+ * The scenario keys, in the order `toScenarioYaml` emits them. This list is
+ * also the filter `editScenarioYaml` rebuilds the mapping through, so a key
+ * missing from here is a key PUT silently drops from the file -- which is how
+ * an edit through the dashboard would quietly delete a scenario's tags.
+ */
+const SCENARIO_KEYS = ["title", "tags", "target", "model", "cases"] as const;
 
 /**
  * Rewrites `current` so it describes `scenario`, reusing the existing nodes
@@ -828,6 +1069,12 @@ async function resolveScenario(
       value: {
         id: AD_HOC_SCENARIO_ID,
         title,
+        // Empty rather than something like ["ad-hoc"]: tags exist to pick which
+        // committed scenarios to run, and this one is never in the list to
+        // filter -- it is built from a prompt typed a moment ago and thrown
+        // away. A tag here would only show up in the run history as a label
+        // nothing can select by.
+        tags: [],
         cases: [
           {
             id: AD_HOC_CASE_ID,

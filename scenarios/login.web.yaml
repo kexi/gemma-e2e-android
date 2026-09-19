@@ -3,6 +3,7 @@
 # and a case that reads the same on both is the point -- it says the agent is
 # describing the app rather than the platform.
 title: Login (web)
+tags: [smoke, auth, web]
 target:
   platform: web
   url: http://localhost:5174

@@ -13,6 +13,10 @@ import type { Action, RunStatus } from "@gemma-e2e/core/schema";
 type ChipColor = "default" | "success" | "error" | "info";
 
 const STATUS_COLOR: Record<RunStatus, ChipColor> = {
+  // Grey, not "info": a queued run has not touched the device yet, and the same
+  // blue as "running" would say it is underway when the only thing that has
+  // happened is that it got a place in line.
+  queued: "default",
   running: "info",
   passed: "success",
   failed: "error",

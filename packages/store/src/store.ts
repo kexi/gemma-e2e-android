@@ -5,11 +5,13 @@ import {
   type Action,
   type CaseRun,
   CaseRunSchema,
+  type CaseStatus,
   type Run,
   RunSchema,
   type RunStatus,
   type Step,
   StepSchema,
+  UNSETTLED_RUN_STATUSES,
 } from "@gemma-e2e/core";
 import { zodConverter } from "./converter.ts";
 
@@ -34,6 +36,41 @@ const stepConverter = zodConverter(StepDocSchema, "step");
 const RUNS = "runs";
 const CASES = "cases";
 const STEPS = "steps";
+
+/** One millisecond, the finest `Date.toISOString` can express. */
+const ONE_MS = 1;
+
+/**
+ * An acceptance timestamp strictly greater than the previous one.
+ *
+ * Returns `now` whenever the clock has genuinely moved on; only when it has
+ * not — the same millisecond, or a clock that stepped backwards — does it push
+ * one millisecond past `previous`. The result is still an ISO 8601 string, so
+ * it sorts lexicographically exactly as it sorts chronologically, which is what
+ * `listRuns` relies on.
+ *
+ * *Why the borrowed millisecond is acceptable:* `startedAt` on a queued run is
+ * already an acceptance time rather than a measurement, and being off by the
+ * number of runs in a batch is invisible next to the seconds a run takes.
+ * Ordering that holds across refetches is worth more than sub-millisecond
+ * fidelity on a field nobody reads to that precision.
+ *
+ * *Why not a counter suffix on the string:* it would no longer parse as a date,
+ * and both the dashboard and the CLI hand this field straight to `new Date()`.
+ */
+export function nextAcceptedAt(now: string, previous: string | null): string {
+  const isFirst = previous === null;
+  if (isFirst) {
+    return now;
+  }
+
+  const hasAdvanced = now > previous;
+  if (hasAdvanced) {
+    return now;
+  }
+
+  return new Date(Date.parse(previous) + ONE_MS).toISOString();
+}
 
 /** Zero-padded so Firestore's lexicographic document order matches step order. */
 function stepDocId(index: number): string {
@@ -70,7 +107,13 @@ export interface FinishInput {
   verdictReason?: string | null | undefined;
 }
 
-export interface FinishCaseInput extends FinishInput {
+export interface FinishCaseInput extends Omit<FinishInput, "status"> {
+  /**
+   * Narrower than a run's, because a case has no waiting state: it is created
+   * when its turn comes and finishes when its verdict is in. Writing `queued`
+   * to a case document would leave it in a state nothing ever moves it out of.
+   */
+  status: CaseStatus;
   /** Written only when recording produced a file; omitted leaves it null. */
   videoPath?: string | null | undefined;
 }
@@ -95,9 +138,32 @@ export const DEFAULT_PROJECT_ID = "demo-gemma-e2e";
  */
 export class Store {
   readonly #db: Firestore;
+  /** The last acceptance time handed out, so the next one is strictly after it. */
+  #lastAcceptedAt: string | null = null;
 
   private constructor(db: Firestore) {
     this.#db = db;
+  }
+
+  /**
+   * The next acceptance timestamp, guaranteed to be after the previous one.
+   *
+   * `Date` has millisecond resolution and a batch is a handful of sequential
+   * writes, so two runs accepted in the same millisecond is ordinary rather
+   * than exotic — and identical `startedAt` values leave `listRuns` sorting
+   * them by nothing at all, which is to say by whatever Firestore returns that
+   * time. The sidebar would then show the same batch in a different order on
+   * each refetch, and the run the user pressed the button expecting to go first
+   * would sometimes read as last.
+   *
+   * *Why not sort by document id as a tie-break instead:* the ids are random
+   * UUIDs, so ordering by them is arbitrary — stable, but stably wrong, which
+   * is worse than visibly wrong because nobody would think to look.
+   */
+  #acceptedAt(): string {
+    const next = nextAcceptedAt(new Date().toISOString(), this.#lastAcceptedAt);
+    this.#lastAcceptedAt = next;
+    return next;
   }
 
   /**
@@ -150,7 +216,10 @@ export class Store {
   }
 
   async createRun(input: CreateRunInput): Promise<Run> {
-    const startedAt = new Date().toISOString();
+    // Through the same monotonic source as `enqueueRun`: both write the field
+    // `listRuns` sorts by, so two runs created back to back must be separable
+    // for the same reason two enqueued in a batch must be.
+    const startedAt = this.#acceptedAt();
     const run: Run = {
       id: input.id,
       scenarioId: input.scenarioId,
@@ -167,6 +236,79 @@ export class Store {
     // its cases.
     await this.#run(input.id).create(toRunDoc(run));
     return run;
+  }
+
+  /**
+   * Writes the run document before anything drives a device, so an id handed
+   * out by the API is fetchable the moment its holder asks for it. A batch
+   * mints every id up front; without this the second and third runs would be
+   * ids that `getRun` answers `null` for and `listRuns` never shows.
+   *
+   * `startedAt` here is the ACCEPTANCE time, not the time the device work
+   * begins. `listRuns` orders by this field, so a batch whose runs each took
+   * their timestamp from whenever they happened to reach the front of the queue
+   * would land in the sidebar in completion order rather than in the order the
+   * user asked for — and would visibly reshuffle as each one started. The
+   * listing is newest-first, so a batch reads bottom-to-top there; what matters
+   * is that the order is the one that was ASKED for and that it does not move,
+   * which is what {@link acceptedAt} guarantees.
+   *
+   * *Why not a separate `queuedAt` field:* `startedAt` is already the sort key
+   * every listing uses, and a second timestamp would force each ordering site
+   * to decide which of the two it means. Reading `startedAt` as "when this run
+   * entered the history" is consistent for queued and unqueued runs alike, and
+   * it keeps `Run`'s shape unchanged — this feature costs one enum member and
+   * no new field.
+   */
+  async enqueueRun(input: CreateRunInput): Promise<Run> {
+    const startedAt = this.#acceptedAt();
+    const run: Run = {
+      id: input.id,
+      scenarioId: input.scenarioId,
+      title: input.title,
+      status: "queued",
+      verdictReason: null,
+      startedAt,
+      finishedAt: null,
+      cases: [],
+    };
+
+    await this.#run(input.id).create(toRunDoc(run));
+    return run;
+  }
+
+  /**
+   * Marks the point where a run stops waiting and starts touching the device.
+   *
+   * One method covers both callers so the runner need not know which one it
+   * has. Through the queue the document already exists as `queued` and this
+   * only flips the status; through the CLI or a test `runScenario` is called
+   * directly and the run genuinely begins the moment it is created, so the
+   * missing document is created here rather than treated as an error.
+   *
+   * *Why not make the runner call `createRun` or `beginRun` depending on its
+   * caller:* that pushes a queued-or-not flag through `RunDeps` purely so the
+   * runner can pick a store method, and every new entry point would have to
+   * remember to set it. The store already knows the answer — the document
+   * either exists or it does not.
+   *
+   * *Why not `set()` with merge:* the update path must not resurrect a run that
+   * was deleted between enqueue and begin, and it must not quietly rewrite
+   * `startedAt`. Reading first and branching keeps the enqueued acceptance time
+   * intact, which is the whole point of writing it early.
+   */
+  async beginRun(input: CreateRunInput): Promise<Run> {
+    const ref = this.#run(input.id);
+    const snapshot = await ref.get();
+    const data = snapshot.data();
+
+    const wasNeverQueued = data === undefined;
+    if (wasNeverQueued) {
+      return await this.createRun(input);
+    }
+
+    await ref.update({ status: "running" });
+    return { ...fromRunDoc(input.id, data), status: "running" };
   }
 
   async createCase(input: CreateCaseInput): Promise<CaseRun> {
@@ -239,7 +381,70 @@ export class Store {
     });
   }
 
-  /** Newest first. Cases are omitted; the list view does not need them. */
+  /**
+   * Closes out runs a previous process left mid-flight.
+   *
+   * The queue holds its pending jobs in memory, so a restart takes them with it
+   * while their documents stay at `queued`, and whatever was on the device when
+   * the process died stays at `running`. Both then never move again: nothing is
+   * left to finish them, but the dashboard reads them as work still on its way
+   * and the CLI's poll never resolves. Settling them to `error` at startup is
+   * what turns a lie into a fact the reader can act on.
+   *
+   * *Why they are abandoned rather than resumed:* a queued job is only a
+   * scenario id, and re-running it would drive a device whose state the killed
+   * run left behind — an app half-navigated, a recording still open, a CDP
+   * target attached to a page nobody owns. Worse, `--watch` restarts on every
+   * edit, so resuming would relaunch the same batch on each save. A run that
+   * did not reach a verdict is not a failed test; `error` says exactly that.
+   *
+   * *Why `in` on `status` rather than two queries or a scan:* an equality
+   * filter on one field is served by the automatic single-field index, so this
+   * needs no composite index in the emulator or in production. `updatedAt`-style
+   * age filtering would need one, and would not help — every unsettled run
+   * belongs to a process that is gone by the time this runs.
+   *
+   * The statuses come from `UNSETTLED_RUN_STATUSES` rather than being spelled
+   * out here, so this query and the CLI's "still waiting" check cannot come to
+   * disagree about what unfinished means.
+   */
+  async settleOrphanedRuns(reason: string): Promise<string[]> {
+    const snapshot = await this.#db
+      .collection(RUNS)
+      .withConverter(runConverter)
+      .where("status", "in", UNSETTLED_RUN_STATUSES)
+      .get();
+
+    const isNothingToDo = snapshot.empty;
+    if (isNothingToDo) {
+      return [];
+    }
+
+    // One batch rather than an update per document: the writes are independent,
+    // but a partial sweep leaves exactly the state this method exists to
+    // remove, and a batch is the cheapest way to make the whole sweep land or
+    // none of it.
+    const finishedAt = new Date().toISOString();
+    const batch = this.#db.batch();
+    for (const doc of snapshot.docs) {
+      batch.update(doc.ref, { status: "error", verdictReason: reason, finishedAt });
+    }
+    await batch.commit();
+
+    return snapshot.docs.map((doc) => doc.id);
+  }
+
+  /**
+   * Newest first. Cases are omitted; the list view does not need them.
+   *
+   * Descending on purpose, and not in tension with a batch's ordering: the rail
+   * is a history, where the run just started belongs at the top and the reader
+   * should not have to scroll for it. A batch therefore reads bottom-to-top,
+   * which is the same thing every log viewer does. What the batch needs from
+   * this query is only that the order be the one it was accepted in and that it
+   * never change, and `startedAt` is monotonic per process for exactly that
+   * reason (see {@link nextAcceptedAt}).
+   */
   async listRuns(limit = 50): Promise<Run[]> {
     const snapshot = await this.#db
       .collection(RUNS)

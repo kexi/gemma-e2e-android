@@ -19,6 +19,7 @@ import {
 const SCENARIO: Scenario = {
   id: "login",
   title: "Login",
+  tags: ["smoke", "auth"],
   cases: [
     { id: "valid", title: "Logs in", prompt: "log in", maxSteps: 20 },
     { id: "invalid", prompt: "reject a wrong password", maxSteps: 20 },
@@ -189,10 +190,18 @@ describe("coloured tables", () => {
 });
 
 describe("renderScenarioList", () => {
-  test("lists each scenario with its case count and model", () => {
+  test("lists each scenario with its tags, case count and model", () => {
     expect(renderScenarioList([SCENARIO], plain)).toBe(
-      ["ID     TITLE  CASES  MODEL", "login  Login  2      -"].join("\n"),
+      ["ID     TITLE  TAGS        CASES  MODEL", "login  Login  smoke,auth  2      -"].join("\n"),
     );
+  });
+
+  test("marks an untagged scenario with a dash rather than leaving the column blank", () => {
+    // A blank cell in the middle of a row reads as a column that failed to
+    // render; the dash says the scenario has no tags on purpose.
+    const rendered = renderScenarioList([{ ...SCENARIO, tags: [] }], plain);
+
+    expect(rendered.split("\n")[1]).toBe("login  Login  -     2      -");
   });
 
   test("says so when there are no scenarios", () => {

@@ -2,11 +2,17 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { CaseRun, Run, Scenario, Step } from "@gemma-e2e/core";
+import type { Action, CaseRun, Run, Scenario, Step } from "@gemma-e2e/core";
 import { createLogger, type LogEvent } from "@gemma-e2e/logger";
 import type { RunEvent } from "@gemma-e2e/agent";
 import { RunEventBus } from "./bus.ts";
-import { createApp, type DeviceSource, type StartRunInput, type StoreReader } from "./app.ts";
+import {
+  createApp,
+  type DeviceSource,
+  movesTheHistory,
+  type StartRunInput,
+  type StoreReader,
+} from "./app.ts";
 
 const LOGIN_YAML = `title: Login
 cases:
@@ -33,6 +39,16 @@ class FakeStore implements StoreReader {
     return this.runs.get(id) ?? null;
   }
 }
+
+/** The scenario an event carries; nothing under test reads past its shape. */
+const SCENARIO: Scenario = {
+  id: "login",
+  title: "Login",
+  tags: [],
+  cases: [{ id: "valid", prompt: "Check that a user can log in.", maxSteps: 5 }],
+};
+
+const TAP: Action = { type: "tap", ref: 0 };
 
 function step(index: number, overrides: Partial<Step> = {}): Step {
   return {
@@ -99,8 +115,25 @@ function harness(bus?: RunEventBus) {
   return createApp({
     store,
     scenariosDir,
-    startRun: (input) => started.push(input),
+    startRun: async (input) => {
+      started.push(input);
+    },
     ...(bus === undefined ? {} : { bus }),
+  });
+}
+
+/** A dashboard whose store refuses the write, to pin what the API answers then. */
+function failingHarness(failAfter: number) {
+  return createApp({
+    store,
+    scenariosDir,
+    startRun: async (input) => {
+      const hasRoomLeft = started.length < failAfter;
+      if (!hasRoomLeft) {
+        throw new Error("firestore is unavailable");
+      }
+      started.push(input);
+    },
   });
 }
 
@@ -121,7 +154,7 @@ describe("GET /api/scenarios", () => {
     const app = createApp({
       store,
       scenariosDir: join(scenariosDir, "does-not-exist"),
-      startRun: () => {},
+      startRun: async () => {},
     });
 
     const res = await app.request("/api/scenarios");
@@ -311,6 +344,36 @@ describe("PUT /api/scenarios/:id", () => {
     expect(edited).toContain("prompt: >-");
   });
 
+  test("round-trips tags through an edit, so a PUT does not silently drop them", async () => {
+    // `SCENARIO_KEYS` is the filter the merge rebuilds the mapping through, so
+    // a key missing from that list would vanish from the file here with no
+    // error anywhere -- the same failure mode the comment-preservation tests
+    // above guard for prose.
+    const res = await put("login", { ...EDITED_LOGIN, tags: ["smoke", "auth"] });
+
+    expect(res.status).toBe(200);
+    const written = await readFile(join(scenariosDir, "login.yaml"), "utf8");
+    expect(written).toContain("tags:");
+    const listed = (await (await harness().request("/api/scenarios")).json()) as {
+      scenarios: { id: string; tags: string[] }[];
+    };
+    expect(listed.scenarios.find((one) => one.id === "login")?.tags).toEqual(["smoke", "auth"]);
+  });
+
+  test("keeps the tags a later edit does not mention out of the file", async () => {
+    // Tags default to `[]`, so an edit that omits them means "no tags" rather
+    // than "leave them alone"; the point is that the key does not linger with
+    // a stale value.
+    await put("login", { ...EDITED_LOGIN, tags: ["smoke"] });
+    const res = await put("login", EDITED_LOGIN);
+
+    expect(res.status).toBe(200);
+    const listed = (await (await harness().request("/api/scenarios")).json()) as {
+      scenarios: { id: string; tags: string[] }[];
+    };
+    expect(listed.scenarios.find((one) => one.id === "login")?.tags).toEqual([]);
+  });
+
   test("reports a scenario that is not on disk as 404 rather than creating it", async () => {
     const res = await put("nope", { ...EDITED_LOGIN, title: "Nope" });
 
@@ -485,7 +548,7 @@ describe("GET /api/models", () => {
     const app = createApp({
       store,
       scenariosDir,
-      startRun: () => {},
+      startRun: async () => {},
       listModels: async () => [{ id: "gemma-4-12b" }, { id: "gemma-4-e4b" }],
     });
 
@@ -506,7 +569,7 @@ describe("GET /api/models", () => {
     const app = createApp({
       store,
       scenariosDir,
-      startRun: () => {},
+      startRun: async () => {},
       listModels: async () => {
         throw new Error("connection refused");
       },
@@ -601,6 +664,179 @@ describe("POST /api/runs", () => {
 
     expect(res.status).toBe(404);
     expect(started).toHaveLength(0);
+  });
+
+  test("reports a run that could not be persisted as 500 rather than handing out its id", async () => {
+    const res = await failingHarness(0).request("/api/runs", {
+      method: "POST",
+      body: JSON.stringify({ scenarioId: "login" }),
+      headers: { "content-type": "application/json" },
+    });
+
+    expect(res.status).toBe(500);
+    // No runId in the body: an id nothing will ever serve is worse than none.
+    expect((await res.json()) as Record<string, unknown>).not.toHaveProperty("runId");
+  });
+
+  test("announces the accepted run, so a window that did not post it sees the row", async () => {
+    const bus = new RunEventBus();
+    const seen: RunEvent[] = [];
+    bus.subscribeAll((event) => seen.push(event));
+
+    const res = await harness(bus).request("/api/runs", {
+      method: "POST",
+      body: JSON.stringify({ scenarioId: "login" }),
+      headers: { "content-type": "application/json" },
+    });
+    const { runId } = (await res.json()) as { runId: string };
+
+    expect(seen).toEqual([
+      { type: "run_queued", runId, scenario: started[0]?.scenario as Scenario },
+    ]);
+  });
+
+  test("announces nothing for a run that could not be persisted", async () => {
+    const bus = new RunEventBus();
+    const seen: RunEvent[] = [];
+    bus.subscribeAll((event) => seen.push(event));
+
+    const app = createApp({
+      store,
+      scenariosDir,
+      bus,
+      startRun: async () => {
+        throw new Error("firestore is unavailable");
+      },
+    });
+    await app.request("/api/runs", {
+      method: "POST",
+      body: JSON.stringify({ scenarioId: "login" }),
+      headers: { "content-type": "application/json" },
+    });
+
+    // Waking a client to refetch a history the run is not in would leave it
+    // showing a list that is missing a run, with nothing to wake it again.
+    expect(seen).toEqual([]);
+  });
+});
+
+describe("POST /api/runs/batch", () => {
+  const SHOP_YAML = `title: Shop
+cases:
+  - id: buys
+    prompt: Buy something.
+`;
+
+  function batch(body: unknown) {
+    return harness().request("/api/runs/batch", {
+      method: "POST",
+      body: JSON.stringify(body),
+      headers: { "content-type": "application/json" },
+    });
+  }
+
+  beforeEach(async () => {
+    await writeFile(join(scenariosDir, "shop.yaml"), SHOP_YAML, "utf8");
+  });
+
+  test("returns one runId per requested scenario, in the order they were asked for", async () => {
+    const res = await batch({ scenarioIds: ["login", "shop"] });
+
+    expect(res.status).toBe(202);
+    const body = (await res.json()) as { runIds: string[] };
+    expect(body.runIds).toHaveLength(2);
+    expect(started.map((one) => one.scenario.id)).toEqual(["login", "shop"]);
+    expect(started.map((one) => one.runId)).toEqual(body.runIds);
+  });
+
+  test("gives the same scenario asked for twice two separate runs", async () => {
+    const res = await batch({ scenarioIds: ["login", "login"] });
+
+    expect(res.status).toBe(202);
+    const body = (await res.json()) as { runIds: string[] };
+    expect(body.runIds).toHaveLength(2);
+    expect(body.runIds[0]).not.toBe(body.runIds[1]);
+  });
+
+  test("starts nothing at all when any one of the ids is unknown", async () => {
+    const res = await batch({ scenarioIds: ["login", "nope", "shop"] });
+
+    expect(res.status).toBe(404);
+    // The whole point of resolving up front: a partial batch would leave the
+    // client with no way to learn which of its scenarios actually ran.
+    expect(started).toHaveLength(0);
+  });
+
+  test("rejects an empty selection rather than answering 202 with no runs", async () => {
+    const res = await batch({ scenarioIds: [] });
+
+    expect(res.status).toBe(400);
+    expect(started).toHaveLength(0);
+  });
+
+  test("rejects scenarioIds that is not an array", async () => {
+    const res = await batch({ scenarioIds: "login" });
+
+    expect(res.status).toBe(400);
+    expect(started).toHaveLength(0);
+  });
+
+  test("rejects an array holding anything that is not a non-empty string", async () => {
+    const res = await batch({ scenarioIds: ["login", ""] });
+
+    expect(res.status).toBe(400);
+    expect(started).toHaveLength(0);
+  });
+
+  test("rejects a body with no scenarioIds at all", async () => {
+    const res = await batch({});
+
+    expect(res.status).toBe(400);
+  });
+
+  test("rejects a non-JSON body", async () => {
+    const res = await harness().request("/api/runs/batch", {
+      method: "POST",
+      body: "not json",
+      headers: { "content-type": "application/json" },
+    });
+
+    expect(res.status).toBe(400);
+  });
+
+  test("names the runs it already accepted when a later one cannot be persisted", async () => {
+    const res = await failingHarness(1).request("/api/runs/batch", {
+      method: "POST",
+      body: JSON.stringify({ scenarioIds: ["login", "shop"] }),
+      headers: { "content-type": "application/json" },
+    });
+
+    expect(res.status).toBe(500);
+    // Partial rather than rolled back: the first run is queued and will produce
+    // a real verdict, so the response says which one that is.
+    const body = (await res.json()) as { error: string; runIds: string[] };
+    expect(body.runIds).toHaveLength(1);
+    expect(started).toHaveLength(1);
+    expect(started[0]?.runId).toBe(body.runIds[0]);
+  });
+
+  test("announces every accepted run, so the whole queue is visible in every window", async () => {
+    const bus = new RunEventBus();
+    const seen: RunEvent[] = [];
+    bus.subscribeAll((event) => seen.push(event));
+
+    const res = await harness(bus).request("/api/runs/batch", {
+      method: "POST",
+      body: JSON.stringify({ scenarioIds: ["login", "shop"] }),
+      headers: { "content-type": "application/json" },
+    });
+    const body = (await res.json()) as { runIds: string[] };
+
+    // Without this every window but the one that pressed the button would show
+    // only the run that reached a device, and the queue behind it -- the wait
+    // the rail exists to make visible -- would never appear anywhere.
+    expect(seen.map((event) => event.type)).toEqual(["run_queued", "run_queued"]);
+    expect(seen.map((event) => event.runId)).toEqual(body.runIds);
   });
 });
 
@@ -729,6 +965,97 @@ describe("GET /api/runs/:id/events", () => {
     expect(events.map((e) => e.type)).toEqual(["case_started", "run_finished"]);
   });
 
+  test("does not report a queued run as finished before it has started", async () => {
+    // A queued run is neither running nor over. Treating "not running" as
+    // "over" would send an immediate synthetic run_finished and the page would
+    // render a verdict for a run that never touched a device.
+    const bus = new RunEventBus();
+    store.add(
+      run({ status: "queued", verdictReason: null, finishedAt: null, startedAt: "2026-01-01" }),
+    );
+
+    const res = await harness(bus).request("/api/runs/run-1/events");
+    void (async () => {
+      while (bus.listenerCount("run-1") === 0) {
+        await Bun.sleep(1);
+      }
+      // The one event published, and only so the stream terminates: the
+      // subscription is what the queued run was waiting for, and this proves
+      // nothing was replayed ahead of it.
+      bus.publish({ type: "run_finished", runId: "run-1", status: "passed", reason: "done" });
+    })();
+
+    const events = await collectSse(res);
+    expect(events.map((e) => e.type)).toEqual(["run_finished"]);
+    expect(events[0]).toMatchObject({ reason: "done" });
+  });
+
+  test("delivers a terminal event published while the history was still replaying", async () => {
+    // The race this guards: the replay awaits a write per case and per step,
+    // and a short run can finish inside one of those awaits. Subscribing only
+    // after the replay would publish run_finished to nobody and then close the
+    // stream silently, and the page -- which does not refetch when the stream
+    // ends -- would stay on the status its first fetch saw, forever.
+    //
+    // Publishing before the response is even read is the strongest form of the
+    // race: it can only be observed if the subscription was registered before
+    // the first replay write, which is exactly the fix.
+    const bus = new RunEventBus();
+    store.add(
+      run({
+        status: "running",
+        verdictReason: null,
+        finishedAt: null,
+        cases: [
+          caseRun({ status: "running", finishedAt: null, verdictReason: null, steps: [step(0)] }),
+        ],
+      }),
+    );
+
+    const res = await harness(bus).request("/api/runs/run-1/events");
+    bus.publish({ type: "run_finished", runId: "run-1", status: "passed", reason: "done" });
+
+    const events = await collectSse(res);
+    // The history still arrives first: an event that lands during the replay is
+    // held back rather than interleaved, so the client reads one timeline.
+    expect(events.map((e) => e.type)).toEqual(["case_started", "step_recorded", "run_finished"]);
+    expect(events.at(-1)).toMatchObject({ status: "passed", reason: "done" });
+  });
+
+  test("still ends the stream with a verdict when the run finished before anyone subscribed", async () => {
+    // The other half of the same race: the run finished so early that even a
+    // subscription registered first has nothing to receive, and the bus only
+    // remembers that it happened. Closing on `hasFinished` without saying what
+    // the verdict was leaves the page pinned at "running" with no way out.
+    const bus = new RunEventBus();
+    bus.publish({ type: "run_finished", runId: "run-1", status: "failed", reason: "no greeting" });
+    // The store is the authority on the verdict; the stale `running` document
+    // is what a client racing the finishRun write would have fetched.
+    store.add(
+      run({ status: "failed", verdictReason: "no greeting", finishedAt: "2026-01-01T00:01:00Z" }),
+    );
+
+    const events = await collectSse(await harness(bus).request("/api/runs/run-1/events"));
+
+    expect(events.map((e) => e.type)).toEqual(["run_finished"]);
+    expect(events[0]).toMatchObject({ status: "failed", reason: "no greeting" });
+  });
+
+  test("does not send two terminal events when the bus both remembers and replays the finish", async () => {
+    // `hasFinished` stays true for the rest of the process, so a stream that
+    // received a real run_finished must not then synthesise a second one: the
+    // client closes on the first, and the second would be a write into a
+    // stream that is already gone.
+    const bus = new RunEventBus();
+    store.add(run({ status: "running", verdictReason: null, finishedAt: null }));
+
+    const res = await harness(bus).request("/api/runs/run-1/events");
+    bus.publish({ type: "run_finished", runId: "run-1", status: "passed", reason: "done" });
+
+    const events = await collectSse(res);
+    expect(events.filter((e) => e.type === "run_finished")).toHaveLength(1);
+  });
+
   test("replays existing steps then streams live events until the run finishes", async () => {
     const bus = new RunEventBus();
     store.add(
@@ -844,6 +1171,64 @@ describe("GET /api/events", () => {
     const events = await readSse(res, 1);
     expect(events.map((e) => e.type)).toEqual(["run_finished"]);
   });
+
+  test("streams run_queued, so a tab that did not start the run still sees it appear", async () => {
+    const bus = new RunEventBus();
+
+    const res = await harness(bus).request("/api/events");
+    await untilSubscribed(bus);
+    bus.publish({ type: "run_queued", runId: "run-1", scenario: SCENARIO });
+
+    const events = await readSse(res, 1);
+    expect(events.map((e) => e.type)).toEqual(["run_queued"]);
+  });
+});
+
+/**
+ * Which events wake a history view. The consequence of getting this wrong is
+ * asymmetric: forward too little and a run is invisible in every window but the
+ * one that started it, forward too much and every client refetches the whole
+ * history several times a second for a change none of them render.
+ */
+describe("movesTheHistory", () => {
+  test("wakes clients when a run is accepted, which is when its row starts existing", () => {
+    expect(movesTheHistory({ type: "run_queued", runId: "run-1", scenario: SCENARIO })).toBe(true);
+  });
+
+  test("wakes clients when a run reaches a device, which is when its status changes", () => {
+    expect(movesTheHistory({ type: "run_started", runId: "run-1", scenario: SCENARIO })).toBe(true);
+  });
+
+  test("wakes clients when a run reaches a verdict", () => {
+    expect(
+      movesTheHistory({ type: "run_finished", runId: "run-1", status: "passed", reason: null }),
+    ).toBe(true);
+  });
+
+  test("stays quiet for the per-step events only an open run page renders", () => {
+    const perStep: RunEvent[] = [
+      { type: "step_started", runId: "run-1", caseId: "valid", index: 0 },
+      { type: "ui_captured", runId: "run-1", caseId: "valid", index: 0, uiText: "[0] Button" },
+      { type: "action_executed", runId: "run-1", caseId: "valid", index: 0, action: TAP },
+    ];
+
+    for (const event of perStep) {
+      expect(movesTheHistory(event)).toBe(false);
+    }
+  });
+
+  test("stays quiet for case boundaries, which change no row of the run list", () => {
+    expect(
+      movesTheHistory({
+        type: "case_finished",
+        runId: "run-1",
+        caseId: "valid",
+        status: "passed",
+        reason: null,
+        videoPath: null,
+      }),
+    ).toBe(false);
+  });
 });
 
 describe("GET /videos/*", () => {
@@ -852,7 +1237,7 @@ describe("GET /videos/*", () => {
     await mkdir(join(videosDir, "run-1"), { recursive: true });
     await writeFile(join(videosDir, "run-1", "valid.mp4"), "not really an mp4");
 
-    const app = createApp({ store, scenariosDir, startRun: () => {}, videosDir });
+    const app = createApp({ store, scenariosDir, startRun: async () => {}, videosDir });
     const res = await app.request("/videos/run-1/valid.mp4");
 
     expect(res.status).toBe(200);
@@ -883,7 +1268,7 @@ describe("structured logging", () => {
     const app = createApp({
       store: new FakeStore(),
       scenariosDir,
-      startRun: () => {},
+      startRun: async () => {},
       logger: log.logger,
     });
 
@@ -904,7 +1289,7 @@ describe("structured logging", () => {
     const app = createApp({
       store: new FakeStore(),
       scenariosDir,
-      startRun: () => {},
+      startRun: async () => {},
       logger: log.logger,
     });
 
@@ -921,7 +1306,7 @@ describe("structured logging", () => {
     const app = createApp({
       store: new FakeStore(),
       scenariosDir: join(scenariosDir, "does-not-exist"),
-      startRun: () => {},
+      startRun: async () => {},
       logger: log.logger,
     });
 
@@ -937,7 +1322,7 @@ describe("structured logging", () => {
     const app = createApp({
       store: new FakeStore(),
       scenariosDir,
-      startRun: () => {},
+      startRun: async () => {},
       logger: log.logger,
       listModels: async () => {
         throw new Error("connection refused");
@@ -955,7 +1340,7 @@ describe("structured logging", () => {
     const log = capture();
     const store = new FakeStore();
     store.add(run({ status: "passed" }));
-    const app = createApp({ store, scenariosDir, startRun: () => {}, logger: log.logger });
+    const app = createApp({ store, scenariosDir, startRun: async () => {}, logger: log.logger });
 
     const res = await app.request("/api/runs/run-1/events");
     await res.text();
@@ -967,7 +1352,7 @@ describe("structured logging", () => {
   });
 
   test("writes nothing when no logger is injected", async () => {
-    const app = createApp({ store: new FakeStore(), scenariosDir, startRun: () => {} });
+    const app = createApp({ store: new FakeStore(), scenariosDir, startRun: async () => {} });
 
     const res = await app.request("/api/scenarios");
 
@@ -997,7 +1382,7 @@ describe("GET /api/device", () => {
     android?: DeviceSource | undefined;
     web?: DeviceSource | undefined;
   }) {
-    return createApp({ store, scenariosDir, startRun: () => {}, devices });
+    return createApp({ store, scenariosDir, startRun: async () => {}, devices });
   }
 
   /** `res.json()` is `unknown`, and the label is the only field these read. */
@@ -1050,7 +1435,7 @@ describe("GET /api/device", () => {
     const app = createApp({
       store,
       scenariosDir,
-      startRun: () => {},
+      startRun: async () => {},
       devices: {
         android: {
           getStatus: async () => {

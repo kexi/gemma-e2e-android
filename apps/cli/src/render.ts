@@ -72,12 +72,15 @@ function visibleWidth(cell: string): number {
  * *undecorated* cells in the same column to a phantom width and left every
  * coloured table misaligned.
  *
- * *Why not count East Asian wide characters as two columns:* every cell here is
- * an id, a status, an ISO timestamp, or an emulator config key -- ASCII by
- * construction, and the scenario titles that could hold CJK are the one column
- * that is already last and therefore never padded. Carrying a width table for
- * text that cannot appear is cost without a case; revisit if a wide-capable
- * column is ever added in front of another.
+ * *Why not count East Asian wide characters as two columns:* almost every cell
+ * here is an id, a status, an ISO timestamp, or an emulator config key -- ASCII
+ * by construction. The exception is the scenario title, which stopped being the
+ * last column when `renderScenarioList` gained TAGS, so a CJK title now pads
+ * short and the columns after it sit a few cells left of true. That is a
+ * cosmetic misalignment in one table rather than lost or wrong output, and the
+ * fix is a Unicode width table -- a data file larger than this module -- for
+ * text no scenario in this repo contains. Revisit when a title with wide
+ * characters actually shows up.
  */
 export function table(rows: string[][]): string {
   const isEmpty = rows.length === 0;
@@ -115,10 +118,14 @@ export function renderScenarioList(scenarios: Scenario[], style: Style): string 
     return "No scenarios.";
   }
 
-  const header = ["ID", "TITLE", "CASES", "MODEL"].map((cell) => style(cell, "dim"));
+  const header = ["ID", "TITLE", "TAGS", "CASES", "MODEL"].map((cell) => style(cell, "dim"));
   const rows = scenarios.map((scenario) => [
     scenario.id,
     scenario.title,
+    // Comma-joined rather than one row per tag: this is a list of scenarios,
+    // and repeating a scenario once per tag would make the row count stop
+    // matching the number of scenarios the user can run.
+    scenario.tags.length === 0 ? "-" : scenario.tags.join(","),
     String(scenario.cases.length),
     scenario.model ?? "-",
   ]);

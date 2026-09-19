@@ -1,12 +1,20 @@
 import { describe, expect, test } from "bun:test";
 import {
   ActionSchema,
+  CaseRunSchema,
+  CaseStatusSchema,
+  collectTags,
   describeTarget,
+  filterByTags,
+  isUnsettledRun,
   resolveModel,
   resolveTarget,
+  RunStatusSchema,
+  type Scenario,
   ScenarioSchema,
   TestCaseSchema,
   UiNodeSchema,
+  UNSETTLED_RUN_STATUSES,
 } from "./schema.ts";
 
 describe("ActionSchema", () => {
@@ -239,6 +247,181 @@ describe("ScenarioSchema", () => {
   test("rejects empty required strings", () => {
     expect(ScenarioSchema.safeParse({ id: "", title: "t", cases: oneCase }).success).toBe(false);
     expect(ScenarioSchema.safeParse({ id: "i", title: "", cases: oneCase }).success).toBe(false);
+  });
+
+  test("gives an untagged scenario an empty tag list, so consumers never see undefined", () => {
+    const parsed = ScenarioSchema.parse({ id: "login", title: "Login", cases: oneCase });
+
+    expect(parsed.tags).toEqual([]);
+  });
+
+  test("keeps the tags a file declares, in the order written", () => {
+    const parsed = ScenarioSchema.parse({
+      id: "login",
+      title: "Login",
+      tags: ["smoke", "auth-2"],
+      cases: oneCase,
+    });
+
+    expect(parsed.tags).toEqual(["smoke", "auth-2"]);
+  });
+
+  test("rejects a tag that is not a lowercase slug", () => {
+    const bad = ["Smoke", "smoke test", "smoke_test", "-leading", ""];
+    for (const tag of bad) {
+      const parsed = ScenarioSchema.safeParse({
+        id: "login",
+        title: "Login",
+        tags: [tag],
+        cases: oneCase,
+      });
+
+      expect(parsed.success).toBe(false);
+    }
+  });
+});
+
+describe("RunStatusSchema", () => {
+  test("accepts queued, so a run may exist before it has touched a device", () => {
+    expect(RunStatusSchema.safeParse("queued").success).toBe(true);
+  });
+
+  test("still accepts every status written before queued existed", () => {
+    for (const status of ["running", "passed", "failed", "error"]) {
+      expect(RunStatusSchema.safeParse(status).success).toBe(true);
+    }
+  });
+});
+
+/**
+ * "Has this run answered yet?" -- the question the server's startup sweep asks
+ * of Firestore and the CLI's poll asks of each response. Both must agree, or a
+ * state one of them stops noticing is a run the reader is shown as pending
+ * forever.
+ */
+describe("isUnsettledRun", () => {
+  test("counts a run still waiting for a device as unanswered, so a restart can close it", () => {
+    expect(isUnsettledRun("queued")).toBe(true);
+  });
+
+  test("counts a run on a device as unanswered, since it has produced no verdict yet", () => {
+    expect(isUnsettledRun("running")).toBe(true);
+  });
+
+  test("counts error as answered, so a poll stops waiting for a verdict nobody will give", () => {
+    // The failure this guards: an abandoned run is settled to `error` at
+    // startup precisely so the CLI stops waiting. Reading `error` as unanswered
+    // would put the wait straight back.
+    expect(isUnsettledRun("error")).toBe(false);
+  });
+
+  test("counts both verdicts as answered", () => {
+    expect(isUnsettledRun("passed")).toBe(false);
+    expect(isUnsettledRun("failed")).toBe(false);
+  });
+
+  test("agrees with the list the sweep queries Firestore for, so the two cannot drift", () => {
+    for (const status of UNSETTLED_RUN_STATUSES) {
+      expect(isUnsettledRun(status)).toBe(true);
+    }
+  });
+});
+
+describe("CaseStatusSchema", () => {
+  test("refuses queued, because a case has no state in which it is not yet being worked on", () => {
+    // Cases are created by the runner one at a time, at the moment their turn
+    // comes. A `queued` case document would sit in a state nothing ever moves
+    // it out of, and the reader could not tell it from a genuinely stalled one.
+    expect(CaseStatusSchema.safeParse("queued").success).toBe(false);
+  });
+
+  test("accepts every state a case really passes through", () => {
+    for (const status of ["running", "passed", "failed", "error"]) {
+      expect(CaseStatusSchema.safeParse(status).success).toBe(true);
+    }
+  });
+
+  test("keeps queued out of a stored case, which shares the run enum no longer", () => {
+    const withQueuedStatus = {
+      order: 0,
+      title: "Logs in",
+      prompt: "check that the user can log in",
+      model: "gemma-4-12b",
+      status: "queued",
+      verdictReason: null,
+      startedAt: "2026-01-01T00:00:00.000Z",
+      finishedAt: null,
+    };
+
+    expect(
+      CaseRunSchema.omit({ runId: true, caseId: true, steps: true }).safeParse(withQueuedStatus)
+        .success,
+    ).toBe(false);
+  });
+});
+
+describe("filterByTags", () => {
+  const scenario = (id: string, tags: string[]): Scenario => ({
+    id,
+    title: id,
+    tags,
+    cases: [{ id: "only", prompt: "p", maxSteps: 20 }],
+  });
+
+  const login = scenario("login", ["smoke", "android"]);
+  const shop = scenario("shop", ["smoke", "web"]);
+  const untagged = scenario("untagged", []);
+  const all = [login, shop, untagged];
+
+  test("returns every scenario when nothing is selected, so an untouched filter hides nothing", () => {
+    expect(filterByTags(all, [])).toEqual(all);
+  });
+
+  test("keeps only the scenarios carrying all selected tags", () => {
+    expect(filterByTags(all, ["smoke", "android"])).toEqual([login]);
+  });
+
+  test("narrows rather than widens as tags are added", () => {
+    expect(filterByTags(all, ["smoke"])).toEqual([login, shop]);
+    expect(filterByTags(all, ["smoke", "web"])).toEqual([shop]);
+  });
+
+  test("returns nothing when no scenario carries the whole selection", () => {
+    expect(filterByTags(all, ["android", "web"])).toEqual([]);
+  });
+
+  test("drops untagged scenarios as soon as any tag is selected", () => {
+    expect(filterByTags(all, ["smoke"])).not.toContain(untagged);
+  });
+});
+
+describe("collectTags", () => {
+  const scenario = (id: string, tags: string[]): Scenario => ({
+    id,
+    title: id,
+    tags,
+    cases: [{ id: "only", prompt: "p", maxSteps: 20 }],
+  });
+
+  test("lists each tag once however many scenarios use it", () => {
+    const tags = collectTags([scenario("login", ["smoke", "auth"]), scenario("shop", ["smoke"])]);
+
+    expect(tags).toEqual(["auth", "smoke"]);
+  });
+
+  test("sorts lexicographically, so the chip row does not reshuffle when a scenario is added", () => {
+    const before = collectTags([scenario("shop", ["web", "regression"])]);
+    const after = collectTags([
+      scenario("shop", ["web", "regression"]),
+      scenario("login", ["android"]),
+    ]);
+
+    expect(before).toEqual(["regression", "web"]);
+    expect(after).toEqual(["android", "regression", "web"]);
+  });
+
+  test("returns nothing when no scenario is tagged", () => {
+    expect(collectTags([scenario("login", []), scenario("shop", [])])).toEqual([]);
   });
 });
 

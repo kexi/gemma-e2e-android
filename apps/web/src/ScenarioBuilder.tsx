@@ -52,6 +52,14 @@ function emptyCase(): CaseDraft {
 interface Draft {
   id: string;
   title: string;
+  /**
+   * The raw comma-separated text, not the parsed list.
+   *
+   * Parsing on every keystroke would make "smoke," collapse to "smoke" the
+   * instant the comma is typed, so the separator the user needs to type the
+   * next tag would be eaten as they type it. The split happens once, on submit.
+   */
+  tags: string;
   platform: Platform;
   appPackage: string;
   appActivity: string;
@@ -64,6 +72,7 @@ function emptyDraft(): Draft {
   return {
     id: "",
     title: "",
+    tags: "",
     platform: "android",
     appPackage: "",
     appActivity: "",
@@ -81,6 +90,7 @@ function draftOf(scenario: Scenario): Draft {
   return {
     id: scenario.id,
     title: scenario.title,
+    tags: scenario.tags.join(", "),
     platform: scenario.target?.platform ?? "android",
     appPackage: scenario.target?.platform === "android" ? scenario.target.package : "",
     appActivity: scenario.target?.platform === "android" ? (scenario.target.activity ?? "") : "",
@@ -132,6 +142,23 @@ function buildTarget(
 }
 
 /**
+ * Splits the comma-separated tags field into the list the API takes.
+ *
+ * Empties are dropped rather than sent: a trailing comma, or a double one, is
+ * how a list gets typed, and an empty string would fail the server's slug rule
+ * for a tag the user never meant to write. Nothing here lowercases or
+ * de-hyphenates -- the server's slug rule is the one that has to be obeyed, and
+ * quietly rewriting "Smoke" into a tag that then does not match what the YAML
+ * says would be worse than being told it is invalid.
+ */
+export function parseTags(text: string): string[] {
+  return text
+    .split(",")
+    .map((one) => one.trim())
+    .filter((one) => one !== "");
+}
+
+/**
  * Derives a slug from a title so the id field starts filled in. Kept
  * deliberately dumb: the user can always overwrite it, and the field carries
  * the same `pattern` the server enforces.
@@ -179,6 +206,7 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
   // user's, so editing never re-slugs it.
   const [idIsCustom, setIdIsCustom] = useState(isEditing);
   const [title, setTitle] = useState(() => initial().title);
+  const [tags, setTags] = useState(() => initial().tags);
   const [platform, setPlatform] = useState<Platform>(() => initial().platform);
   const [appPackage, setAppPackage] = useState(() => initial().appPackage);
   const [appActivity, setAppActivity] = useState(() => initial().appActivity);
@@ -208,6 +236,7 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
     setId(start.id);
     setIdIsCustom(isEditing);
     setTitle(start.title);
+    setTags(start.tags);
     setPlatform(start.platform);
     setAppPackage(start.appPackage);
     setAppActivity(start.appActivity);
@@ -253,9 +282,15 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
 
     const target = buildTarget({ platform, appPackage, appActivity, url });
 
+    const parsedTags = parseTags(tags);
+
     const body: CreateScenarioRequest = {
       id,
       title,
+      // Always sent, even empty. Omitting it on an edit would leave the server
+      // reading whatever the request last carried rather than what the field
+      // now shows, so clearing the box could never clear the file's tags.
+      tags: parsedTags,
       ...(target === undefined ? {} : { target }),
       ...(model === SERVER_DEFAULT ? {} : { model }),
       cases: cases.map((one) => ({
@@ -359,6 +394,33 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
               />
               <p className="builder-error-msg">
                 <span aria-hidden="true">❌</span> A title is required.
+              </p>
+            </div>
+
+            <div className="builder-field">
+              <label htmlFor={`${dialogId}-tags`}>Tags</label>
+              <span id={`${dialogId}-tags-hint`} className="builder-hint">
+                Comma-separated, lowercase letters, digits and hyphens. Used to filter the list and
+                to pick a batch to run.
+              </span>
+              {/* No `pattern` here: the attribute matches the whole value, so it
+                  would have to describe the comma-separated list rather than one
+                  tag, and a single unreadable regex reporting "wrong format" for
+                  a stray space is a worse error than the server's, which names
+                  the tag it rejected. */}
+              <input
+                id={`${dialogId}-tags`}
+                name="tags"
+                value={tags}
+                onChange={(e) => setTags(e.target.value)}
+                placeholder="smoke, auth"
+                autoComplete="off"
+                enterKeyHint="next"
+                aria-describedby={`${dialogId}-tags-hint`}
+              />
+              <p className="builder-error-msg">
+                <span aria-hidden="true">❌</span> Use lowercase letters, digits and hyphens,
+                separated by commas.
               </p>
             </div>
 

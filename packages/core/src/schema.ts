@@ -95,8 +95,58 @@ export const ActionSchema = z.discriminatedUnion("type", [
 
 export type Action = z.infer<typeof ActionSchema>;
 
-export const RunStatusSchema = z.enum(["running", "passed", "failed", "error"]);
+/**
+ * What a unit of work can be once something is actually doing it.
+ *
+ * Named separately from {@link RunStatusSchema} because a case has no waiting
+ * state to be in: cases are created by the runner, one at a time, at the moment
+ * their turn comes -- there is no point at which a case document exists and is
+ * not yet being worked on. Sharing one enum would let `queued` be written to a
+ * case, and the reader would have no way to tell that from a case genuinely
+ * stalled, since nothing would ever move it.
+ */
+export const CaseStatusSchema = z.enum(["running", "passed", "failed", "error"]);
+export type CaseStatus = z.infer<typeof CaseStatusSchema>;
+
+/**
+ * Lifecycle order, so the list reads the way a run actually progresses.
+ * `queued` is a run that has an id and a Firestore document but has not touched
+ * the device yet: the queue writes it, the runner claims it and moves it to
+ * `running`.
+ *
+ * Widening a zod enum is backwards compatible, so documents written before
+ * `queued` existed still parse -- no migration of stored runs is needed.
+ */
+export const RunStatusSchema = z.enum(["queued", ...CaseStatusSchema.options]);
 export type RunStatus = z.infer<typeof RunStatusSchema>;
+
+/**
+ * The statuses that mean some process is still meant to be working on the run.
+ *
+ * Stated once, as data, because three places have to agree: the server's
+ * startup sweep queries Firestore for exactly these, the CLI's poll treats
+ * exactly these as "no answer yet", and {@link isUnsettledRun} answers the same
+ * question for a run already in hand. Written out separately in each, they would
+ * drift the next time a status is added -- silently, since the symptom is only
+ * that one of them stops noticing a state the reader is still shown as pending.
+ */
+export const UNSETTLED_RUN_STATUSES = ["queued", "running"] as const satisfies readonly RunStatus[];
+
+/**
+ * Whether a run has yet to reach a verdict.
+ *
+ * True for a run still waiting its turn and for one on a device; false for
+ * every run that finished, however it finished. `error` counts as settled: a
+ * run that could not be completed HAS an answer, and treating it otherwise is
+ * what makes a CLI poll wait forever for a verdict nobody is coming to give.
+ *
+ * Lives beside {@link RunStatusSchema} rather than in the store so the CLI can
+ * share it: the store's entry point pulls in firebase-admin, which a
+ * `bun build --compile` binary that only speaks HTTP must not carry.
+ */
+export function isUnsettledRun(status: RunStatus): boolean {
+  return (UNSETTLED_RUN_STATUSES as readonly RunStatus[]).includes(status);
+}
 
 export const StepSchema = z.object({
   runId: z.string(),
@@ -121,7 +171,7 @@ export const CaseRunSchema = z.object({
   prompt: z.string(),
   /** The model actually used, after `case.model ?? scenario.model ?? env`. */
   model: z.string(),
-  status: RunStatusSchema,
+  status: CaseStatusSchema,
   verdictReason: z.string().nullable(),
   startedAt: z.string(),
   finishedAt: z.string().nullable(),
@@ -265,6 +315,18 @@ export const ScenarioSchema = z.preprocess(
   z.object({
     id: z.string().min(1),
     title: z.string().min(1),
+    /**
+     * Labels for picking what to run.
+     *
+     * Not on {@link TestCaseSchema}: the unit of execution is the scenario, so
+     * a case-level tag would have to mean "run this scenario but only some of
+     * its cases" -- a run whose verdict you could not attribute, because the
+     * cases that did not run are indistinguishable from the ones that passed.
+     *
+     * Defaulted rather than optional so no consumer has to write `?? []`, and
+     * so scenario files that predate tags keep parsing unchanged.
+     */
+    tags: z.array(z.string().regex(/^[a-z0-9][a-z0-9-]*$/, "must be a lowercase slug")).default([]),
     /** Default target for every case that does not name its own. */
     target: TargetSchema.optional(),
     /** Default model for every case that does not name its own. */
@@ -317,4 +379,47 @@ export function describeTarget(target: Target): string {
     case "web":
       return target.url;
   }
+}
+
+/**
+ * Keeps the scenarios carrying every selected tag. An empty selection is "no
+ * filter", not "nothing matches" -- the unfiltered list is what the dashboard
+ * shows before anyone touches a chip.
+ *
+ * AND rather than OR: with OR, every tag you add widens the result, so the
+ * chips would only ever grow the list and the most common question --
+ * "smoke and android" -- would be inexpressible. Narrowing is the operation
+ * a filter is for.
+ *
+ * Lives beside {@link describeTarget} so the CLI and the dashboard cannot
+ * drift into two different filter rules.
+ */
+export function filterByTags(scenarios: Scenario[], selected: string[]): Scenario[] {
+  const hasNoSelection = selected.length === 0;
+  if (hasNoSelection) {
+    return scenarios;
+  }
+
+  return scenarios.filter((scenario) => {
+    const tags = new Set(scenario.tags);
+    return selected.every((tag) => tags.has(tag));
+  });
+}
+
+/**
+ * Every tag in use, deduped.
+ *
+ * Sorted lexicographically rather than kept in order of first appearance: the
+ * chip row is a stable piece of UI, and appearance order would reshuffle it
+ * whenever a scenario is added, renamed, or removed from the directory.
+ */
+export function collectTags(scenarios: Scenario[]): string[] {
+  const tags = new Set<string>();
+  for (const scenario of scenarios) {
+    for (const tag of scenario.tags) {
+      tags.add(tag);
+    }
+  }
+
+  return [...tags].sort();
 }

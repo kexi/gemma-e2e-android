@@ -1,6 +1,12 @@
 # A scenario bundles test cases; each case is one natural-language goal that
 # gets its own verdict. `id` defaults to the filename when omitted.
 title: Login
+# Labels for choosing what to run: the dashboard filters the list by them and
+# runs the filtered set as one batch, and `gemma-e2e scenario list` shows them.
+# They live on the scenario rather than on a case because the run is the
+# scenario -- a tag that selected only some cases would leave a run whose
+# verdict came from a set nothing on disk names.
+tags: [smoke, auth]
 target:
   platform: android
   package: dev.kexi.gemmae2e.example

@@ -129,12 +129,24 @@ secrets:
     gitleaks git --redact
 
 # Pin every GitHub Action to a 40-char SHA (--min-age 1 refuses releases younger than a day).
+#
+# The workflow paths are spelled out rather than left to pinact's default search.
+# Bare `pinact run` walks the working tree without consulting .gitignore, so it
+# also reaches `.direnv/flake-inputs/`, where direnv materialises the Nix store
+# copies of third-party flake inputs. Those are other projects' actions: we can
+# neither edit them nor pin them, and one of them (pitty-action) carries a
+# SHA-pinned `uses:` without the version comment pinact demands, so the default
+# search fails the gate on code that is not ours and is not even committed.
+# Adding `.direnv/` to a pinact ignore config was the alternative, but that
+# encodes one tool's cache directory into the pin policy and would silently stop
+# covering a genuinely new workflow file; naming what we own keeps the scope
+# explicit and fails loudly if a path is renamed.
 pin:
-    pinact run --min-age 1
+    pinact run --min-age 1 .github/workflows/*.yml
 
 # Offline: verifies every `uses:` is a 40-char SHA without calling the API.
 pin-check:
-    pinact run -fix=false -no-api
+    pinact run -fix=false -no-api .github/workflows/*.yml
 
 # Every gate a change has to clear, run locally. A superset of CI: it adds the
 # typecheck, tests and action-pin check that CI does not have jobs for yet, so a

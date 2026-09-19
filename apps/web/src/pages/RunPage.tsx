@@ -17,10 +17,11 @@ import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import type { CaseRun, Run, RunStatus, Step } from "@gemma-e2e/core/schema";
+import type { CaseRun, CaseStatus, Run, RunStatus, Step } from "@gemma-e2e/core/schema";
 import { fetchRun, screenshotUrl, videoUrl } from "../api.ts";
 import { actionIcon, describeAction, StatusChip } from "../status.tsx";
 import { DeviceLiveView } from "../DeviceLiveView.tsx";
+import { nextRunStatus, type StatusSignal } from "../runStatus.ts";
 import { useDevicePlatform } from "../useDevicePlatform.ts";
 import { UiTreeDetails } from "../UiTreeDetails.tsx";
 import { useDirectionalNavigate } from "../viewTransition.ts";
@@ -40,7 +41,8 @@ interface StepRecorded {
 interface CaseFinished {
   type: "case_finished";
   caseId: string;
-  status: RunStatus;
+  /** A case never waits, so `queued` cannot arrive here and cannot be stored. */
+  status: CaseStatus;
   reason: string | null;
   /** Absent on a replayed event from a case recorded before videos existed. */
   videoPath?: string | null;
@@ -223,6 +225,11 @@ export function RunPage() {
     const handle = (message: MessageEvent<string>) => {
       const event = JSON.parse(message.data) as LiveEvent;
 
+      // Applied for every event, before the per-type handling below, so a
+      // queued run leaves the "Waiting for the device" state on the first sign
+      // of work rather than only when the verdict lands.
+      setStatus((current) => nextRunStatus(current, event as StatusSignal) ?? current);
+
       if (event.type === "case_started") {
         const { caseRun } = event as CaseStarted;
         setCases((current) => upsertCase(current, caseRun));
@@ -240,7 +247,8 @@ export function RunPage() {
 
       if (event.type === "run_finished") {
         const finished = event as RunFinished;
-        setStatus(finished.status);
+        // The status itself came from `nextRunStatus` above; only the verdict
+        // text and the close are left to do here.
         setReason(finished.reason);
         source.close();
       }
@@ -248,6 +256,11 @@ export function RunPage() {
 
     // Every frame the server sends carries an `event:` name, so the default
     // "message" listener never fires; each name is registered explicitly.
+    // `run_started` is registered even though it carries nothing this page
+    // renders: it is what tells a page opened on a queued run that its turn has
+    // come, and without it the rail would show `running` while this pane still
+    // said the run was waiting.
+    source.addEventListener("run_started", handle);
     source.addEventListener("case_started", handle);
     source.addEventListener("step_recorded", handle);
     source.addEventListener("case_finished", handle);
@@ -268,6 +281,7 @@ export function RunPage() {
   }, [run?.id]);
 
   const isRunning = status === "running";
+  const isQueued = status === "queued";
   const ordered = [...cases.values()].sort((a, b) => a.order - b.order);
   // Counts rather than the map itself: this is exactly the "something was
   // appended" signal, so a case merely changing status cannot trigger a scroll.
@@ -314,6 +328,18 @@ export function RunPage() {
         )}
       </Box>
 
+      {/* Why not a LinearProgress here too: an indeterminate bar says work is
+          under way, and a queued run has not been given a device yet. The bar
+          would be indistinguishable from a run that is genuinely stepping,
+          which is the one thing the reader is trying to tell apart. `polite`
+          because the run switching to running is worth hearing without
+          interrupting whatever is being read. */}
+      {isQueued && (
+        <Typography color="text.secondary" aria-live="polite">
+          Waiting for the device. This run starts when the one ahead of it finishes.
+        </Typography>
+      )}
+
       {isRunning && <LinearProgress />}
 
       <Stack direction={{ xs: "column", lg: "row" }} spacing={3} sx={{ alignItems: "flex-start" }}>
@@ -324,7 +350,10 @@ export function RunPage() {
             // boundary before it could paint anything at all.
             <CaseAccordion key={caseRun.caseId} caseRun={caseRun} deferred={position > 0} />
           ))}
-          {ordered.length === 0 && !isRunning && (
+          {/* Queued is excluded as well as running: a run that has not started
+              has recorded nothing yet, and "No cases were recorded" reads as a
+              finished run that produced nothing. */}
+          {ordered.length === 0 && !isRunning && !isQueued && (
             <Typography color="text.secondary">No cases were recorded.</Typography>
           )}
           {/* The follow-tail sentinel. A plain div outside any `.deferred-case`,
