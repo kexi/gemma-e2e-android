@@ -2,12 +2,14 @@ import { describe, expect, test } from "bun:test";
 import { ActionSchema } from "@gemma-e2e/core";
 import { createLogger, type LogEvent } from "@gemma-e2e/logger";
 import {
+  actionFromToolRequest,
+  actionTools,
   buildDecisionPrompt,
   DEFAULT_BASE_URL,
   DEFAULT_MODEL,
   GenkitLlm,
   LlmDecisionError,
-  normalizeOutput,
+  soleToolRequest,
   SYSTEM_PROMPT,
 } from "./llm.ts";
 
@@ -76,6 +78,10 @@ describe("SYSTEM_PROMPT", () => {
     expect(SYSTEM_PROMPT).toContain("failed");
   });
 
+  test("asks for exactly one tool call, since a turn is one action", () => {
+    expect(SYSTEM_PROMPT).toContain("calling exactly one tool");
+  });
+
   test("tells the model to remember a value before leaving the screen showing it", () => {
     expect(SYSTEM_PROMPT).toContain("BEFORE the action that leaves that screen");
     expect(SYSTEM_PROMPT).toContain("once you have left");
@@ -92,12 +98,12 @@ describe("defaults", () => {
 describe("GenkitLlm retry policy", () => {
   const input = { scenarioPrompt: "log in", historySummary: "", uiText: "[0] Button" };
 
-  test("returns the first schema-valid action without retrying", async () => {
+  test("returns the action the first tool call names, without retrying", async () => {
     let calls = 0;
     const llm = new GenkitLlm({
       generate: async () => {
         calls++;
-        return { output: { type: "tap", ref: 0 } };
+        return { toolRequests: [{ name: "tap", input: { ref: 0 } }] };
       },
     });
 
@@ -105,13 +111,13 @@ describe("GenkitLlm retry policy", () => {
     expect(calls).toBe(1);
   });
 
-  test("retries when the model returns nothing schema-valid, then succeeds", async () => {
+  test("retries when the model calls no tool, then succeeds", async () => {
     let calls = 0;
     const llm = new GenkitLlm({
       generate: async () => {
         calls++;
         const isEarlyAttempt = calls < 3;
-        return { output: isEarlyAttempt ? null : { type: "wait", ms: 500 } };
+        return { toolRequests: isEarlyAttempt ? [] : [{ name: "wait", input: { ms: 500 } }] };
       },
     });
 
@@ -128,7 +134,7 @@ describe("GenkitLlm retry policy", () => {
         if (shouldFail) {
           throw new Error("connection reset");
         }
-        return { output: { type: "key_event", key: "back" } };
+        return { toolRequests: [{ name: "key_event", input: { key: "back" } }] };
       },
     });
 
@@ -141,7 +147,7 @@ describe("GenkitLlm retry policy", () => {
     const llm = new GenkitLlm({
       generate: async () => {
         calls++;
-        return { output: null };
+        return { toolRequests: [] };
       },
     });
 
@@ -163,10 +169,10 @@ describe("GenkitLlm retry policy", () => {
     expect(calls).toBe(5);
   });
 
-  test("rejects output that parses as JSON but violates the action schema", async () => {
+  test("rejects a tool call naming no action the schema knows", async () => {
     const llm = new GenkitLlm({
       maxAttempts: 1,
-      generate: async () => ({ output: { type: "teleport", ref: 0 } }),
+      generate: async () => ({ toolRequests: [{ name: "teleport", input: { ref: 0 } }] }),
     });
 
     await expect(llm.decide(input)).rejects.toBeInstanceOf(LlmDecisionError);
@@ -177,7 +183,7 @@ describe("GenkitLlm retry policy", () => {
     const llm = new GenkitLlm({
       generate: async (request) => {
         seen = request;
-        return { output: { type: "tap", ref: 0 } };
+        return { toolRequests: [{ name: "tap", input: { ref: 0 } }] };
       },
     });
 
@@ -266,7 +272,7 @@ describe("decision timing", () => {
       model: "gemma-4-e4b",
       logger: log.logger,
       clock: steppingClock(1_500),
-      generate: async () => ({ output: { type: "tap", ref: 0 } }),
+      generate: async () => ({ toolRequests: [{ name: "tap", input: { ref: 0 } }] }),
     });
 
     await llm.decide(input);
@@ -284,7 +290,7 @@ describe("decision timing", () => {
     const log = capture();
     const llm = new GenkitLlm({
       logger: log.logger,
-      generate: async () => ({ output: { type: "wait", ms: 10 } }),
+      generate: async () => ({ toolRequests: [{ name: "wait", input: { ms: 10 } }] }),
     });
 
     await llm.decide(input);
@@ -303,7 +309,9 @@ describe("decision timing", () => {
       generate: async () => {
         calls++;
         const isFirstAttempt = calls === 1;
-        return { output: isFirstAttempt ? null : { type: "key_event", key: "back" } };
+        return {
+          toolRequests: isFirstAttempt ? [] : [{ name: "key_event", input: { key: "back" } }],
+        };
       },
     });
 
@@ -342,97 +350,150 @@ describe("decision timing", () => {
   });
 });
 
-describe("normalizeOutput", () => {
-  const action = { type: "tap", ref: 0 };
+describe("actionTools", () => {
+  test("offers one tool per action the schema accepts", () => {
+    const names = actionTools().map((tool) => tool.name);
 
-  test("unwraps an action the model wrapped in a one-element anyOf", () => {
-    expect(normalizeOutput({ anyOf: [action] })).toEqual(action);
+    expect(names).toEqual([
+      "tap",
+      "input_text",
+      "swipe",
+      "key_event",
+      "wait",
+      "remember",
+      "finish",
+    ]);
   });
 
-  test("unwraps a one-element oneOf the same way", () => {
-    expect(normalizeOutput({ oneOf: [action] })).toEqual(action);
+  test("describes every tool, since the description is what the model chooses on", () => {
+    for (const tool of actionTools()) {
+      expect(tool.description.length).toBeGreaterThan(0);
+    }
   });
 
-  test("leaves an envelope listing several branches alone", () => {
-    const listed = { anyOf: [action, { type: "wait", ms: 500 }] };
-    expect(normalizeOutput(listed)).toEqual(listed);
+  test("leaves `type` out of the arguments, because the tool name already carries it", () => {
+    const tap = actionTools().find((tool) => tool.name === "tap");
+
+    expect(tap?.inputSchema.safeParse({ ref: 0 }).success).toBe(true);
   });
 
-  test("leaves an empty envelope alone", () => {
-    expect(normalizeOutput({ anyOf: [] })).toEqual({ anyOf: [] });
-  });
+  test("keeps each variant's own constraints", () => {
+    const tools = actionTools();
+    const swipe = tools.find((tool) => tool.name === "swipe");
+    const wait = tools.find((tool) => tool.name === "wait");
 
-  test("leaves a plain action untouched", () => {
-    expect(normalizeOutput(action)).toEqual(action);
-  });
-
-  test("leaves an envelope key that shares the object with other keys alone", () => {
-    const mixed = { anyOf: [action], type: "tap" };
-    expect(normalizeOutput(mixed)).toEqual(mixed);
-  });
-
-  test("passes non-objects through", () => {
-    expect(normalizeOutput(null)).toBeNull();
-    expect(normalizeOutput("tap")).toBe("tap");
-    expect(normalizeOutput([action])).toEqual([action]);
+    expect(swipe?.inputSchema.safeParse({ direction: "up" }).success).toBe(true);
+    expect(swipe?.inputSchema.safeParse({ direction: "sideways" }).success).toBe(false);
+    expect(wait?.inputSchema.safeParse({ ms: 0 }).success).toBe(false);
   });
 });
 
-describe("GenkitLlm schema-envelope tolerance", () => {
+describe("actionFromToolRequest", () => {
+  test("puts the tool name back as the action's type", () => {
+    expect(actionFromToolRequest({ name: "tap", input: { ref: 3 } })).toEqual({
+      type: "tap",
+      ref: 3,
+    });
+  });
+
+  test("carries every argument through", () => {
+    expect(
+      actionFromToolRequest({ name: "finish", input: { verdict: "passed", reason: "done" } }),
+    ).toEqual({ type: "finish", verdict: "passed", reason: "done" });
+  });
+
+  test("rejects a tool the schema has no variant for", () => {
+    expect(() => actionFromToolRequest({ name: "teleport", input: { ref: 0 } })).toThrow();
+  });
+
+  test("rejects arguments the variant does not accept, so a bad ref is not acted on", () => {
+    expect(() => actionFromToolRequest({ name: "tap", input: { ref: -1 } })).toThrow();
+  });
+
+  test("rejects a call that left a required argument out", () => {
+    expect(() => actionFromToolRequest({ name: "input_text", input: { ref: 0 } })).toThrow();
+  });
+
+  test("treats a non-object input as no arguments at all, which the schema then refuses", () => {
+    expect(() => actionFromToolRequest({ name: "tap", input: "ref=0" })).toThrow();
+  });
+});
+
+describe("soleToolRequest", () => {
+  const tap = { name: "tap", input: { ref: 0 } };
+
+  test("returns the one call a turn is allowed to make", () => {
+    expect(soleToolRequest([tap])).toBe(tap);
+  });
+
+  test("refuses an empty list, since prose is not a decision", () => {
+    expect(() => soleToolRequest([])).toThrow(LlmDecisionError);
+  });
+
+  test("refuses several calls rather than picking one on the model's behalf", () => {
+    expect(() => soleToolRequest([tap, { name: "wait", input: { ms: 500 } }])).toThrow(
+      LlmDecisionError,
+    );
+  });
+});
+
+describe("GenkitLlm tool-call handling", () => {
   const input = { scenarioPrompt: "log in", historySummary: "", uiText: "[0] Button" };
 
-  test("accepts an action wrapped in a one-element anyOf without retrying", async () => {
+  test("offers the action tools to the model", async () => {
+    let seen: { tools?: { name: string }[] } = {};
+    const llm = new GenkitLlm({
+      generate: async (request) => {
+        seen = request;
+        return { toolRequests: [{ name: "tap", input: { ref: 0 } }] };
+      },
+    });
+
+    await llm.decide(input);
+
+    expect(seen.tools?.map((tool) => tool.name)).toContain("finish");
+  });
+
+  test("retries when the model calls several tools rather than choosing one", async () => {
     let calls = 0;
     const llm = new GenkitLlm({
       generate: async () => {
         calls++;
-        return { output: { anyOf: [{ type: "input_text", ref: 1, text: "demo@example.com" }] } };
+        const isIndecisive = calls === 1;
+        return {
+          toolRequests: isIndecisive
+            ? [
+                { name: "tap", input: { ref: 0 } },
+                { name: "wait", input: { ms: 500 } },
+              ]
+            : [{ name: "tap", input: { ref: 0 } }],
+        };
       },
     });
 
-    expect(await llm.decide(input)).toEqual({
-      type: "input_text",
-      ref: 1,
-      text: "demo@example.com",
-    });
-    expect(calls).toBe(1);
+    expect(await llm.decide(input)).toEqual({ type: "tap", ref: 0 });
+    expect(calls).toBe(2);
   });
 
-  test("still fails when the envelope holds more than one branch", async () => {
+  test("retries a call whose arguments the schema refuses", async () => {
+    let calls = 0;
     const llm = new GenkitLlm({
-      maxAttempts: 1,
-      generate: async () => ({
-        output: {
-          anyOf: [
-            { type: "tap", ref: 0 },
-            { type: "wait", ms: 500 },
-          ],
-        },
-      }),
+      generate: async () => {
+        calls++;
+        const isBad = calls === 1;
+        return {
+          toolRequests: [isBad ? { name: "tap", input: {} } : { name: "tap", input: { ref: 2 } }],
+        };
+      },
     });
 
-    await expect(llm.decide(input)).rejects.toBeInstanceOf(LlmDecisionError);
-  });
-
-  test("still fails when the unwrapped content violates the schema", async () => {
-    const llm = new GenkitLlm({
-      maxAttempts: 1,
-      generate: async () => ({ output: { anyOf: [{ type: "teleport", ref: 0 }] } }),
-    });
-
-    await expect(llm.decide(input)).rejects.toBeInstanceOf(LlmDecisionError);
+    expect(await llm.decide(input)).toEqual({ type: "tap", ref: 2 });
+    expect(calls).toBe(2);
   });
 });
 
-describe("SYSTEM_PROMPT envelope guidance", () => {
-  test("tells the model not to echo the schema back", () => {
-    expect(SYSTEM_PROMPT).toContain("anyOf");
-    expect(SYSTEM_PROMPT).toContain("oneOf");
-  });
-});
-
-describe("ActionSchema as structured output", () => {
-  test("accepts what the system prompt tells the model to emit", () => {
+describe("ActionSchema behind the tools", () => {
+  test("accepts every action a tool call can rebuild", () => {
     const examples = [
       { type: "tap", ref: 0 },
       { type: "input_text", ref: 1, text: "kei@example.com" },

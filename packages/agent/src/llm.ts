@@ -1,4 +1,4 @@
-import { type Genkit, genkit } from "genkit";
+import { type Genkit, genkit, z } from "genkit";
 import { openAICompatible } from "@genkit-ai/compat-oai";
 import { type Action, ActionSchema } from "@gemma-e2e/core";
 import { errorFields, type Logger, noopLogger } from "@gemma-e2e/logger";
@@ -63,21 +63,86 @@ Actions:
   met, and "failed" when the goal cannot be achieved (a blocking error, a dead
   end, or the same screen repeating with no progress). Always give a reason.
 
-Prefer finishing over repeating an action that changed nothing. Respond only
-with the structured action.
+Prefer finishing over repeating an action that changed nothing.
 
-Return the chosen action object itself, such as {"type":"tap","ref":0}. Do not
-echo the schema back: no "anyOf", no "oneOf", no list of alternatives.`;
+Answer by calling exactly one tool. Do not describe what you would do, and do
+not call several tools at once: one turn is one action, and the screen you see
+next is the result of it.`;
+
+/**
+ * One action variant, described the way a tool-calling model takes it.
+ *
+ * Derived from {@link ActionSchema} rather than written out again: the union is
+ * the source of truth for what the agent can do, and a hand-kept second list
+ * would drift the first time an action is added -- silently, because the
+ * symptom is only that the model is never offered the new move.
+ */
+export interface ActionTool {
+  name: Action["type"];
+  description: string;
+  /** The variant's own object schema, minus the `type` the tool name carries. */
+  inputSchema: z.ZodTypeAny;
+}
+
+/**
+ * What each action is for, in the words the model is given.
+ *
+ * Kept beside the schema-derived shapes rather than inside {@link SYSTEM_PROMPT}
+ * because a tool-calling model reads a tool's description at the point of
+ * choosing it, where a paragraph further up the prompt competes with everything
+ * else for attention.
+ */
+const ACTION_DESCRIPTIONS: Record<Action["type"], string> = {
+  tap: "Press the element with the given ref.",
+  input_text:
+    "Type text into the element with the given ref. Tap a field before typing into it if it is not already focused.",
+  swipe: "Scroll the screen; up scrolls toward later content.",
+  key_event:
+    "Press a hardware key: back returns to the previous screen, home goes to the start, enter submits the focused field.",
+  wait: "Pause when the screen looks like it is still loading.",
+  remember:
+    "Record a value from THIS screen that a later step will need (a code, an order number, a total). It touches nothing on the device. Use it before the action that leaves the screen showing the value, never to narrate what you just did.",
+  finish:
+    'End the test. Use verdict "passed" once you can SEE the goal has been met, and "failed" when it cannot be achieved. Always give a reason.',
+};
+
+/**
+ * The action union, restated as one tool per variant.
+ *
+ * `type` is dropped from each input schema because the tool NAME already
+ * carries it: leaving it in asks the model to state the same choice twice, and
+ * a model that fills it in inconsistently with the tool it called would give us
+ * two answers and no way to pick.
+ */
+export function actionTools(): ActionTool[] {
+  return ActionSchema.options.map((variant) => {
+    const shape = variant.shape as Record<string, z.ZodTypeAny>;
+    const { type: _type, ...rest } = shape;
+    const name = variant.shape.type.value as Action["type"];
+
+    return {
+      name,
+      description: ACTION_DESCRIPTIONS[name],
+      inputSchema: z.object(rest),
+    };
+  });
+}
+
+/** One tool call, as the model asked for it. */
+export interface ToolRequest {
+  name: string;
+  input: unknown;
+}
 
 export interface GenerateRequest {
   model: string;
   system: string;
   prompt: string;
-  output: { schema: typeof ActionSchema };
+  tools: ActionTool[];
 }
 
 /** Injection seam: tests supply a stub so retries need no model server. */
-export type GenerateFn = (request: GenerateRequest) => Promise<{ output: unknown }>;
+export type GenerateFn = (request: GenerateRequest) => Promise<{ toolRequests: ToolRequest[] }>;
 
 export interface GenkitLlmOptions {
   baseURL?: string | undefined;
@@ -125,47 +190,46 @@ export function buildDecisionPrompt(input: DecideInput): string {
   ].join("\n");
 }
 
-/** The schema keywords a model echoes back when it confuses schema with value. */
-const ENVELOPE_KEYS = ["anyOf", "oneOf"] as const;
+/**
+ * Rebuilds the action a tool call stands for.
+ *
+ * The tool name is the discriminant and the arguments are the rest, so this
+ * puts `type` back and hands the result to {@link ActionSchema} -- the same
+ * validation the structured-output path used. The model choosing a tool does
+ * not make its ARGUMENTS right: a `tap` with no `ref`, or a `finish` with an
+ * invented verdict, still has to fail here and be retried.
+ *
+ * Why the whole request rather than just the input: a name that matches no
+ * variant is the one failure a schema on the input alone cannot catch, and it
+ * is the failure a model inventing a tool produces.
+ */
+export function actionFromToolRequest(request: ToolRequest): Action {
+  const input = request.input;
+  const isObject = typeof input === "object" && input !== null && !Array.isArray(input);
+  const fields = isObject ? (input as Record<string, unknown>) : {};
+
+  return ActionSchema.parse({ type: request.name, ...fields });
+}
 
 /**
- * Unwraps a one-element `anyOf`/`oneOf` envelope around the action.
+ * Picks the one call an action is, out of what the model actually sent.
  *
- * Smaller models (E4B, measurably) sometimes answer with the *shape* of the
- * response schema rather than a value of it, emitting
- * `{"anyOf":[{"type":"input_text","ref":1,"text":"…"}]}`. The action inside is
- * correct, so retrying three times and erroring the case throws away a usable
- * decision over a wrapper.
- *
- * Why not unwrap more aggressively: an envelope holding several branches is the
- * model listing its options rather than choosing one, and picking a branch on
- * its behalf would be us deciding the test's next move. Anything but a single
- * wrapped object falls through unchanged and fails validation as before, so a
- * retry — where the model may actually choose — still happens.
+ * A turn is one move, so anything but a single call is a decision we do not
+ * have: none means the model answered in prose despite being told to call a
+ * tool, and several means it listed options rather than choosing. Both are
+ * retried rather than resolved here -- taking the first of several would be us
+ * choosing the test's next move on the model's behalf, which is exactly what
+ * the envelope-unwrapping in the structured-output path refused to do.
  */
-export function normalizeOutput(output: unknown): unknown {
-  const isObject = typeof output === "object" && output !== null && !Array.isArray(output);
-  if (!isObject) {
-    return output;
+export function soleToolRequest(requests: readonly ToolRequest[]): ToolRequest {
+  const hasOne = requests.length === 1;
+  if (!hasOne) {
+    throw new LlmDecisionError(
+      `model made ${requests.length} tool calls where exactly one action was asked for`,
+    );
   }
 
-  const record = output as Record<string, unknown>;
-  // Only a bare envelope is unwrapped: extra keys alongside it mean the shape is
-  // something other than the wrapper this works around.
-  const hasOnlyEnvelopeKey = Object.keys(record).length === 1;
-  if (!hasOnlyEnvelopeKey) {
-    return output;
-  }
-
-  for (const key of ENVELOPE_KEYS) {
-    const branches = record[key];
-    const isSingleBranch = Array.isArray(branches) && branches.length === 1;
-    if (isSingleBranch) {
-      return branches[0];
-    }
-  }
-
-  return output;
+  return requests[0] as ToolRequest;
 }
 
 /**
@@ -187,7 +251,45 @@ function genkitGenerate(options: GenkitLlmOptions): GenerateFn {
     ],
   }) as Genkit;
 
-  return async (request) => await ai.generate(request);
+  // Registered once, not per request: `defineTool` names a tool on the Genkit
+  // instance, and redefining the same name on every decision would grow the
+  // registry for the length of a run.
+  //
+  // The implementations are deliberately inert. Genkit's tool loop exists to
+  // run a tool and feed its result back for another turn, but an action here is
+  // performed by the driver against a real device, and its "result" is the next
+  // screen -- which reaches the model as the next decision's prompt, not as a
+  // tool response. `returnToolRequests` below stops that loop so the request
+  // itself is the answer.
+  const tools = actionTools().map((tool) =>
+    ai.defineTool(
+      { name: tool.name, description: tool.description, inputSchema: tool.inputSchema },
+      async () => undefined,
+    ),
+  );
+
+  return async (request) => {
+    const response = await ai.generate({
+      model: request.model,
+      system: request.system,
+      prompt: request.prompt,
+      tools,
+      // The model is asked for an action, so prose is never an acceptable
+      // answer; `required` turns "it replied with a paragraph" into a retry
+      // rather than into a decision nobody can act on.
+      toolChoice: "required",
+      returnToolRequests: true,
+    });
+
+    return {
+      toolRequests: response.toolRequests.map((part) => ({
+        // `part.toolRequest.ref` is Genkit's call id, NOT our element ref; the
+        // element ref travels inside `input` like any other argument.
+        name: part.toolRequest.name,
+        input: part.toolRequest.input,
+      })),
+    };
+  };
 }
 
 /**
@@ -206,13 +308,28 @@ export function createGenkitLlmFactory(options: GenkitLlmOptions = {}): LlmFacto
 /**
  * Genkit-backed model client.
  *
- * Structured output rather than native tool calls: the tool-call parsers in
- * MLX-family Gemma builds are unreliable, while a Zod-constrained response
- * schema is validated locally and retried on our terms.
+ * Native tool calls rather than a structured response schema. The earlier
+ * choice went the other way because the tool-call parsers in MLX-family Gemma
+ * builds were unreliable; measured again on 2026-09-20 against LM Studio 0.4.24
+ * with `google/gemma-4-26b-a4b-qat`, 15 of 15 calls came back with a
+ * well-formed `tool_calls` and valid argument JSON, including enum-constrained
+ * and multi-field variants. See `knowledge/` for the measurement.
+ *
+ * What this buys: the action variants reach the model as seven separate tools
+ * with their own descriptions, so choosing one is a choice between named moves
+ * rather than a shape to imitate. It also retires the `anyOf`/`oneOf`
+ * unwrapping the schema path needed, since a model that echoed the schema back
+ * was answering with the response's SHAPE -- a failure mode a tool call has no
+ * way to express.
+ *
+ * What it does not change: the arguments are still parsed by
+ * {@link ActionSchema} here and retried on our terms, because a model that
+ * picks the right tool can still name a ref that is not on the screen.
  */
 export class GenkitLlm implements Llm {
   readonly #model: string;
   readonly #maxAttempts: number;
+  readonly #tools: ActionTool[] = actionTools();
   readonly #generate: GenerateFn;
   readonly #log: Logger;
   readonly #now: Clock;
@@ -240,30 +357,23 @@ export class GenkitLlm implements Llm {
           model: `${PLUGIN_NAME}/${this.#model}`,
           system: SYSTEM_PROMPT,
           prompt,
-          output: { schema: ActionSchema },
+          tools: this.#tools,
         });
 
-        // Genkit returns null when the model's JSON fails the schema. Parsing
-        // again here rather than trusting `output` keeps validation ours: a
-        // retry often succeeds because the failure is formatting, not
-        // capability.
-        const parsed = ActionSchema.safeParse(normalizeOutput(response.output));
-        if (!parsed.success) {
-          throw new LlmDecisionError(
-            `model returned no schema-valid action: ${parsed.error.issues
-              .map((issue) => issue.message)
-              .join("; ")}`,
-          );
-        }
+        // Validated here rather than trusted because it arrived as a tool call:
+        // the model picking a tool says nothing about the arguments it filled
+        // in, and a retry often succeeds where the first answer named a ref
+        // that is not on the screen.
+        const action = actionFromToolRequest(soleToolRequest(response.toolRequests));
 
         this.#log.info("llm.decided", {
           attempt,
           model: this.#model,
           durationMs: Math.round(this.#now() - startedAt),
-          type: parsed.data.type,
+          type: action.type,
         });
 
-        return parsed.data;
+        return action;
       } catch (error) {
         lastError = error;
         // Each retry is logged, not just the final failure: a run that succeeds

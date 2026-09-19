@@ -1,14 +1,17 @@
 export {
+  actionFromToolRequest,
+  actionTools,
   buildDecisionPrompt,
   createGenkitLlmFactory,
   DEFAULT_BASE_URL,
   DEFAULT_MODEL,
   GenkitLlm,
   LlmDecisionError,
-  normalizeOutput,
+  soleToolRequest,
   SYSTEM_PROMPT,
 } from "./llm.ts";
 export type {
+  ActionTool,
   Clock,
   DecideInput,
   GenerateFn,
@@ -16,6 +19,7 @@ export type {
   GenkitLlmOptions,
   Llm,
   LlmFactory,
+  ToolRequest,
 } from "./llm.ts";
 
 export { RefResolutionError, runScenario } from "./run.ts";
