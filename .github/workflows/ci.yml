@@ -39,6 +39,18 @@ jobs:
       - run: bun run fmt:check
       - run: bun run typecheck
 
+  knowledge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      # yq ships on the GitHub-hosted ubuntu image, so the bundle check needs
+      # no install step and no Nix. REQUIRE_YQ makes its absence a failure
+      # here: the script's default is to skip, which would turn a missing tool
+      # into a green run that checked nothing.
+      - run: ./scripts/lint-knowledge.sh
+        env:
+          REQUIRE_YQ: "1"
+
   test:
     runs-on: ubuntu-latest
     steps:

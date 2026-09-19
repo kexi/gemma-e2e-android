@@ -148,10 +148,14 @@ pin:
 pin-check:
     pinact run -fix=false -no-api .github/workflows/*.yml
 
+# Verify the knowledge bundle: OKF v0.2 conformance and the tag vocabulary.
+knowledge:
+    ./scripts/lint-knowledge.sh
+
 # Every gate a change has to clear, run locally. A superset of CI: it adds the
 # typecheck, tests and action-pin check that CI does not have jobs for yet, so a
 # green `just check` implies a green CI but not the reverse.
-check: lint fmt-check typecheck test secrets pin-check
+check: lint fmt-check typecheck test secrets pin-check knowledge
 
 # Create the development AVD (AVDs live in ~/.android/avd, outside nix; this recipe is the reproducible part).
 avd-create:

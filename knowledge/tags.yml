@@ -1,0 +1,6 @@
+# knowledge/ で使える tag の統制語彙。
+# 新しい tag は説明付きでここに追加してから使う（lint が検証する）。
+# Why not 自由タグ: 乱立してからの統合は全文書の書き換えになるため。
+llm: ローカル/リモートの言語モデルそのものの挙動に関する知見
+tool-calling: function calling / tool call の仕様・安定性・実装上の差異
+measurement: 実測に基づく記録。条件付きの数値を含む

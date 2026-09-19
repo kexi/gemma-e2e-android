@@ -22,3 +22,10 @@ pre-commit:
       # Check only. Rewriting files under the user's commit is surprising;
       # `just fmt` is the explicit fix.
       run: bunx oxfmt --check {staged_files}
+
+    knowledge:
+      glob: "knowledge/**/*.{md,yml}"
+      # Whole-bundle rather than {staged_files}: a tag is validated against
+      # tags.yml, so editing either side alone can break the other, and only
+      # the staged half would be looked at.
+      run: ./scripts/lint-knowledge.sh
