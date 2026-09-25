@@ -3,6 +3,13 @@
 // Bun.file through ./scenario.ts, which a browser build cannot typecheck
 // against even when it imports nothing but types.
 export {
+  ACCESSIBILITY_PERSONA_PRESETS,
+  AccessibilityFindingSchema,
+  AccessibilityPersonaReviewSchema,
+  AccessibilityPersonaSchema,
+  AccessibilityReviewReportSchema,
+  AccessibilityReviewSchema,
+  AccessibilitySettingsSchema,
   ActionSchema,
   AndroidTargetSchema,
   BoundsSchema,
@@ -14,6 +21,7 @@ export {
   isUnsettledRun,
   KeyNameSchema,
   resolveModel,
+  resolveAccessibility,
   resolveTarget,
   RunSchema,
   RunStatusSchema,
@@ -29,6 +37,12 @@ export {
 } from "./schema.ts";
 
 export type {
+  AccessibilityFinding,
+  AccessibilityPersona,
+  AccessibilityPersonaReview,
+  AccessibilityReview,
+  AccessibilityReviewReport,
+  AccessibilitySettings,
   Action,
   AndroidTarget,
   Bounds,

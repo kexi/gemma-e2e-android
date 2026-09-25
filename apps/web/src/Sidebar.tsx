@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { collectTags, describeTarget, filterByTags } from "@gemma-e2e/core/schema";
 import Alert from "@mui/material/Alert";
@@ -74,12 +74,21 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   const [starting, setStarting] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedScenarioIds, setSelectedScenarioIds] = useState<Set<string>>(new Set());
+  const scenarioRequestRef = useRef(0);
 
   // Also called after the builder writes a file, so a scenario created or
   // edited here is runnable without a page reload.
   function reloadScenarios() {
+    scenarioRequestRef.current += 1;
+    const request = scenarioRequestRef.current;
     fetchScenarios()
       .then((body) => {
+        // Two saves can refetch out of order; the earlier response must not
+        // restore a version that the later save has already replaced.
+        const isStale = request !== scenarioRequestRef.current;
+        if (isStale) {
+          return;
+        }
         setScenarios(body.scenarios);
         // Narrowed against what the rail is SHOWING, not against everything on
         // disk: the active tag filter is part of the answer, or a scenario the
@@ -93,7 +102,12 @@ export function Sidebar({ onNavigate }: SidebarProps) {
           retainAfterReload(current, body.scenarios, selectedTags),
         );
       })
-      .catch((cause: unknown) => setError(message(cause)));
+      .catch((cause: unknown) => {
+        const isLatest = request === scenarioRequestRef.current;
+        if (isLatest) {
+          setError(message(cause));
+        }
+      });
   }
 
   useEffect(() => {

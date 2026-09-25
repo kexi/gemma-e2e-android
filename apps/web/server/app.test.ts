@@ -360,6 +360,31 @@ describe("PUT /api/scenarios/:id", () => {
     expect(listed.scenarios.find((one) => one.id === "login")?.tags).toEqual(["smoke", "auth"]);
   });
 
+  test("round-trips visual personas and case disable through YAML edits", async () => {
+    const accessibility = {
+      personas: [{ id: "near-text", label: "老眼", description: "小さい文字を見分けにくい" }],
+    };
+    const body = {
+      ...EDITED_LOGIN,
+      accessibility,
+      cases: [{ id: "valid", prompt: "Log in", accessibility: { personas: [] } }],
+    };
+    expect((await put("login", body)).status).toBe(200);
+    const listed = (await (await harness().request("/api/scenarios")).json()) as {
+      scenarios: Scenario[];
+    };
+    const edited = listed.scenarios.find((one) => one.id === "login");
+    expect(edited?.accessibility).toEqual(accessibility);
+    expect(edited?.cases[0]?.accessibility).toEqual({ personas: [] });
+    expect((await put("login", { ...body, accessibility: { personas: [] } })).status).toBe(200);
+    const disabled = (await (await harness().request("/api/scenarios")).json()) as {
+      scenarios: Scenario[];
+    };
+    expect(disabled.scenarios.find((one) => one.id === "login")?.accessibility).toEqual({
+      personas: [],
+    });
+  });
+
   test("keeps the tags a later edit does not mention out of the file", async () => {
     // Tags default to `[]`, so an edit that omits them means "no tags" rather
     // than "leave them alone"; the point is that the key does not linger with

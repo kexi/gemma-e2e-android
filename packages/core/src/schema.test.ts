@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
+  ACCESSIBILITY_PERSONA_PRESETS,
+  AccessibilityReviewSchema,
+  AccessibilitySettingsSchema,
   ActionSchema,
   CaseRunSchema,
   CaseStatusSchema,
@@ -8,6 +11,7 @@ import {
   filterByTags,
   isUnsettledRun,
   resolveModel,
+  resolveAccessibility,
   resolveTarget,
   RunStatusSchema,
   type Scenario,
@@ -16,6 +20,73 @@ import {
   UiNodeSchema,
   UNSETTLED_RUN_STATUSES,
 } from "./schema.ts";
+
+describe("accessibility review settings", () => {
+  const personas = [...ACCESSIBILITY_PERSONA_PRESETS];
+
+  test("preserves custom persona descriptions and uses a case's explicit empty list to disable inherited reviews", () => {
+    const custom = { id: "custom-reader", label: "My reader", description: "Needs clear labels" };
+    const scenario = ScenarioSchema.parse({
+      id: "review",
+      title: "Review",
+      accessibility: { personas: [...personas, custom] },
+      cases: [
+        { id: "inherit", prompt: "Open home" },
+        { id: "disabled", prompt: "Open home", accessibility: { personas: [] } },
+        { id: "override", prompt: "Open home", accessibility: { personas: [custom] } },
+      ],
+    });
+
+    expect(resolveAccessibility(scenario.cases[0]!, scenario)?.personas).toEqual([
+      ...personas,
+      custom,
+    ]);
+    expect(resolveAccessibility(scenario.cases[1]!, scenario)?.personas).toEqual([]);
+    expect(resolveAccessibility(scenario.cases[2]!, scenario)?.personas).toEqual([custom]);
+    expect(resolveAccessibility({}, {})).toBeUndefined();
+  });
+
+  test("rejects duplicate persona ids, empty descriptions, and more than eight personas", () => {
+    const first = personas[0]!;
+    expect(AccessibilitySettingsSchema.safeParse({ personas }).success).toBe(true);
+    expect(AccessibilitySettingsSchema.safeParse({ personas: [first, first] }).success).toBe(false);
+    expect(
+      AccessibilitySettingsSchema.safeParse({ personas: [{ ...first, description: "  " }] })
+        .success,
+    ).toBe(false);
+    expect(
+      AccessibilitySettingsSchema.safeParse({
+        personas: Array.from({ length: 9 }, (_, index) => ({ ...first, id: `reader-${index}` })),
+      }).success,
+    ).toBe(false);
+  });
+
+  test("retains persona snapshots with both a completed review and a review failure", () => {
+    const completed = {
+      status: "completed" as const,
+      personas,
+      model: "gemma",
+      screenshotPath: "pre-action.png",
+      reviews: personas.map((persona) => ({ personaId: persona.id, findings: [] })),
+    };
+    const failure = {
+      status: "error" as const,
+      personas,
+      model: "gemma",
+      screenshotPath: null,
+      error: "Screenshot unavailable",
+    };
+
+    expect(AccessibilityReviewSchema.parse(completed)).toEqual(completed);
+    expect(AccessibilityReviewSchema.parse(failure)).toEqual(failure);
+    expect(AccessibilityReviewSchema.safeParse({ ...completed, personas: undefined }).success).toBe(
+      false,
+    );
+    expect(
+      AccessibilityReviewSchema.safeParse({ ...completed, screenshotPath: null }).success,
+    ).toBe(false);
+  });
+});
 
 describe("ActionSchema", () => {
   test("accepts every action variant", () => {

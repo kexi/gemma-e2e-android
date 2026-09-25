@@ -878,7 +878,7 @@ function foldPrompts(node: YamlDocument | YamlNode): void {
  * missing from here is a key PUT silently drops from the file -- which is how
  * an edit through the dashboard would quietly delete a scenario's tags.
  */
-const SCENARIO_KEYS = ["title", "tags", "target", "model", "cases"] as const;
+const SCENARIO_KEYS = ["title", "tags", "target", "model", "accessibility", "cases"] as const;
 
 /**
  * Rewrites `current` so it describes `scenario`, reusing the existing nodes

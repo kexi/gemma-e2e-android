@@ -5,6 +5,7 @@ import {
   CdpRecorder,
   createDriverResolver,
   createGenkitLlmFactory,
+  createAccessibilityReviewer,
   DEFAULT_BASE_URL,
   DEFAULT_MODEL,
   runScenario,
@@ -88,6 +89,7 @@ const recorder = isRecording
 // A factory rather than a client: the model is chosen per case, and one Genkit
 // instance underneath serves every model a run touches.
 const llm = createGenkitLlmFactory({ baseURL: llmBaseURL, logger });
+const reviewAccessibility = createAccessibilityReviewer({ baseURL: llmBaseURL });
 
 // Constructed unconditionally and connected lazily, like `adb` above: a
 // machine with no Chrome running still boots the dashboard, and a web case
@@ -134,6 +136,7 @@ const queue = new RunQueue({
       await runScenario(scenario, {
         openDriver,
         llm,
+        reviewAccessibility,
         store,
         screenshotDir: screenshotsDir,
         defaultModel,

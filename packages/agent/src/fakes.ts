@@ -1,5 +1,6 @@
 import type {
   Action,
+  AccessibilityReview,
   CaseRun,
   CaseStatus,
   KeyName,
@@ -365,6 +366,7 @@ export class FakeStore implements StoreLike {
     uiText: string;
     screenshotPath?: string | null | undefined;
     note?: string | null | undefined;
+    accessibilityReview?: AccessibilityReview | null | undefined;
   }): Promise<Step> {
     const caseRun = this.#requireCase(input.runId, input.caseId);
 
@@ -376,6 +378,9 @@ export class FakeStore implements StoreLike {
       uiText: input.uiText,
       screenshotPath: input.screenshotPath ?? null,
       note: input.note ?? null,
+      ...(input.accessibilityReview === undefined
+        ? {}
+        : { accessibilityReview: input.accessibilityReview }),
       createdAt: new Date().toISOString(),
     };
     caseRun.steps.push(step);

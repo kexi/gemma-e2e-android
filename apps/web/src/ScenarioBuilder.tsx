@@ -2,7 +2,8 @@ import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import EditIcon from "@mui/icons-material/Edit";
-import type { Platform, Target } from "@gemma-e2e/core/schema";
+import type { AccessibilitySettings, Platform, Target } from "@gemma-e2e/core/schema";
+import { AccessibilitySettingsEditor } from "./AccessibilitySettingsEditor.tsx";
 import {
   createScenario,
   type CreateScenarioRequest,
@@ -20,6 +21,7 @@ const SLUG_PATTERN = "[a-z0-9][a-z0-9-]*";
 let nextCaseKey = 0;
 
 interface CaseDraft {
+  accessibility?: AccessibilitySettings | undefined;
   /** Stable across reorders and removals, unlike an array index. */
   key: number;
   id: string;
@@ -50,6 +52,7 @@ function emptyCase(): CaseDraft {
  * otherwise lose what they had typed.
  */
 interface Draft {
+  accessibility?: AccessibilitySettings | undefined;
   id: string;
   title: string;
   /**
@@ -88,6 +91,7 @@ function emptyDraft(): Draft {
  */
 function draftOf(scenario: Scenario): Draft {
   return {
+    accessibility: scenario.accessibility,
     id: scenario.id,
     title: scenario.title,
     tags: scenario.tags.join(", "),
@@ -99,6 +103,7 @@ function draftOf(scenario: Scenario): Draft {
     cases: scenario.cases.map((one) => {
       nextCaseKey += 1;
       return {
+        accessibility: one.accessibility,
         key: nextCaseKey,
         id: one.id,
         title: one.title ?? "",
@@ -195,10 +200,18 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
   const dialogId = useId();
   const isEditing = scenario !== undefined;
 
-  // Not a stale-prop hazard despite being read only on close and on open: the
-  // rail refetches after every save, so an edited scenario arrives as a new
-  // prop before the dialog is opened again.
-  const initial = () => (scenario === undefined ? emptyDraft() : draftOf(scenario));
+  // The list refetch can arrive after the dialog closes or reopens. Keep the
+  // save response until its source prop is replaced so a quick second edit
+  // cannot restore and then overwrite the previous version.
+  const savedScenarioRef = useRef<{ source: Scenario; saved: Scenario } | null>(null);
+  const currentScenarioRef = useRef(scenario);
+  currentScenarioRef.current = scenario;
+  const initial = () => {
+    const saved = savedScenarioRef.current;
+    const hasPendingSave = saved !== null && saved.source === scenario;
+    const latest = hasPendingSave ? saved.saved : scenario;
+    return latest === undefined ? emptyDraft() : draftOf(latest);
+  };
 
   const [id, setId] = useState(() => initial().id);
   // Tracks whether the user has taken the id over, so typing a title stops
@@ -212,6 +225,9 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
   const [appActivity, setAppActivity] = useState(() => initial().appActivity);
   const [url, setUrl] = useState(() => initial().url);
   const [model, setModel] = useState(() => initial().model);
+  const [accessibility, setAccessibility] = useState<AccessibilitySettings | undefined>(
+    () => initial().accessibility,
+  );
   const [cases, setCases] = useState<CaseDraft[]>(() => initial().cases);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -242,6 +258,7 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
     setAppActivity(start.appActivity);
     setUrl(start.url);
     setModel(start.model);
+    setAccessibility(start.accessibility);
     setCases(start.cases);
     setError(null);
   }
@@ -285,6 +302,7 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
     const parsedTags = parseTags(tags);
 
     const body: CreateScenarioRequest = {
+      ...(accessibility === undefined ? {} : { accessibility }),
       id,
       title,
       // Always sent, even empty. Omitting it on an edit would leave the server
@@ -294,6 +312,7 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
       ...(target === undefined ? {} : { target }),
       ...(model === SERVER_DEFAULT ? {} : { model }),
       cases: cases.map((one) => ({
+        ...(one.accessibility === undefined ? {} : { accessibility: one.accessibility }),
         id: one.id,
         ...(one.title.trim() === "" ? {} : { title: one.title.trim() }),
         prompt: one.prompt.trim(),
@@ -306,9 +325,14 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
     };
 
     try {
-      await (isEditing ? updateScenario(body) : createScenario(body));
-      // Closing fires `close`, which resets the form. The rail refetches first
-      // so an edit reopens showing what was just saved, not what it replaced.
+      const result = await (isEditing ? updateScenario(body) : createScenario(body));
+      if (isEditing) {
+        savedScenarioRef.current = {
+          source: currentScenarioRef.current ?? scenario,
+          saved: result.scenario,
+        };
+      }
+      // The save response is available now; the rail refresh is asynchronous.
       onSaved();
       dialogRef.current?.close();
     } catch (cause) {
@@ -327,6 +351,7 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
   const openProps = {
     ...(hasInvokerCommands ? { command: "show-modal", commandfor: dialogId } : {}),
     onClick: () => {
+      reset();
       if (!hasInvokerCommands) {
         dialogRef.current?.showModal();
       }
@@ -528,6 +553,8 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
             </div>
           </fieldset>
 
+          <AccessibilitySettingsEditor value={accessibility} onChange={setAccessibility} />
+
           {cases.map((one, index) => (
             <fieldset key={one.key} className="builder-fieldset">
               <legend>
@@ -588,6 +615,13 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
                   <span aria-hidden="true">❌</span> A prompt is required.
                 </p>
               </div>
+
+              <AccessibilitySettingsEditor
+                value={one.accessibility}
+                onChange={(value) => updateCase(one.key, { accessibility: value })}
+                inherited={accessibility}
+                allowInherit
+              />
 
               <div className="builder-row">
                 <div className="builder-field">

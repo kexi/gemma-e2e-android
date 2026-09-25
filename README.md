@@ -28,6 +28,57 @@ Both platforms produce the same `UiNode` tree, so the serializer the model
 reads, the action vocabulary it answers in, and the prompt behind it are one
 implementation rather than two.
 
+## Visual accessibility review
+
+In the scenario editor, use **Visual accessibility review** to select personas:
+red–green or blue–yellow color distinction, presbyopia (near-text legibility),
+and low vision. Edit their viewing conditions or add a custom persona. Each case
+inherits the scenario selection unless you choose its own personas. An empty
+selection turns review off; existing scenarios keep review off by default.
+
+For YAML scenarios, describe the personas explicitly:
+
+```yaml
+title: Login with visual review
+target:
+  platform: web
+  url: http://localhost:5174
+accessibility:
+  personas:
+    - id: presbyopia
+      label: 老眼・近くの文字の読みづらさ
+      description: 小さい文字や細い線、低コントラストによる読みにくさを確認する。
+    - id: red-green
+      label: 赤・緑の見分けにくさ
+      description: 状態や操作を色だけで区別せず、文字や形でも識別できるか確認する。
+cases:
+  - id: login
+    prompt: Check that the user can log in.
+  - id: functional-only
+    prompt: Check that an incorrect password is rejected.
+    accessibility:
+      personas: []
+```
+
+Android uses the same setting with its Android `target`. The selected case model
+must support image input. Each step captures a separate **before-action** PNG,
+including the initial screen and the screen on which the agent finishes. Gemma
+reviews that saved image after the action, so image inference does not delay an
+action chosen from the current UI tree. All selected personas are evaluated
+together, with one retry for malformed output. The run timeline
+shows the location, reason and suggestion for each potential issue, with a link
+to the reviewed image. The existing step thumbnail remains the after-action
+image. Persona definitions and the model are saved with the review, so changing
+the scenario later does not change the meaning of past results.
+
+Reviews add an image-model request per step (at most 60 seconds each). Failures
+are recorded as review errors and do not change the functional E2E verdict.
+Review covers only sampled visible screens, not every animation or transient
+state. Findings are qualitative suggestions, not a reproduction of someone's
+vision or a WCAG compliance result. No findings does not prove accessibility.
+Exact contrast ratios and physical text sizes are not measured. Screen-reader
+behavior, reading order and other nonvisual behavior are outside this feature.
+
 ## Repository layout
 
 | Path | What it is |

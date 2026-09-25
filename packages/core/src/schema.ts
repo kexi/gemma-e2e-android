@@ -148,6 +148,91 @@ export function isUnsettledRun(status: RunStatus): boolean {
   return (UNSETTLED_RUN_STATUSES as readonly RunStatus[]).includes(status);
 }
 
+export const AccessibilityPersonaSchema = z.object({
+  id: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9-]*$/)
+    .max(80),
+  label: z.string().trim().min(1).max(120),
+  description: z.string().trim().min(1).max(2000),
+});
+export type AccessibilityPersona = z.infer<typeof AccessibilityPersonaSchema>;
+
+export const ACCESSIBILITY_PERSONA_PRESETS: readonly AccessibilityPersona[] = [
+  {
+    id: "red-green",
+    label: "赤・緑の見分けにくさ",
+    description:
+      "赤と緑の違いを識別しにくい利用者。状態・操作・グラフの区別が色だけに依存せず、文字・形・模様でも伝わるか確認する。",
+  },
+  {
+    id: "blue-yellow",
+    label: "青・黄の見分けにくさ",
+    description:
+      "青と黄などの色の違いを識別しにくい利用者。情報の区別を色だけに依存させていないか確認する。",
+  },
+  {
+    id: "presbyopia",
+    label: "老眼・近くの文字の読みづらさ",
+    description:
+      "近くの小さな文字に焦点を合わせにくい利用者。小さい文字、細い線、情報の詰め込み、低いコントラストによる読みにくさを確認する。画像から実際の文字サイズや視距離を断定しない。",
+  },
+  {
+    id: "low-vision",
+    label: "弱視・細部の見えづらさ",
+    description:
+      "文字やアイコンの細部を認識しにくい利用者。文字・背景・操作部品の区別、視覚的な密集、重要情報の目立ちやすさを確認する。",
+  },
+];
+
+export const AccessibilitySettingsSchema = z.object({
+  // An explicit empty list disables an inherited review; omission inherits.
+  personas: z
+    .array(AccessibilityPersonaSchema)
+    .max(8)
+    .refine(
+      (personas) => new Set(personas.map((persona) => persona.id)).size === personas.length,
+      "persona ids must be unique",
+    ),
+});
+export type AccessibilitySettings = z.infer<typeof AccessibilitySettingsSchema>;
+
+export const AccessibilityFindingSchema = z.object({
+  category: z.enum(["color_only", "contrast", "text_size", "visual_clutter", "other"]),
+  location: z.string().trim().min(1).max(1000),
+  reason: z.string().trim().min(1).max(2000),
+  suggestion: z.string().trim().min(1).max(2000),
+});
+export type AccessibilityFinding = z.infer<typeof AccessibilityFindingSchema>;
+
+export const AccessibilityPersonaReviewSchema = z.object({
+  personaId: AccessibilityPersonaSchema.shape.id,
+  findings: z.array(AccessibilityFindingSchema).max(20),
+});
+export type AccessibilityPersonaReview = z.infer<typeof AccessibilityPersonaReviewSchema>;
+
+export const AccessibilityReviewReportSchema = z.object({
+  reviews: z.array(AccessibilityPersonaReviewSchema).min(1).max(8),
+});
+export type AccessibilityReviewReport = z.infer<typeof AccessibilityReviewReportSchema>;
+
+export const AccessibilityReviewSchema = z.discriminatedUnion("status", [
+  AccessibilityReviewReportSchema.extend({
+    status: z.literal("completed"),
+    personas: AccessibilitySettingsSchema.shape.personas,
+    screenshotPath: z.string().min(1),
+    model: z.string().min(1),
+  }),
+  z.object({
+    status: z.literal("error"),
+    personas: AccessibilitySettingsSchema.shape.personas,
+    screenshotPath: z.string().min(1).nullable(),
+    model: z.string().min(1),
+    error: z.string().min(1),
+  }),
+]);
+export type AccessibilityReview = z.infer<typeof AccessibilityReviewSchema>;
+
 export const StepSchema = z.object({
   runId: z.string(),
   caseId: z.string(),
@@ -155,6 +240,7 @@ export const StepSchema = z.object({
   action: ActionSchema,
   uiText: z.string(),
   screenshotPath: z.string().nullable(),
+  accessibilityReview: AccessibilityReviewSchema.nullable().optional(),
   note: z.string().nullable(),
   createdAt: z.string(),
 });
@@ -264,6 +350,7 @@ export const TestCaseSchema = z.object({
   model: z.string().min(1).optional(),
   /** Overrides the scenario's target, so one file may mix platforms. */
   target: TargetSchema.optional(),
+  accessibility: AccessibilitySettingsSchema.optional(),
   // A wrong turn early can otherwise burn tokens indefinitely; every case is
   // bounded even when the scenario file omits a budget.
   maxSteps: z.number().int().positive().default(20),
@@ -331,6 +418,7 @@ export const ScenarioSchema = z.preprocess(
     target: TargetSchema.optional(),
     /** Default model for every case that does not name its own. */
     model: z.string().min(1).optional(),
+    accessibility: AccessibilitySettingsSchema.optional(),
     cases: z.array(TestCaseSchema).min(1, "a scenario needs at least one case"),
   }),
 );
@@ -338,6 +426,13 @@ export const ScenarioSchema = z.preprocess(
 export type Scenario = z.infer<typeof ScenarioSchema>;
 /** Pre-parse shape: `maxSteps` is optional on disk, defaulted after parsing. */
 export type ScenarioInput = z.input<typeof ScenarioSchema>;
+
+export function resolveAccessibility(
+  testCase: Pick<TestCase, "accessibility">,
+  scenario: Pick<Scenario, "accessibility">,
+): AccessibilitySettings | undefined {
+  return testCase.accessibility ?? scenario.accessibility;
+}
 
 /**
  * Picks the model for a case: the case's own choice wins, then the scenario's,

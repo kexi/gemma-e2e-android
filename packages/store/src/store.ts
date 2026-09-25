@@ -3,6 +3,7 @@ import { type Firestore, getFirestore } from "firebase-admin/firestore";
 import type { z } from "zod";
 import {
   type Action,
+  type AccessibilityReview,
   type CaseRun,
   CaseRunSchema,
   type CaseStatus,
@@ -100,6 +101,7 @@ export interface AddStepInput {
   uiText: string;
   screenshotPath?: string | null | undefined;
   note?: string | null | undefined;
+  accessibilityReview?: AccessibilityReview | null | undefined;
 }
 
 export interface FinishInput {
@@ -341,6 +343,9 @@ export class Store {
       uiText: input.uiText,
       screenshotPath: input.screenshotPath ?? null,
       note: input.note ?? null,
+      ...(input.accessibilityReview === undefined
+        ? {}
+        : { accessibilityReview: input.accessibilityReview }),
       createdAt: new Date().toISOString(),
     };
 
@@ -537,6 +542,9 @@ function toStepDoc(step: Step): StepDoc {
     uiText: step.uiText,
     screenshotPath: step.screenshotPath,
     note: step.note,
+    ...(step.accessibilityReview === undefined
+      ? {}
+      : { accessibilityReview: step.accessibilityReview }),
     createdAt: step.createdAt,
   };
 }

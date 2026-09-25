@@ -1,4 +1,12 @@
-import type { CaseRun, Run, Scenario, Step, Target, TestCase } from "@gemma-e2e/core/schema";
+import type {
+  AccessibilitySettings,
+  CaseRun,
+  Run,
+  Scenario,
+  Step,
+  Target,
+  TestCase,
+} from "@gemma-e2e/core/schema";
 
 export type { CaseRun, Run, Scenario, Step, Target, TestCase };
 
@@ -81,6 +89,7 @@ export function fetchScenarios(): Promise<{ scenarios: Scenario[] }> {
  * defaults it, so a case left blank still gets a step budget.
  */
 export interface CreateScenarioRequest {
+  accessibility?: AccessibilitySettings;
   id: string;
   title: string;
   /**
@@ -92,6 +101,7 @@ export interface CreateScenarioRequest {
   target?: Target;
   model?: string;
   cases: {
+    accessibility?: AccessibilitySettings;
     id: string;
     title?: string;
     prompt: string;

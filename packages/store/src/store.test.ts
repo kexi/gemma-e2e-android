@@ -206,6 +206,40 @@ describeWithFirestore("Store", () => {
   });
 
   describe("addStep", () => {
+    test("round-trips review evidence, persona snapshot and findings", async () => {
+      await seedRun();
+      await seedCase();
+      const accessibilityReview = {
+        status: "completed" as const,
+        model: "vision-model",
+        screenshotPath: "run/valid/000-review.png",
+        personas: [{ id: "near-text", label: "老眼", description: "小さい文字が読みにくい" }],
+        reviews: [
+          {
+            personaId: "near-text",
+            findings: [
+              {
+                category: "text_size" as const,
+                location: "Footer",
+                reason: "Small text",
+                suggestion: "Enlarge text",
+              },
+            ],
+          },
+        ],
+      };
+      await store.addStep({
+        runId,
+        caseId: "valid",
+        index: 0,
+        action: TAP,
+        uiText: "",
+        accessibilityReview,
+      });
+      expect((await store.getRun(runId))?.cases[0]?.steps[0]?.accessibilityReview).toEqual(
+        accessibilityReview,
+      );
+    });
     test("round-trips an action through the Zod converter", async () => {
       await seedRun();
       await seedCase();

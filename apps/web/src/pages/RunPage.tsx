@@ -21,6 +21,7 @@ import type { CaseRun, CaseStatus, Run, RunStatus, Step } from "@gemma-e2e/core/
 import { fetchRun, screenshotUrl, videoUrl } from "../api.ts";
 import { actionIcon, describeAction, StatusChip } from "../status.tsx";
 import { DeviceLiveView } from "../DeviceLiveView.tsx";
+import { AccessibilityReviewDetails } from "../AccessibilityReviewDetails.tsx";
 import { nextRunStatus, type StatusSignal } from "../runStatus.ts";
 import { useDevicePlatform } from "../useDevicePlatform.ts";
 import { UiTreeDetails } from "../UiTreeDetails.tsx";
@@ -468,6 +469,7 @@ function CaseAccordion({ caseRun, deferred }: { caseRun: CaseRun; deferred: bool
                         <UiTreeDetails uiText={step.uiText} />
                       </Box>
                     )}
+                    <AccessibilityReviewDetails review={step.accessibilityReview} />
                   </Box>
                   {step.screenshotPath !== null && (
                     <Link
@@ -478,7 +480,7 @@ function CaseAccordion({ caseRun, deferred }: { caseRun: CaseRun; deferred: bool
                       <Box
                         component="img"
                         src={screenshotUrl(step.screenshotPath)}
-                        alt={`step ${step.index + 1}`}
+                        alt={`Step ${step.index + 1}: after action`}
                         sx={{ width: 96, borderRadius: 1, display: "block" }}
                       />
                     </Link>

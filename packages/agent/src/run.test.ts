@@ -3,12 +3,15 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Action } from "@gemma-e2e/core";
+import { AccessibilityReviewSchema } from "@gemma-e2e/core";
 import { createLogger, type LogEvent } from "@gemma-e2e/logger";
 import { runScenario, type RunEvent } from "./run.ts";
 import type { Driver } from "./driver.ts";
 import type { Recorder } from "./recorder.ts";
+import { WebDriver } from "./drivers/web.ts";
 import {
   FakeAdb,
+  FakeCdp,
   FakeDriverFactory,
   FakeRecorder,
   FakeStore,
@@ -31,6 +34,163 @@ afterEach(async () => {
 });
 
 const DEFAULT_MODEL = "env-model";
+
+const VISUAL_PERSONAS = [
+  { id: "near-text", label: "近くの文字", description: "小さな文字が読みづらい" },
+];
+
+describe("visual accessibility review", () => {
+  test("a screen expiring during review cannot invalidate the action chosen for that screen", async () => {
+    const h = harness([{ type: "tap", ref: 1 }, FINISH_PASSED]);
+    let screenExpired = false;
+    const tap = h.adb.tap.bind(h.adb);
+    h.adb.tap = async (x, y) => {
+      if (screenExpired)
+        throw new Error("the button moved while the screenshot was being reviewed");
+      await tap(x, y);
+    };
+    const result = await runScenario(scenario({ accessibility: { personas: VISUAL_PERSONAS } }), {
+      ...h.deps,
+      reviewAccessibility: async () => {
+        screenExpired = true;
+        return { reviews: [{ personaId: "near-text", findings: [] }] };
+      },
+    });
+    expect(result.status).toBe("passed");
+    expect(h.store.case("run-1", "logs-in")?.steps[0]?.note).toBeNull();
+    expect(h.adb.calls.filter((call) => call.method === "tap")).toHaveLength(1);
+  });
+
+  for (const platform of ["android", "web"] as const) {
+    test(`${platform}: reviews pre-action evidence after acting, including initial and finish screens`, async () => {
+      const h = harness([{ type: "tap", ref: 1 }, FINISH_PASSED]);
+      const cdp = new FakeCdp();
+      const calls = platform === "android" ? h.adb.calls : cdp.calls;
+      const reviewedPaths: string[] = [];
+      const result = await runScenario(scenario({ accessibility: { personas: VISUAL_PERSONAS } }), {
+        ...h.deps,
+        openDriver:
+          platform === "android"
+            ? h.drivers.open
+            : async () => {
+                const session = await cdp.openSession();
+                return {
+                  driver: new WebDriver(cdp, session, {
+                    platform: "web",
+                    url: "http://localhost/",
+                  }),
+                  close: () => cdp.closeSession(session),
+                };
+              },
+        reviewAccessibility: async ({ model, screenshotPath, personas }) => {
+          expect(model).toBe(DEFAULT_MODEL);
+          expect(personas).toEqual(VISUAL_PERSONAS);
+          reviewedPaths.push(screenshotPath);
+          expect(calls.filter((call) => call.method === "tap")).toHaveLength(1);
+          const firstCapture = calls.findIndex((call) => call.method === "screencap");
+          const firstTap = calls.findIndex((call) => call.method === "tap");
+          expect(firstCapture).toBeLessThan(firstTap);
+          expect(calls[firstCapture]?.args[0]).toEndWith("000-review.png");
+          expect(calls.at(-1)?.args[0]).toEndWith(`00${reviewedPaths.length - 1}.png`);
+          return {
+            reviews: [
+              {
+                personaId: "near-text",
+                findings: [
+                  {
+                    category: "text_size",
+                    location: "画面下の補足",
+                    reason: "文字が小さい可能性",
+                    suggestion: "文字を大きくする",
+                  },
+                ],
+              },
+            ],
+          };
+        },
+      });
+      expect(result.status).toBe("passed");
+      const steps = h.store.case("run-1", "logs-in")?.steps ?? [];
+      expect(steps).toHaveLength(2);
+      expect(reviewedPaths).toEqual(
+        [0, 1].map((index) => join(screenshotDir, "run-1", "logs-in", `00${index}-review.png`)),
+      );
+      expect(steps[0]?.accessibilityReview).toMatchObject({
+        status: "completed",
+        personas: VISUAL_PERSONAS,
+      });
+      expect(steps[0]?.screenshotPath).toEndWith("000.png");
+      expect(h.events.filter((event) => event.type === "step_recorded")[0]).toMatchObject({
+        step: { accessibilityReview: { status: "completed" } },
+      });
+    });
+  }
+
+  test("case disable overrides scenario settings without extra captures or review requests", async () => {
+    const h = harness([FINISH_PASSED]);
+    await runScenario(
+      scenario({
+        accessibility: { personas: VISUAL_PERSONAS },
+        cases: [testCase({ accessibility: { personas: [] } })],
+      }),
+      {
+        ...h.deps,
+        reviewAccessibility: async () => {
+          throw new Error("must not run");
+        },
+      },
+    );
+    expect(h.adb.calls.filter((call) => call.method === "screencap")).toHaveLength(1);
+    expect(h.store.case("run-1", "logs-in")?.steps[0]?.accessibilityReview).toBeUndefined();
+  });
+
+  test("review errors are stored separately without changing the functional verdict", async () => {
+    const h = harness([FINISH_PASSED]);
+    const result = await runScenario(scenario({ accessibility: { personas: VISUAL_PERSONAS } }), {
+      ...h.deps,
+      reviewAccessibility: async () => {
+        throw new Error("model cannot accept images");
+      },
+    });
+    expect(result.status).toBe("passed");
+    expect(h.store.case("run-1", "logs-in")?.steps[0]?.accessibilityReview).toMatchObject({
+      status: "error",
+      error: "model cannot accept images",
+      personas: VISUAL_PERSONAS,
+    });
+  });
+
+  test.each(["あ".repeat(600_000), ""])(
+    "keeps review errors persistable even for oversized or empty model error messages",
+    async (message) => {
+      const h = harness([FINISH_PASSED]);
+      const result = await runScenario(scenario({ accessibility: { personas: VISUAL_PERSONAS } }), {
+        ...h.deps,
+        reviewAccessibility: async () => {
+          throw new Error(message);
+        },
+      });
+      expect(result.status).toBe("passed");
+      const review = h.store.case("run-1", "logs-in")?.steps[0]?.accessibilityReview;
+      expect(AccessibilityReviewSchema.safeParse(review).success).toBe(true);
+      expect(Buffer.byteLength(JSON.stringify(review), "utf8")).toBeLessThan(16_000);
+    },
+  );
+
+  test("missing screenshot is an explicit review error, not an empty findings list", async () => {
+    const h = harness([FINISH_PASSED]);
+    const drivers = new FakeDriverFactory(new FakeAdb([LOGIN_XML], { screencap: true }));
+    const result = await runScenario(scenario({ accessibility: { personas: VISUAL_PERSONAS } }), {
+      ...h.deps,
+      openDriver: drivers.open,
+    });
+    expect(result.status).toBe("passed");
+    expect(h.store.case("run-1", "logs-in")?.steps[0]?.accessibilityReview).toMatchObject({
+      status: "error",
+      screenshotPath: null,
+    });
+  });
+});
 
 /** One script shared by every case unless the caller passes several. */
 function harness(

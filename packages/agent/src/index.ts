@@ -23,6 +23,14 @@ export type {
 } from "./llm.ts";
 
 export { RefResolutionError, runScenario } from "./run.ts";
+export { ACCESSIBILITY_SYSTEM_PROMPT, createAccessibilityReviewer } from "./accessibility.ts";
+export type {
+  AccessibilityGenerateFn,
+  AccessibilityGenerateRequest,
+  AccessibilityReviewInput,
+  AccessibilityReviewer,
+  AccessibilityReviewerOptions,
+} from "./accessibility.ts";
 export type { CaseResult, RunDeps, RunEvent, RunResult, StoreLike } from "./run.ts";
 
 export type { Driver, DriverSession, OpenDriver } from "./driver.ts";
