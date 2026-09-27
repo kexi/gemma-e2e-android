@@ -1,0 +1,31 @@
+# The lab screens of a11y-lab.web.yaml, reviewed the way a scenario normally
+# is: all four preset personas in one request per step. Kept for comparison;
+# it is the configuration that once looped on the crowded screen until the
+# review deadline. Same tags and model source as a11y-lab.web.yaml.
+title: Accessibility lab, all personas at once (web)
+tags: [a11y, lab]
+target:
+  platform: web
+  url: http://localhost:5174/?lab=a11y
+accessibility:
+  personas:
+    - id: red-green
+      label: 赤・緑の見分けにくさ
+      description: 赤と緑の違いを識別しにくい利用者。状態・操作・グラフの区別が色だけに依存せず、文字・形・模様でも伝わるか確認する。
+    - id: blue-yellow
+      label: 青・黄の見分けにくさ
+      description: 青と黄などの色の違いを識別しにくい利用者。情報の区別を色だけに依存させていないか確認する。
+    - id: presbyopia
+      label: 老眼・近くの文字の読みづらさ
+      description: 近くの小さな文字に焦点を合わせにくい利用者。小さい文字、細い線、情報の詰め込み、低いコントラストによる読みにくさを確認する。画像から実際の文字サイズや視距離を断定しない。
+    - id: low-vision
+      label: 弱視・細部の見えづらさ
+      description: 文字やアイコンの細部を認識しにくい利用者。文字・背景・操作部品の区別、視覚的な密集、重要情報の目立ちやすさを確認する。
+cases:
+  - id: all-personas
+    title: Pages through the lab screens with all personas
+    prompt: >-
+      Page through the store's information screens. On each screen, press the
+      "Next" button. When the screen titled "You're all set" is shown, finish
+      with passed.
+    maxSteps: 12

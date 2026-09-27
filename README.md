@@ -79,6 +79,14 @@ vision or a WCAG compliance result. No findings does not prove accessibility.
 Exact contrast ratios and physical text sizes are not measured. Screen-reader
 behavior, reading order and other nonvisual behavior are outside this feature.
 
+To check the review against a known answer, the example web app serves screens
+with deliberately planted problems (colour-only status, tiny pale text, crowded
+icons) between two clean ones at `http://localhost:5174/?lab=a11y`, and
+`scenarios/a11y-lab.web.yaml` reviews them one persona per case
+(`a11y-lab-all.web.yaml` uses all four at once). They are tagged `a11y` and
+`lab` rather than `web`, so runs selected by the `web` tag stay fast. The shop
+screens the other scenarios run against are unchanged.
+
 ## Repository layout
 
 | Path | What it is |
