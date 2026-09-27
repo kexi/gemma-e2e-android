@@ -23,7 +23,11 @@ export type {
 } from "./llm.ts";
 
 export { RefResolutionError, runScenario } from "./run.ts";
-export { ACCESSIBILITY_SYSTEM_PROMPT, createAccessibilityReviewer } from "./accessibility.ts";
+export {
+  ACCESSIBILITY_SYSTEM_PROMPT,
+  createAccessibilityReviewer,
+  DEFAULT_ACCESSIBILITY_TIMEOUT_MS,
+} from "./accessibility.ts";
 export type {
   AccessibilityGenerateFn,
   AccessibilityGenerateRequest,

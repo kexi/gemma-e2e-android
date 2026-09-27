@@ -71,7 +71,10 @@ to the reviewed image. The existing step thumbnail remains the after-action
 image. Persona definitions and the model are saved with the review, so changing
 the scenario later does not change the meaning of past results.
 
-Reviews add an image-model request per step (at most 60 seconds each). Failures
+Reviews add an image-model request per step, bounded by one deadline that
+covers the retry too: 120 seconds by default, `ACCESSIBILITY_REVIEW_TIMEOUT_MS`
+to change it. A report the model writes as a fenced JSON block instead of
+calling the tool is accepted after the same validation. Failures
 are recorded as review errors and do not change the functional E2E verdict.
 Review covers only sampled visible screens, not every animation or transient
 state. Findings are qualitative suggestions, not a reproduction of someone's

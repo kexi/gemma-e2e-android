@@ -89,7 +89,13 @@ const recorder = isRecording
 // A factory rather than a client: the model is chosen per case, and one Genkit
 // instance underneath serves every model a run touches.
 const llm = createGenkitLlmFactory({ baseURL: llmBaseURL, logger });
-const reviewAccessibility = createAccessibilityReviewer({ baseURL: llmBaseURL });
+// Unset keeps the reviewer's default. The value bounds how long one review may
+// hold a step, so a slower model or more personas per case may need it raised.
+const accessibilityTimeout = process.env["ACCESSIBILITY_REVIEW_TIMEOUT_MS"];
+const reviewAccessibility = createAccessibilityReviewer({
+  baseURL: llmBaseURL,
+  timeoutMs: accessibilityTimeout === undefined ? undefined : Number(accessibilityTimeout),
+});
 
 // Constructed unconditionally and connected lazily, like `adb` above: a
 // machine with no Chrome running still boots the dashboard, and a web case

@@ -1,6 +1,7 @@
 # Directory Update Log
 
 ## 2026-09-27
+* **Update**: [視覚アクセシビリティレビュー](visual-accessibility-review.md) の期限を60秒から120秒へ延長し、tool callが無いときの本文JSONを同じ検証で受け付ける変更と、問題を仕込んだ画面での変更前後の計測を記録。
 * **Creation**: [Android E2Eとメモリ計測](gemma-android-e2e-model-matrix-2026-09.md) に18構成72ケース・49成功を記録。RSS 5125標本、footprint有効5081標本を再集計で検証。E4B MLX 4bitの途中報告3/4を原本に基づき2/4へ訂正し、録画6件欠落と保存動画の範囲制限も記録。
 * **Update**: [Tool Call比較](gemma-model-matrix-2026-09.md) のMLXコンテキスト長を実ロードJSONで再照合し、31Bのauto-fit値を訂正。以前のWeb E2Eの使用メモリ実測は未採取であり、モデルのディスクサイズとGGUFロード推定値を `bench/e2e/results/memory-retrospective.json` に区別して保存。
 * **Creation**: [実モデルWeb E2E比較](gemma-e2e-model-matrix-2026-09.md) に18構成・72ケースの成績、操作の反復・記憶漏れ・終了Tool Call失敗を記録。画面の独立照合と完全run JSONを保存。Android実機は未検証。

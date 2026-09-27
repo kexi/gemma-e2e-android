@@ -9,6 +9,8 @@ verified:
   - { by: process:local-tests, at: 2026-09-22T02:12:07Z }
   - { by: process:just-check, at: 2026-09-22T02:17:39Z }
   - { by: process:just-check, at: 2026-09-22T07:16:37Z }
+  - { by: process:just-test, at: 2026-09-27T05:00:00Z }
+  - { by: claude-opus-5-5/1m, at: 2026-09-27T05:30:00Z }
 stale_after: 2026-12-22T00:00:00Z
 sources:
   - id: transport
@@ -23,6 +25,9 @@ sources:
   - id: live
     resource: "2026-09-22、ローカル MLX google/gemma-4-26b-a4b-qat、既存 Android ログイン画像1枚、red-green/presbyopia の2ペルソナ"
     title: 実モデルの画像入力スモークテスト
+  - id: planted
+    resource: "kexi/gemma-meetup-2026 bench/persona（?lab=a11y の問題を仕込んだWeb 6画面、google/gemma-4-26b-a4b-qat MLX、思考あり）"
+    title: 問題を仕込んだ画面での実モデル計測（2026-09-27）
   - id: vision
     resource: https://ai.google.dev/gemma/docs/core/model_card_4
     title: Gemma 4 model card
@@ -84,7 +89,7 @@ HTTP の `tool_choice` に反映されなかった。画像レビュー側は `c
 
 同バージョンは falsy な設定値を除去するため `temperature: 0` も落ちる。
 レビュー専用 fetch で送信JSONに0を復元し、HTTP bodyで確認する。
-形式不正時だけ最大2試行とし、2試行全体で60秒の期限を共有する。
+形式不正時だけ最大2試行とし、2試行全体で1つの期限を共有する（2026-09-27 に60秒から120秒へ延長。下記）。
 接続失敗やHTTPエラーの自動再試行は行わない。[^transport]
 
 # 2026-09-22 追加点検で修正した不具合
@@ -108,6 +113,30 @@ HTTP の `tool_choice` に反映されなかった。画像レビュー側は `c
 
 追加点検後の `just check` は850テスト成功。UIの追加修正後も型検査・lint・整形チェック成功。
 
+# 2026-09-27 期限の延長と本文 JSON の受け付け
+
+問題を仕込んだWebの6画面（`?lab=a11y`）を、LM Studio 既定（思考あり）の26B-A4B QATでレビューした。[^planted]
+
+- 既定4ペルソナを1リクエストで評価すると、問題のある画面ほど長く考え（思考1,239〜1,975トークン、25〜60秒）、
+  仕込んだ4画面のうち3画面が60秒の期限に達した。
+- 2回とも、1回目の応答はスキーマに合う正しいレポートだったが、tool callではなく本文の ```json ブロックで返っていた。
+  LM Studio は `tool_choice: "required"` を強制しない。再試行が期限の残りしか使えず、時間切れになった。
+
+変更は2点。期限は1つのまま既定を120秒に延ばし、サーバーでは `ACCESSIBILITY_REVIEW_TIMEOUT_MS` で変えられるようにした。
+tool callが1つも無いときだけ、本文のJSONを同じスキーマ・サイズ・ペルソナ検証に通して受け付ける。
+誤ったtool callがあるときと、文章だけのときは、従来どおり形式不正にする。[^transport]
+
+変更後の計測:
+
+| 条件 | 変更前 | 変更後 |
+|---|---|---|
+| 1ケース1ペルソナ（24レビュー） | 1回タイムアウト | 0回（1回は本文JSONを1回目で受け付け） |
+| 4ペルソナを1リクエスト（6レビュー） | 4回タイムアウト | 1回タイムアウト |
+
+変更後に残った1回は、密集したアイコン画面で思考が堂々巡りした（同じアイコン列の列挙を35回以上くり返し、
+思考4,538トークンで120秒に達した）。期限を延ばしても解消しない種類の失敗である。[^planted]
+
+[^planted]: kexi/gemma-meetup-2026 の bench/persona/results（run1〜run5）と knowledge/persona-review-planted-screens-2026-09.md。
 [^transport]: packages/agent/src/accessibility.test.ts。ローカル HTTP stub を使用し、本物のモデル精度は検証しない。
 [^runner]: packages/agent/src/run.test.ts。実 adapter + fake device/model。
 [^persistence]: packages/store/src/store.test.ts。`just test` による一時 Firestore エミュレーター。

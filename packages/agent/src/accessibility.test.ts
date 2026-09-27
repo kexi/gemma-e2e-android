@@ -120,6 +120,82 @@ describe("accessibility image reviewer", () => {
     expect(prompts[1]).toContain("前回の応答は形式が不正");
   });
 
+  test("accepts a report written as a fenced JSON block when no tool was called", async () => {
+    let attempts = 0;
+    const review = createAccessibilityReviewer({
+      generate: async () => {
+        attempts++;
+        return {
+          toolRequests: [],
+          text: `評価結果です。\n\`\`\`json\n${JSON.stringify(report)}\n\`\`\``,
+        };
+      },
+    });
+    expect(await review(await input())).toEqual(report);
+    expect(attempts).toBe(1);
+  });
+
+  test.each([
+    "問題は見つかりませんでした。",
+    `\`\`\`json\n${JSON.stringify({ reviews: [{ personaId: "unknown", findings: [] }] })}\n\`\`\``,
+    "```json\n{broken\n```",
+  ])("still rejects message text that is not a valid report %j", async (text) => {
+    let attempts = 0;
+    const review = createAccessibilityReviewer({
+      generate: async () => {
+        attempts++;
+        return { toolRequests: [], text };
+      },
+    });
+    await expect(review(await input())).rejects.toThrow();
+    expect(attempts).toBe(2);
+  });
+
+  test("does not fall back to the message text when a wrong tool was called", async () => {
+    const review = createAccessibilityReviewer({
+      generate: async () => ({
+        toolRequests: [{ name: "finish", input: report }],
+        text: JSON.stringify(report),
+      }),
+    });
+    await expect(review(await input())).rejects.toThrow("exactly one");
+  });
+
+  test("accepts a fenced JSON report in the HTTP message content in one request", async () => {
+    let requests = 0;
+    const server = Bun.serve({
+      port: 0,
+      hostname: "127.0.0.1",
+      fetch() {
+        requests++;
+        return Response.json({
+          id: "completion-1",
+          object: "chat.completion",
+          created: 1,
+          model: "gemma-test",
+          choices: [
+            {
+              index: 0,
+              finish_reason: "stop",
+              message: {
+                role: "assistant",
+                content: `\`\`\`json\n${JSON.stringify(report)}\n\`\`\``,
+              },
+            },
+          ],
+          usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+        });
+      },
+    });
+    try {
+      const review = createAccessibilityReviewer({ baseURL: `${server.url}v1`, timeoutMs: 5_000 });
+      expect(await review(await input())).toEqual(report);
+      expect(requests).toBe(1);
+    } finally {
+      server.stop(true);
+    }
+  });
+
   test("stops after two malformed responses and does not retry transport failures", async () => {
     let malformedAttempts = 0;
     const malformed = createAccessibilityReviewer({

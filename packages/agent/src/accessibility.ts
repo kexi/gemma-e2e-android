@@ -28,7 +28,18 @@ export interface AccessibilityGenerateRequest {
 
 export type AccessibilityGenerateFn = (
   request: AccessibilityGenerateRequest,
-) => Promise<{ toolRequests: ToolRequest[] }>;
+) => Promise<{ toolRequests: ToolRequest[]; text?: string | undefined }>;
+
+/**
+ * One deadline covers the whole review, both format attempts included, so a
+ * review never holds a step longer than this.
+ *
+ * 120 s rather than the earlier 60 s: with LM Studio's defaults for Gemma 4
+ * 26B-A4B (thinking on), a review of the four preset personas at once spent 25
+ * to 60 s reasoning on screens with real problems, and three of four such
+ * screens ran out of time before the report was written.
+ */
+export const DEFAULT_ACCESSIBILITY_TIMEOUT_MS = 120_000;
 
 export interface AccessibilityReviewerOptions {
   baseURL?: string | undefined;
@@ -105,14 +116,39 @@ function genkitGenerate(options: AccessibilityReviewerOptions): AccessibilityGen
         name: toolRequest.name,
         input: toolRequest.input,
       })),
+      text: response.text,
     };
   };
+}
+
+const FENCED_JSON = /```(?:json)?\s*([\s\S]*?)```/;
+
+/**
+ * Reads a report the model wrote into its message instead of calling the tool.
+ *
+ * LM Studio does not enforce `tool_choice: "required"` for Gemma 4, and after a
+ * long reasoning pass the model sometimes writes the very same report as a
+ * fenced JSON block. Throwing that away cost the retry most of the shared
+ * deadline, and both times it happened the discarded report was correct. What
+ * comes back from here is only a candidate: it goes through the same schema,
+ * size and persona checks as a tool call, so prose still fails.
+ */
+function reportFromText(text: string | undefined): unknown {
+  const hasText = text !== undefined && text.trim() !== "";
+  if (!hasText) return undefined;
+  const fenced = FENCED_JSON.exec(text);
+  const candidate = (fenced?.[1] ?? text).trim();
+  try {
+    return JSON.parse(candidate);
+  } catch {
+    return undefined;
+  }
 }
 
 export function createAccessibilityReviewer(
   options: AccessibilityReviewerOptions = {},
 ): AccessibilityReviewer {
-  const timeoutMs = options.timeoutMs ?? 60_000;
+  const timeoutMs = options.timeoutMs ?? DEFAULT_ACCESSIBILITY_TIMEOUT_MS;
   const isValidTimeout = Number.isFinite(timeoutMs) && timeoutMs > 0;
   if (!isValidTimeout) throw new Error("accessibility timeoutMs must be positive and finite");
   const generate = options.generate ?? genkitGenerate(options);
@@ -163,8 +199,14 @@ export function createAccessibilityReviewer(
           const tool = response.toolRequests[0];
           const isReport =
             response.toolRequests.length === 1 && tool?.name === "report_accessibility";
-          if (!isReport) throw new Error("expected exactly one report_accessibility tool call");
-          const report = AccessibilityReviewReportSchema.parse(tool.input);
+          // Only when no tool was called at all: a wrong or duplicated call is a
+          // model that did pick the tool route, and stays a format failure.
+          const hasNoToolCall = response.toolRequests.length === 0;
+          const textReport = hasNoToolCall ? reportFromText(response.text) : undefined;
+          const hasTextReport = textReport !== undefined;
+          if (!isReport && !hasTextReport)
+            throw new Error("expected exactly one report_accessibility tool call");
+          const report = AccessibilityReviewReportSchema.parse(isReport ? tool.input : textReport);
           // Individual string limits do not bound UTF-8 storage size for multi-persona reports.
           const isOversized = Buffer.byteLength(JSON.stringify(report), "utf8") > 128 * 1024;
           if (isOversized)
