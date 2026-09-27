@@ -1,0 +1,27 @@
+{
+  "at": "2026-09-26T20:03:11.100323+00:00",
+  "models": 18,
+  "cases": 72,
+  "verified_pass_count": 49,
+  "models_passing_all_cases": 10,
+  "all_runs_completed": true,
+  "case_fixture_validation": "passed",
+  "success_prompt_condition_audit": "49/49 passed",
+  "original_run_summary_hashes": "36/36 matched",
+  "screenshots_existing": 648,
+  "videos_existing": 66,
+  "video_expected": 72,
+  "recording_status": "partial_evidence; see recording-verification.json",
+  "memory_raw_audit": "see memory-final-verification.json",
+  "ruff_check": "passed",
+  "ruff_format_check": "11 files passed",
+  "secret_scan": "exit 1; 81 classified public identifiers/key digests; see secret-scan-verification.json",
+  "knowledge_lint": "passed",
+  "git_diff_check": "passed",
+  "production_source_changed": false,
+  "notes": [
+    "Models were not rerun to replace failures.",
+    "No Android physical device or on-device model inference was tested.",
+    "Memory figures describe new Android runs, not prior Web runs."
+  ]
+}

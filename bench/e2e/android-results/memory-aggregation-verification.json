@@ -1,0 +1,14 @@
+{
+  "verified_at": "2026-09-26T18:29:26.455863+00:00",
+  "script": "bench/e2e/summarize_memory.py",
+  "baseline_summary": "bench-android-e2e-26b-a4b-it-qat-mlx-4bit-20260926T182211Z.memory.summary.json",
+  "rss_valid_samples": 188,
+  "physical_footprint_valid_samples": 187,
+  "physical_footprint_missing_samples": 1,
+  "raw_complete_sample_peak_matches_summary": true,
+  "raw_complete_sample_median_matches_summary": true,
+  "non_model_smoke_summary_excluded": true,
+  "duplicate_model_rejected": true,
+  "zero_valid_samples_remain_null": true,
+  "method": "Read saved baseline JSONL and summary; temporary synthetic smoke/duplicate files were outside results and were removed. No inference or running-process access."
+}

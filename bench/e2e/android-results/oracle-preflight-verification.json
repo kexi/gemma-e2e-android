@@ -1,0 +1,77 @@
+{
+  "android_preflight_oracles": [
+    {
+      "status": "passed",
+      "kind": "finish_step_element_id_exact_text",
+      "step_index": null,
+      "checks": {
+        "screenTitle": true,
+        "signOutButton": true,
+        "beanRow-yirgacheffe": true
+      },
+      "expected_elements": {
+        "screenTitle": "Kexi Coffee Shop",
+        "signOutButton": "Sign out"
+      },
+      "ui_text": "FrameLayout\n  TextView text=\"Kexi Coffee Shop\" desc=\"Screen title\" id=screenTitle\n  [0] Button desc=\"Cart button\" id=cartButton\n    TextView text=\"Cart (0)\"\n  [1] Button desc=\"Sign out button\" id=signOutButton\n    TextView text=\"Sign out\"\n  TextView text=\"Items in cart: 0\" desc=\"Cart item count\" id=cartCount\n  ViewGroup\n    [2] Button desc=\"Yirgacheffe row\" id=beanRow-yirgacheffe\n      TextView text=\"Yirgacheffe\"\n      TextView text=\"Ethiopia - $18.00\"\n    [3] Button desc=\"Huila row\" id=beanRow-huila\n      TextView text=\"Huila\"\n      TextView text=\"Colombia - $16.00\"\n    [4] Button desc=\"Antigua row\" id=beanRow-antigua\n      TextView text=\"Antigua\"\n      TextView text=\"Guatemala - $17.00\"\n    [5] Button desc=\"Sidamo row\" id=beanRow-sidamo\n      TextView text=\"Sidamo\"\n      TextView text=\"Ethiopia - $19.00\"\n    [6] Button desc=\"Geisha row\" id=beanRow-geisha\n      TextView text=\"Geisha\"\n      TextView text=\"Panama - $42.00\"\n    [7] Button desc=\"Toraja row\" id=beanRow-toraja\n      TextView text=\"Toraja\"\n      TextView text=\"Indonesia - $21.00\"",
+      "screenshot_path": null,
+      "note": "UI text precedes the action; finish performs no navigation. Visual review is separate."
+    },
+    {
+      "status": "passed",
+      "kind": "finish_step_element_id_exact_text",
+      "step_index": null,
+      "checks": {
+        "screenTitle": true,
+        "cartLine-yirgacheffe": true,
+        "cartTotal": true
+      },
+      "expected_elements": {
+        "screenTitle": "Your cart",
+        "cartLine-yirgacheffe": "Qty 1 - $18.00",
+        "cartTotal": "Total: $18.00"
+      },
+      "ui_text": "FrameLayout\n  TextView text=\"Your cart\" desc=\"Screen title\" id=screenTitle\n  TextView text=\"Yirgacheffe\"\n  TextView text=\"Qty 1 - $18.00\" desc=\"Yirgacheffe cart line\" id=cartLine-yirgacheffe\n  TextView text=\"Total: $18.00\" desc=\"Cart total\" id=cartTotal\n  [0] Button desc=\"Checkout button\" id=checkoutButton\n    TextView text=\"Checkout\"\n  [1] Button desc=\"Back button\" id=backButton\n    TextView text=\"Back to shop\"",
+      "screenshot_path": null,
+      "note": "UI text precedes the action; finish performs no navigation. Visual review is separate."
+    },
+    {
+      "status": "passed",
+      "kind": "finish_step_element_id_exact_text",
+      "step_index": null,
+      "checks": {
+        "screenTitle": true,
+        "orderNumber": true
+      },
+      "expected_elements": {
+        "screenTitle": "Order placed!",
+        "orderNumber": "Order number: KCS-1001"
+      },
+      "ui_text": "FrameLayout\n  TextView text=\"Order placed!\" desc=\"Screen title\" id=screenTitle\n  TextView text=\"Order number: KCS-1001\" desc=\"Order number\" id=orderNumber\n  [0] Button desc=\"Back to shop button\" id=backToShopButton\n    TextView text=\"Back to shop\"",
+      "screenshot_path": null,
+      "note": "UI text precedes the action; finish performs no navigation. Visual review is separate."
+    },
+    {
+      "status": "passed",
+      "kind": "finish_step_element_id_exact_text",
+      "step_index": null,
+      "checks": {
+        "errorMessage": true
+      },
+      "expected_elements": {
+        "errorMessage": "Invalid email or password"
+      },
+      "ui_text": "FrameLayout\n  TextView text=\"Sign in\"\n  TextView text=\"Kexi Coffee Shop\"\n  [0] EditText text=\"demo@example.com\" desc=\"Email input\" id=emailInput editable\n  [1] EditText text=\"\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\" desc=\"Password input\" id=passwordInput focused editable\n  TextView text=\"Invalid email or password\" desc=\"Error message\" id=errorMessage\n  [2] Button desc=\"Login button\" id=loginButton\n    TextView text=\"Login\"",
+      "screenshot_path": null,
+      "note": "UI text precedes the action; finish performs no navigation. Visual review is separate."
+    }
+  ],
+  "negative_cases_rejected": [
+    "desc_only",
+    "adjacent_text",
+    "editable",
+    "duplicate_id"
+  ],
+  "web_cases_unchanged": 72,
+  "method": "Deterministic preflight, no scored model inference"
+}

@@ -1,0 +1,67 @@
+{
+  "web": {
+    "target": {
+      "platform": "web",
+      "url": "http://localhost:5174"
+    },
+    "cases": [
+      {
+        "id": "valid-credentials",
+        "title": "Logs in with valid credentials",
+        "prompt": "Check that a user can log in. Enter the email \"demo@example.com\" and the password \"demo1234\", submit the form, and confirm that the app reaches the logged-in shop screen listing coffee beans.",
+        "maxSteps": 15
+      },
+      {
+        "id": "invalid-password",
+        "title": "Shows an error for a wrong password",
+        "prompt": "Check that logging in with a wrong password fails visibly. Enter the email \"demo@example.com\" and the password \"wrongpass\", submit the form, and confirm that the screen shows the error message \"Invalid email or password\". Finish with verdict \"passed\" once that message is visible.",
+        "maxSteps": 15
+      },
+      {
+        "id": "add-to-cart",
+        "title": "Adds a bean to the cart and sees the total",
+        "prompt": "Check that a customer can put a coffee bean in the cart. Log in with the email \"demo@example.com\" and the password \"demo1234\", open the \"Yirgacheffe\" bean from the shop list, add it to the cart, and confirm the cart screen shows a total of $18.00.",
+        "maxSteps": 20
+      },
+      {
+        "id": "checkout-with-code",
+        "title": "Places an order using the confirmation code",
+        "prompt": "Check that a customer can complete an order. Log in with the email \"demo@example.com\" and the password \"demo1234\", add any one coffee bean to the cart, and go through checkout. The checkout screen shows a confirmation code; the screen after it asks you to type that code back in. Enter it, place the order, and confirm that an order number is shown.",
+        "maxSteps": 30
+      }
+    ]
+  },
+  "android": {
+    "target": {
+      "platform": "android",
+      "package": "dev.kexi.gemmae2e.example",
+      "activity": ".MainActivity"
+    },
+    "cases": [
+      {
+        "id": "valid-credentials",
+        "title": "Logs in with valid credentials",
+        "prompt": "Check that a user can log in. Enter the email \"demo@example.com\" and the password \"demo1234\", submit the form, and confirm that the app reaches the logged-in shop screen listing coffee beans.",
+        "maxSteps": 15
+      },
+      {
+        "id": "invalid-password",
+        "title": "Shows an error for a wrong password",
+        "prompt": "Check that logging in with a wrong password fails visibly. Enter the email \"demo@example.com\" and the password \"wrongpass\", submit the form, and confirm that the screen shows the error message \"Invalid email or password\". Finish with verdict \"passed\" once that message is visible.",
+        "maxSteps": 15
+      },
+      {
+        "id": "add-to-cart",
+        "title": "Adds a bean to the cart and sees the total",
+        "prompt": "Check that a customer can put a coffee bean in the cart. Log in with the email \"demo@example.com\" and the password \"demo1234\", open the \"Yirgacheffe\" bean from the shop list, add it to the cart, and confirm the cart screen shows a total of $18.00.",
+        "maxSteps": 20
+      },
+      {
+        "id": "checkout-with-code",
+        "title": "Places an order using the confirmation code",
+        "prompt": "Check that a customer can complete an order. Log in with the email \"demo@example.com\" and the password \"demo1234\", add any one coffee bean to the cart, and go through checkout. The checkout screen shows a confirmation code; the screen after it asks you to type that code back in. Enter it, place the order, and confirm that an order number is shown.",
+        "maxSteps": 30
+      }
+    ]
+  }
+}

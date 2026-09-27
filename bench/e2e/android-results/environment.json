@@ -1,0 +1,292 @@
+{
+  "recorded_at": "2026-09-26T18:25:57.359075+00:00",
+  "repository_commit": "b705c2e44bc735493103ca551c4523b2caa991af",
+  "platform_tested": "android_emulator",
+  "host": {
+    "model": "Mac14,5",
+    "chip": "Apple M2 Max",
+    "physical_cpu_cores": 12,
+    "physical_memory_bytes": 103079215104,
+    "physical_memory_gib": 96,
+    "macos_version": "27.0",
+    "macos_build": "26A428",
+    "architecture": "arm64",
+    "source": "read-only sw_vers, uname -m and sysctl hw.model/hw.memsize/hw.physicalcpu/machdep.cpu.brand_string"
+  },
+  "python": "3.13.14",
+  "lm_studio": {
+    "app_version": "0.4.24+1",
+    "app_build": "0.4.24+1",
+    "cli_version_output": "CLI commit: ff50809",
+    "selected_runtimes": {
+      "mlx": "mlx-llm-mac-arm64-apple-metal-advsimd@1.11.0",
+      "gguf": "llama.cpp-mac-arm64-apple-metal-advsimd@2.41.0"
+    },
+    "runtime_evidence": "runtime-list.txt",
+    "endpoint": "http://localhost:1234/v1",
+    "parallel": 1,
+    "requested_context_length": 8192,
+    "actual_context_length": "See each model .loaded.json; MLX may report native maximum instead of the requested value."
+  },
+  "android": {
+    "avd_name": "gemma-e2e-bench-api35",
+    "serial": "emulator-5554",
+    "emulator_version": "35.5.10.0",
+    "emulator_build_id": "13402964",
+    "emulator_binary": "/Users/kei/Library/Android/sdk/emulator/emulator",
+    "api_level": 35,
+    "android_version": "Android 15 (API 35); guest getprop not queried during active matrix",
+    "system_image_abi": "arm64-v8a",
+    "system_image_tag": "google_apis",
+    "system_image_revision": 9,
+    "system_image_extension_level": 13,
+    "system_image_source": "system-image.properties",
+    "device_profile": "pixel_7",
+    "cpu_cores": 4,
+    "effective_ram_mib": 3072,
+    "effective_ram_gib": 3,
+    "base_profile_ram": "2G; overridden with emulator -memory 3072",
+    "display": {
+      "width": 1080,
+      "height": 2400,
+      "density_dpi": 420
+    },
+    "effective_gpu_mode": "swangle_indirect",
+    "flags": [
+      "-avd",
+      "gemma-e2e-bench-api35",
+      "-port",
+      "5554",
+      "-no-window",
+      "-no-audio",
+      "-no-boot-anim",
+      "-no-snapshot",
+      "-memory",
+      "3072"
+    ],
+    "config_evidence": [
+      "avd-config.ini",
+      "avd-effective-hardware.ini",
+      "emulator-launch-params.txt",
+      "emulator.properties"
+    ],
+    "physical_device_tested": false
+  },
+  "apk": {
+    "built_at": "2026-09-26T18:13:16.953454+00:00",
+    "source_commit": "b705c2e44bc735493103ca551c4523b2caa991af",
+    "apk_path": "/Users/kei/ghq/github.com/kexi/gemma-e2e-android/apps/example-android/android/app/build/outputs/apk/release/app-release.apk",
+    "apk_bytes": 26063439,
+    "sha256": "949cad5a8b58a6d46cd40c0e3117362f20ab124cc080c2d4b72e6319a5050072",
+    "embedded_js_bundle": [
+      {
+        "name": "assets/index.android.bundle",
+        "bytes": 1156664
+      }
+    ],
+    "abis": [
+      "arm64-v8a"
+    ],
+    "command": [
+      "./gradlew",
+      ":app:assembleRelease",
+      "-PreactNativeArchitectures=arm64-v8a",
+      "--console=plain",
+      "--max-workers=4"
+    ],
+    "environment": {
+      "ANDROID_HOME": "/nix/store/h99s00s6d4ws59whl3nv1bxdri56fspq-android-sdk-env/share/android-sdk",
+      "ANDROID_SDK_ROOT": "/nix/store/h99s00s6d4ws59whl3nv1bxdri56fspq-android-sdk-env/share/android-sdk",
+      "JAVA_HOME": "/Users/kei/.local/share/mise/installs/java/zulu-17.56.15",
+      "CI": "1"
+    },
+    "build_log": "var/model-e2e-android-20260927/android-build-online.log",
+    "build_source_changed": false,
+    "signing": "existing Android debug keystore; release variant for local tests only",
+    "durable_build_log": "android-build-online.log"
+  },
+  "cases_per_model": 4,
+  "repetitions": 1,
+  "fixture_sha256": "09a262d2d135ee79a8d8e4aff65b54110766bb019d2a8e500e0a54e6d7743e57",
+  "fixture": "../fixtures.json",
+  "target": {
+    "platform": "android",
+    "package": "dev.kexi.gemmae2e.example",
+    "activity": ".MainActivity"
+  },
+  "temperature": "application default; not sent",
+  "reasoning_effort": "application default; not sent",
+  "max_tokens": "application default; not sent",
+  "tool_choice": "Genkit required; compat-oai 1.40.1 omits HTTP tool_choice",
+  "tool_descriptions": "Genkit defines descriptions, but intercepted compat-oai HTTP tool functions omit description; system prompt still describes actions",
+  "wire_probe": "../results/genkit-wire-probe.json",
+  "max_llm_attempts": 3,
+  "driver": "Production GenkitLlm / runScenario / AndroidDriver / AdbClient; Android UIAutomator XML serialized as text; native tool call actions",
+  "case_reset": "AndroidDriver.reset force-stops and relaunches app before each case; no pm clear is performed by this driver.",
+  "visual_accessibility_review": false,
+  "recording": true,
+  "api": "http://localhost:5175",
+  "artifacts": "var/model-e2e-android-20260927",
+  "preflight": {
+    "method": "Deterministic AdbClient navigation without LLM; excluded from model scores. Independently checked real captured Android UI against exact-text/id oracle.",
+    "verification": "oracle-preflight-verification.json",
+    "captures": "preflight.json",
+    "oracle_positive_cases": 4,
+    "oracle_negative_cases_rejected": [
+      "desc_only",
+      "adjacent_text",
+      "editable",
+      "duplicate_id"
+    ],
+    "web_cases_preserved": 72,
+    "visual_review": "Not asserted by this environment metadata; screenshots retained for separate review."
+  },
+  "measurement_exclusions": {
+    "e2e_case_durations": [
+      "APK build and install",
+      "AVD creation and cold boot",
+      "model downloads and load",
+      "deterministic preflight and oracle checks"
+    ],
+    "memory": "LM Studio process tree sampled every second after model load through E2E completion. Includes LM Studio UI/helpers, excludes emulator/API/build processes and model-loading peak. This is sampled physical footprint/RSS, not model allocator memory."
+  },
+  "evidence_copies": [
+    {
+      "path": "apk-badging.txt",
+      "source": "var/model-e2e-android-20260927/apk-badging.txt",
+      "sha256": "a0e2cdb1ab3e9548b7988c5b16ad23bbd96bdf616ac846d76d72d58d5192796a",
+      "bytes": 5711
+    },
+    {
+      "path": "apk-build.json",
+      "source": "var/model-e2e-android-20260927/apk-build.json",
+      "sha256": "f61f114784a27fc90874234314f9fbfed0393c58498bbcaafd947cc023bd0ece",
+      "bytes": 1174
+    },
+    {
+      "path": "apk-signature.txt",
+      "source": "var/model-e2e-android-20260927/apk-signature.txt",
+      "sha256": "779b75b032a8f23d45d558b304ab6276bf5894001fa1fafb79c17eaf8f89a272",
+      "bytes": 990
+    },
+    {
+      "path": "oracle-preflight-verification.json",
+      "source": "var/model-e2e-android-20260927/oracle-preflight-verification.json",
+      "sha256": "68a36030189baa88a0f700a8305e352ced5e07fc76f577ba704de428f0a6dcc5",
+      "bytes": 4514
+    },
+    {
+      "path": "preflight-add-to-cart.png",
+      "source": "var/model-e2e-android-20260927/preflight-add-to-cart.png",
+      "sha256": "2a8064674dc7005466da47c7756440b2395f78034d668b5f11e0ae0ca49fa541",
+      "bytes": 60562
+    },
+    {
+      "path": "preflight-add-to-cart.txt",
+      "source": "var/model-e2e-android-20260927/preflight-add-to-cart.txt",
+      "sha256": "5cf15008e73449bdd6f0a5e417c60f15082c77b85179be0f58bfafe92a90ac54",
+      "bytes": 415
+    },
+    {
+      "path": "preflight-add-to-cart.xml",
+      "source": "var/model-e2e-android-20260927/preflight-add-to-cart.xml",
+      "sha256": "975725539e106b0a69fcb4e9617ab8893a416d4fc18e57ea7fcf7cff592dfd68",
+      "bytes": 5668
+    },
+    {
+      "path": "preflight-checkout-with-code.png",
+      "source": "var/model-e2e-android-20260927/preflight-checkout-with-code.png",
+      "sha256": "d183e196bcdd6cec4d7c0db38c4ffdf1f1481be7582b870a4b2f5ea417257e64",
+      "bytes": 49337
+    },
+    {
+      "path": "preflight-checkout-with-code.txt",
+      "source": "var/model-e2e-android-20260927/preflight-checkout-with-code.txt",
+      "sha256": "6572ea5d8097a68405c40710fa34f8bebfdd9cb907a8875c457d23e76312c700",
+      "bytes": 247
+    },
+    {
+      "path": "preflight-checkout-with-code.xml",
+      "source": "var/model-e2e-android-20260927/preflight-checkout-with-code.xml",
+      "sha256": "87626c5e51760873e4fc25613ce4e1355c1e37e573d9f1fb03226074a81a6c44",
+      "bytes": 3956
+    },
+    {
+      "path": "preflight-code-screen.png",
+      "source": "var/model-e2e-android-20260927/preflight-code-screen.png",
+      "sha256": "7a7bdb30a6dc61e898becfbba678eadc1c342df6194a935f25e4a34df46e2ff0",
+      "bytes": 63529
+    },
+    {
+      "path": "preflight-code-screen.txt",
+      "source": "var/model-e2e-android-20260927/preflight-code-screen.txt",
+      "sha256": "248aed9a17d98be7a5b7ea7ba870c8c59c403ca24bef84466d8ec88f051d00c9",
+      "bytes": 384
+    },
+    {
+      "path": "preflight-code-screen.xml",
+      "source": "var/model-e2e-android-20260927/preflight-code-screen.xml",
+      "sha256": "102eed30f806489ac20e064bcddd62c7a967e13a28eee0ddd86e12f613ed9b6e",
+      "bytes": 4706
+    },
+    {
+      "path": "preflight-invalid-password.png",
+      "source": "var/model-e2e-android-20260927/preflight-invalid-password.png",
+      "sha256": "717c51df23b45ba2e8c5065589bfa87cdc583a5ee75567e10feaf7fdc1b394b3",
+      "bytes": 116628
+    },
+    {
+      "path": "preflight-invalid-password.txt",
+      "source": "var/model-e2e-android-20260927/preflight-invalid-password.txt",
+      "sha256": "d53cd980ab40b14bdbb3e46f492301351b2ef8de9b2d91ae4f3a16dbcbc06a7b",
+      "bytes": 414
+    },
+    {
+      "path": "preflight-invalid-password.xml",
+      "source": "var/model-e2e-android-20260927/preflight-invalid-password.xml",
+      "sha256": "ac71ed6627a6cc1703bfd42f327e28741f674449ebbf91929cdcf9e3e49454bc",
+      "bytes": 5005
+    },
+    {
+      "path": "preflight-valid-credentials.png",
+      "source": "var/model-e2e-android-20260927/preflight-valid-credentials.png",
+      "sha256": "8ee79f7ec73560e79bde1dfc7d619dd0a68b688f0c4e21146e7a25c1f75c6d20",
+      "bytes": 114679
+    },
+    {
+      "path": "preflight-valid-credentials.txt",
+      "source": "var/model-e2e-android-20260927/preflight-valid-credentials.txt",
+      "sha256": "00d39a7db5401176c2b6ba000603a66f596aefa7b6ecf61315c187f11d391970",
+      "bytes": 1056
+    },
+    {
+      "path": "preflight-valid-credentials.xml",
+      "source": "var/model-e2e-android-20260927/preflight-valid-credentials.xml",
+      "sha256": "463e433741e716310e8e97b6461203928a91726b0f314e15723a6556f43c973b",
+      "bytes": 11545
+    },
+    {
+      "path": "preflight.json",
+      "source": "var/model-e2e-android-20260927/preflight.json",
+      "sha256": "3595dffaf29ace2e7b52c65729f18ac610d0136ddb529b45d91cb0528a536e48",
+      "bytes": 3813
+    },
+    {
+      "path": "preflight.ts",
+      "source": "var/model-e2e-android-20260927/preflight.ts",
+      "sha256": "030536cb81035d37ec3186d91e40f02742e864d4f8a09017cf109d3ae98510e1",
+      "bytes": 1978
+    },
+    {
+      "path": "android-build-online.log",
+      "source": "var/model-e2e-android-20260927/android-build-online.log",
+      "sha256": "0938360dee48b5742c94f09b11d175df4581c224815cff7628a31b79fa02f8f8",
+      "bytes": 28866
+    }
+  ],
+  "limitations": [
+    "One repetition per case; no Android physical-device validation.",
+    "Environment metadata reflects actual saved emulator configuration and read-only host/runtime inspection; it does not assert that every model has completed.",
+    "No guest state changes or model inference were performed while writing this metadata."
+  ]
+}

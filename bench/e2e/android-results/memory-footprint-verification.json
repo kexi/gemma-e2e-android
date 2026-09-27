@@ -1,0 +1,34 @@
+{
+  "abi": {
+    "size": 96,
+    "alignment": 8,
+    "footprint_offset": 72,
+    "source": "Local SDK sys/resource.h and libproc.h; compiled C probe saved as bench/e2e/android-results/memory-rusage-abi-probe.c"
+  },
+  "invalid_pid_result": {
+    "physical_footprint_timestamp": "2026-09-26T18:17:21.972214+00:00",
+    "physical_footprint_bytes": null,
+    "proc_start_abstime": null,
+    "physical_footprint_error": {
+      "kind": "proc_pid_rusage_failure",
+      "returncode": -1,
+      "errno": 3,
+      "message": "No such process"
+    }
+  },
+  "partial_metric_check": {
+    "rss_sum_bytes": 814546944,
+    "physical_footprint_sum_bytes": null,
+    "physical_footprint_status": "partial"
+  },
+  "smoke_jsonl": "bench/e2e/android-results/memory-footprint-smoke.jsonl",
+  "smoke_summary": "bench/e2e/android-results/memory-footprint-smoke.summary.json",
+  "checks": [
+    "C ABI equals ctypes layout",
+    "3 live samples all PID footprints available",
+    "SIGTERM exited 0 and wrote summary",
+    "invalid PID returns null with errno",
+    "partial footprint preserves valid RSS and leaves footprint group sum null",
+    "1-second cadence observed"
+  ]
+}

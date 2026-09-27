@@ -1,0 +1,21 @@
+{
+  "verified_at": "2026-09-26T19:03:14.701035+00:00",
+  "method": "Assistant view_image inspection; selected frames only, not all recordings",
+  "checks": [
+    {
+      "path": "var/model-e2e-android-20260927/preflight-checkout-with-code.png",
+      "sha256": "d183e196bcdd6cec4d7c0db38c4ffdf1f1481be7582b870a4b2f5ea417257e64",
+      "observation": "Order placed! / Order number: KCS-1001"
+    },
+    {
+      "path": "var/model-e2e-android-20260927/screenshots/a6e8c5dc-ee0b-4420-88be-9ec37a09e62a/checkout-with-code/010.png",
+      "sha256": "289f82973cdbeb26ce91250fed32560398b1640d1f4cdc5115cd13ec5ad64345",
+      "observation": "26B MLX completed order: KCS-1001"
+    },
+    {
+      "path": "var/model-e2e-android-20260927/screenshots/64fe8d87-834e-4eb0-986e-c0fd6ad8a3bf/checkout-with-code/028.png",
+      "sha256": "0180031eb2151a1de52c2022ab3af78db21478925621d0266a59c95fb3d957c7",
+      "observation": "E4B MLX 8bit: repeated 123456 in confirmation field, Wrong confirmation code visible"
+    }
+  ]
+}

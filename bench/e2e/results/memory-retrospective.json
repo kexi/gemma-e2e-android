@@ -1,0 +1,230 @@
+{
+  "generated_at": "2026-09-26T18:09:13.005733+00:00",
+  "scope": "Previous 18-model Web E2E on 2026-09-26 UTC",
+  "runtime_memory_measurement_status": "not_collected",
+  "definition": "sizeBytes is model size on disk, not process RSS, unified memory use, or allocator peak.",
+  "models": [
+    {
+      "model": "bench-e2e-12b-it-mlx-5bit",
+      "source": "bench/e2e/results/bench-e2e-12b-it-mlx-5bit-20260926T172401Z.loaded.json",
+      "model_disk_size_bytes": 8267185600,
+      "model_disk_size_decimal_gb": 8.2672,
+      "reported_context_length": 262144,
+      "observed_runtime_rss_bytes": null,
+      "observed_runtime_peak_bytes": null
+    },
+    {
+      "model": "bench-e2e-12b-it-mlx-6bit",
+      "source": "bench/e2e/results/bench-e2e-12b-it-mlx-6bit-20260926T172647Z.loaded.json",
+      "model_disk_size_bytes": 9760976416,
+      "model_disk_size_decimal_gb": 9.761,
+      "reported_context_length": 262144,
+      "observed_runtime_rss_bytes": null,
+      "observed_runtime_peak_bytes": null
+    },
+    {
+      "model": "bench-e2e-12b-it-mlx-8bit",
+      "source": "bench/e2e/results/bench-e2e-12b-it-mlx-8bit-20260926T172936Z.loaded.json",
+      "model_disk_size_bytes": 12748557851,
+      "model_disk_size_decimal_gb": 12.7486,
+      "reported_context_length": 262144,
+      "observed_runtime_rss_bytes": null,
+      "observed_runtime_peak_bytes": null
+    },
+    {
+      "model": "bench-e2e-12b-it-qat-gguf",
+      "source": "bench/e2e/results/bench-e2e-12b-it-qat-gguf-20260926T173214Z.loaded.json",
+      "model_disk_size_bytes": 7150994336,
+      "model_disk_size_decimal_gb": 7.151,
+      "reported_context_length": 8192,
+      "observed_runtime_rss_bytes": null,
+      "observed_runtime_peak_bytes": null
+    },
+    {
+      "model": "bench-e2e-26b-a4b-it-qat-gguf",
+      "source": "bench/e2e/results/bench-e2e-26b-a4b-it-qat-gguf-20260926T163739Z.loaded.json",
+      "model_disk_size_bytes": 15634191104,
+      "model_disk_size_decimal_gb": 15.6342,
+      "reported_context_length": 8192,
+      "observed_runtime_rss_bytes": null,
+      "observed_runtime_peak_bytes": null
+    },
+    {
+      "model": "bench-e2e-26b-a4b-it-qat-mlx-4bit",
+      "source": "bench/e2e/results/bench-e2e-26b-a4b-it-qat-mlx-4bit-20260926T163033Z.loaded.json",
+      "model_disk_size_bytes": 15641333028,
+      "model_disk_size_decimal_gb": 15.6413,
+      "reported_context_length": 262144,
+      "observed_runtime_rss_bytes": null,
+      "observed_runtime_peak_bytes": null
+    },
+    {
+      "model": "bench-e2e-31b-it-mlx-4bit",
+      "source": "bench/e2e/results/bench-e2e-31b-it-mlx-4bit-20260926T163412Z.loaded.json",
+      "model_disk_size_bytes": 18444444812,
+      "model_disk_size_decimal_gb": 18.4444,
+      "reported_context_length": 261120,
+      "observed_runtime_rss_bytes": null,
+      "observed_runtime_peak_bytes": null
+    },
+    {
+      "model": "bench-e2e-31b-it-mlx-5bit",
+      "source": "bench/e2e/results/bench-e2e-31b-it-mlx-5bit-20260926T165936Z.loaded.json",
+      "model_disk_size_bytes": 22282220425,
+      "model_disk_size_decimal_gb": 22.2822,
+      "reported_context_length": 243968,
+      "observed_runtime_rss_bytes": null,
+      "observed_runtime_peak_bytes": null
+    },
+    {
+      "model": "bench-e2e-31b-it-mlx-6bit",
+      "source": "bench/e2e/results/bench-e2e-31b-it-mlx-6bit-20260926T170432Z.loaded.json",
+      "model_disk_size_bytes": 26119996887,
+      "model_disk_size_decimal_gb": 26.12,
+      "reported_context_length": 226816,
+      "observed_runtime_rss_bytes": null,
+      "observed_runtime_peak_bytes": null
+    },
+    {
+      "model": "bench-e2e-31b-it-mlx-8bit",
+      "source": "bench/e2e/results/bench-e2e-31b-it-mlx-8bit-20260926T171009Z.loaded.json",
+      "model_disk_size_bytes": 33795548471,
+      "model_disk_size_decimal_gb": 33.7955,
+      "reported_context_length": 192512,
+      "observed_runtime_rss_bytes": null,
+      "observed_runtime_peak_bytes": null
+    },
+    {
+      "model": "bench-e2e-31b-it-qat-gguf",
+      "source": "bench/e2e/results/bench-e2e-31b-it-qat-gguf-20260926T171525Z.loaded.json",
+      "model_disk_size_bytes": 18851727360,
+      "model_disk_size_decimal_gb": 18.8517,
+      "reported_context_length": 8192,
+      "observed_runtime_rss_bytes": null,
+      "observed_runtime_peak_bytes": null
+    },
+    {
+      "model": "bench-e2e-e2b-it-mlx-4bit",
+      "source": "bench/e2e/results/bench-e2e-e2b-it-mlx-4bit-20260926T165717Z.loaded.json",
+      "model_disk_size_bytes": 4372360872,
+      "model_disk_size_decimal_gb": 4.3724,
+      "reported_context_length": 131072,
+      "observed_runtime_rss_bytes": null,
+      "observed_runtime_peak_bytes": null
+    },
+    {
+      "model": "bench-e2e-e2b-it-mlx-8bit",
+      "source": "bench/e2e/results/bench-e2e-e2b-it-mlx-8bit-20260926T165743Z.loaded.json",
+      "model_disk_size_bytes": 5919179696,
+      "model_disk_size_decimal_gb": 5.9192,
+      "reported_context_length": 131072,
+      "observed_runtime_rss_bytes": null,
+      "observed_runtime_peak_bytes": null
+    },
+    {
+      "model": "bench-e2e-e4b-it-mlx-4bit",
+      "source": "bench/e2e/results/bench-e2e-e4b-it-mlx-4bit-20260926T173625Z.loaded.json",
+      "model_disk_size_bytes": 6861844944,
+      "model_disk_size_decimal_gb": 6.8618,
+      "reported_context_length": 131072,
+      "observed_runtime_rss_bytes": null,
+      "observed_runtime_peak_bytes": null
+    },
+    {
+      "model": "bench-e2e-e4b-it-mlx-5bit",
+      "source": "bench/e2e/results/bench-e2e-e4b-it-mlx-5bit-20260926T173809Z.loaded.json",
+      "model_disk_size_bytes": 7389393383,
+      "model_disk_size_decimal_gb": 7.3894,
+      "reported_context_length": 131072,
+      "observed_runtime_rss_bytes": null,
+      "observed_runtime_peak_bytes": null
+    },
+    {
+      "model": "bench-e2e-e4b-it-mlx-6bit",
+      "source": "bench/e2e/results/bench-e2e-e4b-it-mlx-6bit-20260926T174016Z.loaded.json",
+      "model_disk_size_bytes": 7916941819,
+      "model_disk_size_decimal_gb": 7.9169,
+      "reported_context_length": 131072,
+      "observed_runtime_rss_bytes": null,
+      "observed_runtime_peak_bytes": null
+    },
+    {
+      "model": "bench-e2e-e4b-it-mlx-8bit",
+      "source": "bench/e2e/results/bench-e2e-e4b-it-mlx-8bit-20260926T165512Z.loaded.json",
+      "model_disk_size_bytes": 8972038680,
+      "model_disk_size_decimal_gb": 8.972,
+      "reported_context_length": 131072,
+      "observed_runtime_rss_bytes": null,
+      "observed_runtime_peak_bytes": null
+    },
+    {
+      "model": "bench-e2e-e4b-it-qat-gguf",
+      "source": "bench/e2e/results/bench-e2e-e4b-it-qat-gguf-20260926T163952Z.loaded.json",
+      "model_disk_size_bytes": 6146492960,
+      "model_disk_size_decimal_gb": 6.1465,
+      "reported_context_length": 8192,
+      "observed_runtime_rss_bytes": null,
+      "observed_runtime_peak_bytes": null
+    }
+  ],
+  "gguf_load_estimates": [
+    {
+      "model": "bench-e2e-26b-a4b-it-qat-gguf",
+      "source": "/Users/kei/Library/Logs/LM Studio/main.log",
+      "line_number": 112,
+      "time_zone": "Asia/Tokyo",
+      "kind": "runtime_load_estimate_not_measurement",
+      "raw_lines": [
+        "[2026-09-27 01:37:39.485] [error] [LM Studio] Model load size estimate with raw num offload layers 'max' and context length '8192':",
+        "  Model: 16.10 GB",
+        "  Context: 963.99 MB",
+        "  Total: 17.07 GB"
+      ]
+    },
+    {
+      "model": "bench-e2e-e4b-it-qat-gguf",
+      "source": "/Users/kei/Library/Logs/LM Studio/main.log",
+      "line_number": 131,
+      "time_zone": "Asia/Tokyo",
+      "kind": "runtime_load_estimate_not_measurement",
+      "raw_lines": [
+        "[2026-09-27 01:39:52.961] [error] [LM Studio] Model load size estimate with raw num offload layers 'max' and context length '8192':",
+        "  Model: 6.33 GB",
+        "  Context: 579.46 MB",
+        "  Total: 6.91 GB"
+      ]
+    },
+    {
+      "model": "bench-e2e-31b-it-qat-gguf",
+      "source": "/Users/kei/Library/Logs/LM Studio/main.log",
+      "line_number": 199,
+      "time_zone": "Asia/Tokyo",
+      "kind": "runtime_load_estimate_not_measurement",
+      "raw_lines": [
+        "[2026-09-27 02:15:25.872] [error] [LM Studio] Model load size estimate with raw num offload layers 'max' and context length '8192':",
+        "  Model: 19.42 GB",
+        "  Context: 2.72 GB",
+        "  Total: 22.14 GB"
+      ]
+    },
+    {
+      "model": "bench-e2e-12b-it-qat-gguf",
+      "source": "/Users/kei/Library/Logs/LM Studio/main.log",
+      "line_number": 218,
+      "time_zone": "Asia/Tokyo",
+      "kind": "runtime_load_estimate_not_measurement",
+      "raw_lines": [
+        "[2026-09-27 02:32:14.818] [error] [LM Studio] Model load size estimate with raw num offload layers 'max' and context length '8192':",
+        "  Model: 7.37 GB",
+        "  Context: 1.44 GB",
+        "  Total: 8.80 GB"
+      ]
+    }
+  ],
+  "additional_log_inspection": {
+    "source": "/Users/kei/.lmstudio/server-logs/2026-09/2026-09-27.1.log",
+    "finding": "MLX context_fit lines contain baseline and estimated_peak for the configured maximum context. These are not observed E2E memory peaks.",
+    "live_gpu_info": "No live GPU info available in main.log"
+  },
+  "sampler_for_new_runs": "bench/e2e/memory.py"
+}

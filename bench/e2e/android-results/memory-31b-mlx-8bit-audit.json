@@ -1,0 +1,493 @@
+{
+  "checked_at": "2026-09-26T19:12:38.044513+00:00",
+  "model": "bench-android-e2e-31b-it-mlx-8bit",
+  "sources": {
+    "raw": "bench/e2e/android-results/bench-android-e2e-31b-it-mlx-8bit-20260926T190417Z.memory.jsonl",
+    "summary": "bench/e2e/android-results/bench-android-e2e-31b-it-mlx-8bit-20260926T190417Z.memory.summary.json",
+    "loaded": "bench/e2e/android-results/bench-android-e2e-31b-it-mlx-8bit-20260926T190417Z.loaded.json",
+    "model_log": "bench/e2e/android-results/bench-android-e2e-31b-it-mlx-8bit-20260926T190417Z.model-log.jsonl"
+  },
+  "checks": {
+    "single_model_loaded_and_8bit_quantization": true,
+    "model_log_identifiers": [
+      "bench-android-e2e-31b-it-mlx-8bit"
+    ],
+    "model_log_paths": [
+      "lmstudio-community/gemma-4-31B-it-MLX-8bit"
+    ],
+    "model_log_event_count": 50,
+    "raw_sample_model_ids_consistent": true,
+    "rss_1024_byte_conversion_correct": true,
+    "rss_sums_match_raw_processes": true,
+    "footprint_sums_match_complete_raw_processes": true,
+    "peak_and_median_recomputed_equal_summary": true,
+    "sample_count": 314,
+    "footprint_valid_count": 313,
+    "worker_pid_present_every_sample": 95998,
+    "worker_ppid": 2264,
+    "worker_stable_process_start_abstime": 15780250941802,
+    "worker_footprint_errors": 0
+  },
+  "worker_identification_limit": "The large new LM Studio child node PID95998 is inferred to be the inference worker from the single loaded model, parent/executable, stable start time and timing. Unlike the earlier 26B worker, its llmworker command/modules were not captured while it was live; it is now unloaded, so this audit does not claim a new live module verification.",
+  "rss_peak_sample": {
+    "timestamp": "2026-09-26T19:07:52.055554+00:00",
+    "elapsed_seconds": 157.024997,
+    "model": "bench-android-e2e-31b-it-mlx-8bit",
+    "status": "ok",
+    "processes": [
+      {
+        "pid": 2264,
+        "ppid": 1,
+        "name": "LM Studio",
+        "executable": "/Applications/LM Studio.app/Contents/MacOS/LM Studio",
+        "rss_kib": 344816,
+        "rss_bytes": 353091584,
+        "identification": "executable_path_prefix",
+        "matched_root": "/Applications/LM Studio.app/Contents/",
+        "seed_pid": 2264,
+        "physical_footprint_timestamp": "2026-09-26T19:07:52.133760+00:00",
+        "physical_footprint_bytes": 375212480,
+        "proc_start_abstime": 16732647380,
+        "physical_footprint_error": null
+      },
+      {
+        "pid": 2526,
+        "ppid": 1,
+        "name": "chrome_crashpad_handler",
+        "executable": "/Applications/LM Studio.app/Contents/Frameworks/Electron Framework.framework/Helpers/chrome_crashpad_handler",
+        "rss_kib": 5712,
+        "rss_bytes": 5849088,
+        "identification": "executable_path_prefix",
+        "matched_root": "/Applications/LM Studio.app/Contents/",
+        "seed_pid": 2526,
+        "physical_footprint_timestamp": "2026-09-26T19:07:52.133824+00:00",
+        "physical_footprint_bytes": 3129920,
+        "proc_start_abstime": 16909374708,
+        "physical_footprint_error": null
+      },
+      {
+        "pid": 2539,
+        "ppid": 2264,
+        "name": "LM Studio Helper (GPU)",
+        "executable": "/Applications/LM Studio.app/Contents/Frameworks/LM Studio Helper (GPU).app/Contents/MacOS/LM Studio Helper (GPU)",
+        "rss_kib": 40880,
+        "rss_bytes": 41861120,
+        "identification": "executable_path_prefix",
+        "matched_root": "/Applications/LM Studio.app/Contents/",
+        "seed_pid": 2539,
+        "physical_footprint_timestamp": "2026-09-26T19:07:52.133833+00:00",
+        "physical_footprint_bytes": 43451520,
+        "proc_start_abstime": 16950239921,
+        "physical_footprint_error": null
+      },
+      {
+        "pid": 2546,
+        "ppid": 2264,
+        "name": "LM Studio Helper",
+        "executable": "/Applications/LM Studio.app/Contents/Frameworks/LM Studio Helper.app/Contents/MacOS/LM Studio Helper",
+        "rss_kib": 15088,
+        "rss_bytes": 15450112,
+        "identification": "executable_path_prefix",
+        "matched_root": "/Applications/LM Studio.app/Contents/",
+        "seed_pid": 2546,
+        "physical_footprint_timestamp": "2026-09-26T19:07:52.133845+00:00",
+        "physical_footprint_bytes": 7259168,
+        "proc_start_abstime": 16966202048,
+        "physical_footprint_error": null
+      },
+      {
+        "pid": 2600,
+        "ppid": 2264,
+        "name": "node",
+        "executable": "/Users/kei/.lmstudio/.internal/utils/node",
+        "rss_kib": 26736,
+        "rss_bytes": 27377664,
+        "identification": "executable_path_prefix",
+        "matched_root": "/Users/kei/.lmstudio/",
+        "seed_pid": 2600,
+        "physical_footprint_timestamp": "2026-09-26T19:07:52.133851+00:00",
+        "physical_footprint_bytes": 57450536,
+        "proc_start_abstime": 16996779039,
+        "physical_footprint_error": null
+      },
+      {
+        "pid": 84007,
+        "ppid": 2264,
+        "name": "LM Studio Helper (Renderer)",
+        "executable": "/Applications/LM Studio.app/Contents/Frameworks/LM Studio Helper (Renderer).app/Contents/MacOS/LM Studio Helper (Renderer)",
+        "rss_kib": 185600,
+        "rss_bytes": 190054400,
+        "identification": "executable_path_prefix",
+        "matched_root": "/Applications/LM Studio.app/Contents/",
+        "seed_pid": 84007,
+        "physical_footprint_timestamp": "2026-09-26T19:07:52.133856+00:00",
+        "physical_footprint_bytes": 156894960,
+        "proc_start_abstime": 15437443133597,
+        "physical_footprint_error": null
+      },
+      {
+        "pid": 95998,
+        "ppid": 2264,
+        "name": "node",
+        "executable": "/Users/kei/.lmstudio/.internal/utils/node",
+        "rss_kib": 14915584,
+        "rss_bytes": 15273558016,
+        "identification": "executable_path_prefix",
+        "matched_root": "/Users/kei/.lmstudio/",
+        "seed_pid": 95998,
+        "physical_footprint_timestamp": "2026-09-26T19:07:52.133864+00:00",
+        "physical_footprint_bytes": 39993758008,
+        "proc_start_abstime": 15780250941802,
+        "physical_footprint_error": null
+      }
+    ],
+    "rss_sum_bytes": 15907241984,
+    "physical_footprint_sum_bytes": 40637156592,
+    "physical_footprint_status": "ok",
+    "errors": []
+  },
+  "footprint_peak_sample": {
+    "timestamp": "2026-09-26T19:10:06.907161+00:00",
+    "elapsed_seconds": 291.875519,
+    "model": "bench-android-e2e-31b-it-mlx-8bit",
+    "status": "ok",
+    "processes": [
+      {
+        "pid": 2264,
+        "ppid": 1,
+        "name": "LM Studio",
+        "executable": "/Applications/LM Studio.app/Contents/MacOS/LM Studio",
+        "rss_kib": 181472,
+        "rss_bytes": 185827328,
+        "identification": "executable_path_prefix",
+        "matched_root": "/Applications/LM Studio.app/Contents/",
+        "seed_pid": 2264,
+        "physical_footprint_timestamp": "2026-09-26T19:10:06.979706+00:00",
+        "physical_footprint_bytes": 372492736,
+        "proc_start_abstime": 16732647380,
+        "physical_footprint_error": null
+      },
+      {
+        "pid": 2526,
+        "ppid": 1,
+        "name": "chrome_crashpad_handler",
+        "executable": "/Applications/LM Studio.app/Contents/Frameworks/Electron Framework.framework/Helpers/chrome_crashpad_handler",
+        "rss_kib": 5712,
+        "rss_bytes": 5849088,
+        "identification": "executable_path_prefix",
+        "matched_root": "/Applications/LM Studio.app/Contents/",
+        "seed_pid": 2526,
+        "physical_footprint_timestamp": "2026-09-26T19:10:06.979763+00:00",
+        "physical_footprint_bytes": 3129920,
+        "proc_start_abstime": 16909374708,
+        "physical_footprint_error": null
+      },
+      {
+        "pid": 2539,
+        "ppid": 2264,
+        "name": "LM Studio Helper (GPU)",
+        "executable": "/Applications/LM Studio.app/Contents/Frameworks/LM Studio Helper (GPU).app/Contents/MacOS/LM Studio Helper (GPU)",
+        "rss_kib": 33360,
+        "rss_bytes": 34160640,
+        "identification": "executable_path_prefix",
+        "matched_root": "/Applications/LM Studio.app/Contents/",
+        "seed_pid": 2539,
+        "physical_footprint_timestamp": "2026-09-26T19:10:06.979771+00:00",
+        "physical_footprint_bytes": 43451520,
+        "proc_start_abstime": 16950239921,
+        "physical_footprint_error": null
+      },
+      {
+        "pid": 2546,
+        "ppid": 2264,
+        "name": "LM Studio Helper",
+        "executable": "/Applications/LM Studio.app/Contents/Frameworks/LM Studio Helper.app/Contents/MacOS/LM Studio Helper",
+        "rss_kib": 14080,
+        "rss_bytes": 14417920,
+        "identification": "executable_path_prefix",
+        "matched_root": "/Applications/LM Studio.app/Contents/",
+        "seed_pid": 2546,
+        "physical_footprint_timestamp": "2026-09-26T19:10:06.979779+00:00",
+        "physical_footprint_bytes": 7259168,
+        "proc_start_abstime": 16966202048,
+        "physical_footprint_error": null
+      },
+      {
+        "pid": 2600,
+        "ppid": 2264,
+        "name": "node",
+        "executable": "/Users/kei/.lmstudio/.internal/utils/node",
+        "rss_kib": 25264,
+        "rss_bytes": 25870336,
+        "identification": "executable_path_prefix",
+        "matched_root": "/Users/kei/.lmstudio/",
+        "seed_pid": 2600,
+        "physical_footprint_timestamp": "2026-09-26T19:10:06.979784+00:00",
+        "physical_footprint_bytes": 57450536,
+        "proc_start_abstime": 16996779039,
+        "physical_footprint_error": null
+      },
+      {
+        "pid": 84007,
+        "ppid": 2264,
+        "name": "LM Studio Helper (Renderer)",
+        "executable": "/Applications/LM Studio.app/Contents/Frameworks/LM Studio Helper (Renderer).app/Contents/MacOS/LM Studio Helper (Renderer)",
+        "rss_kib": 168208,
+        "rss_bytes": 172244992,
+        "identification": "executable_path_prefix",
+        "matched_root": "/Applications/LM Studio.app/Contents/",
+        "seed_pid": 84007,
+        "physical_footprint_timestamp": "2026-09-26T19:10:06.979790+00:00",
+        "physical_footprint_bytes": 161335024,
+        "proc_start_abstime": 15437443133597,
+        "physical_footprint_error": null
+      },
+      {
+        "pid": 95998,
+        "ppid": 2264,
+        "name": "node",
+        "executable": "/Users/kei/.lmstudio/.internal/utils/node",
+        "rss_kib": 14074096,
+        "rss_bytes": 14411874304,
+        "identification": "executable_path_prefix",
+        "matched_root": "/Users/kei/.lmstudio/",
+        "seed_pid": 95998,
+        "physical_footprint_timestamp": "2026-09-26T19:10:06.979797+00:00",
+        "physical_footprint_bytes": 43182987208,
+        "proc_start_abstime": 15780250941802,
+        "physical_footprint_error": null
+      }
+    ],
+    "rss_sum_bytes": 14850244608,
+    "physical_footprint_sum_bytes": 43828106112,
+    "physical_footprint_status": "ok",
+    "errors": []
+  },
+  "incomplete_samples": [
+    {
+      "timestamp": "2026-09-26T19:07:04.720792+00:00",
+      "elapsed_seconds": 109.69062,
+      "model": "bench-android-e2e-31b-it-mlx-8bit",
+      "status": "ok",
+      "processes": [
+        {
+          "pid": 2264,
+          "ppid": 1,
+          "name": "LM Studio",
+          "executable": "/Applications/LM Studio.app/Contents/MacOS/LM Studio",
+          "rss_kib": 344016,
+          "rss_bytes": 352272384,
+          "identification": "executable_path_prefix",
+          "matched_root": "/Applications/LM Studio.app/Contents/",
+          "seed_pid": 2264,
+          "physical_footprint_timestamp": "2026-09-26T19:07:04.793858+00:00",
+          "physical_footprint_bytes": 372492736,
+          "proc_start_abstime": 16732647380,
+          "physical_footprint_error": null
+        },
+        {
+          "pid": 2526,
+          "ppid": 1,
+          "name": "chrome_crashpad_handler",
+          "executable": "/Applications/LM Studio.app/Contents/Frameworks/Electron Framework.framework/Helpers/chrome_crashpad_handler",
+          "rss_kib": 5712,
+          "rss_bytes": 5849088,
+          "identification": "executable_path_prefix",
+          "matched_root": "/Applications/LM Studio.app/Contents/",
+          "seed_pid": 2526,
+          "physical_footprint_timestamp": "2026-09-26T19:07:04.793928+00:00",
+          "physical_footprint_bytes": 3129920,
+          "proc_start_abstime": 16909374708,
+          "physical_footprint_error": null
+        },
+        {
+          "pid": 2539,
+          "ppid": 2264,
+          "name": "LM Studio Helper (GPU)",
+          "executable": "/Applications/LM Studio.app/Contents/Frameworks/LM Studio Helper (GPU).app/Contents/MacOS/LM Studio Helper (GPU)",
+          "rss_kib": 40880,
+          "rss_bytes": 41861120,
+          "identification": "executable_path_prefix",
+          "matched_root": "/Applications/LM Studio.app/Contents/",
+          "seed_pid": 2539,
+          "physical_footprint_timestamp": "2026-09-26T19:07:04.793935+00:00",
+          "physical_footprint_bytes": 43451520,
+          "proc_start_abstime": 16950239921,
+          "physical_footprint_error": null
+        },
+        {
+          "pid": 2546,
+          "ppid": 2264,
+          "name": "LM Studio Helper",
+          "executable": "/Applications/LM Studio.app/Contents/Frameworks/LM Studio Helper.app/Contents/MacOS/LM Studio Helper",
+          "rss_kib": 15088,
+          "rss_bytes": 15450112,
+          "identification": "executable_path_prefix",
+          "matched_root": "/Applications/LM Studio.app/Contents/",
+          "seed_pid": 2546,
+          "physical_footprint_timestamp": "2026-09-26T19:07:04.793943+00:00",
+          "physical_footprint_bytes": 7259168,
+          "proc_start_abstime": 16966202048,
+          "physical_footprint_error": null
+        },
+        {
+          "pid": 2600,
+          "ppid": 2264,
+          "name": "node",
+          "executable": "/Users/kei/.lmstudio/.internal/utils/node",
+          "rss_kib": 26736,
+          "rss_bytes": 27377664,
+          "identification": "executable_path_prefix",
+          "matched_root": "/Users/kei/.lmstudio/",
+          "seed_pid": 2600,
+          "physical_footprint_timestamp": "2026-09-26T19:07:04.793949+00:00",
+          "physical_footprint_bytes": 57450536,
+          "proc_start_abstime": 16996779039,
+          "physical_footprint_error": null
+        },
+        {
+          "pid": 84007,
+          "ppid": 2264,
+          "name": "LM Studio Helper (Renderer)",
+          "executable": "/Applications/LM Studio.app/Contents/Frameworks/LM Studio Helper (Renderer).app/Contents/MacOS/LM Studio Helper (Renderer)",
+          "rss_kib": 184976,
+          "rss_bytes": 189415424,
+          "identification": "executable_path_prefix",
+          "matched_root": "/Applications/LM Studio.app/Contents/",
+          "seed_pid": 84007,
+          "physical_footprint_timestamp": "2026-09-26T19:07:04.793954+00:00",
+          "physical_footprint_bytes": 155027184,
+          "proc_start_abstime": 15437443133597,
+          "physical_footprint_error": null
+        },
+        {
+          "pid": 95998,
+          "ppid": 2264,
+          "name": "node",
+          "executable": "/Users/kei/.lmstudio/.internal/utils/node",
+          "rss_kib": 14169024,
+          "rss_bytes": 14509080576,
+          "identification": "executable_path_prefix",
+          "matched_root": "/Users/kei/.lmstudio/",
+          "seed_pid": 95998,
+          "physical_footprint_timestamp": "2026-09-26T19:07:04.793963+00:00",
+          "physical_footprint_bytes": 38277975728,
+          "proc_start_abstime": 15780250941802,
+          "physical_footprint_error": null
+        },
+        {
+          "pid": 97118,
+          "ppid": 2600,
+          "name": "(sh)",
+          "executable": "(sh)",
+          "rss_kib": 1648,
+          "rss_bytes": 1687552,
+          "identification": "descendant_of_matched_executable",
+          "matched_root": "/Users/kei/.lmstudio/",
+          "seed_pid": 2600,
+          "physical_footprint_timestamp": "2026-09-26T19:07:04.793976+00:00",
+          "physical_footprint_bytes": null,
+          "proc_start_abstime": null,
+          "physical_footprint_error": {
+            "kind": "proc_pid_rusage_failure",
+            "returncode": -1,
+            "errno": 3,
+            "message": "No such process"
+          }
+        }
+      ],
+      "rss_sum_bytes": 15142993920,
+      "physical_footprint_sum_bytes": null,
+      "physical_footprint_status": "partial",
+      "errors": [
+        {
+          "pid": 97118,
+          "kind": "proc_pid_rusage_failure",
+          "returncode": -1,
+          "errno": 3,
+          "message": "No such process"
+        }
+      ]
+    }
+  ],
+  "31b_mlx_comparison": [
+    {
+      "source": "bench/e2e/android-results/bench-android-e2e-31b-it-mlx-4bit-20260926T182647Z.memory.summary.json",
+      "model": "bench-android-e2e-31b-it-mlx-4bit",
+      "rss_sum_sampled_peak_bytes": 25211666432,
+      "physical_footprint_sum_sampled_peak_bytes": 28641388592,
+      "large_processes": [
+        {
+          "pid": 76612,
+          "executable": "/Users/kei/.lmstudio/.internal/utils/node",
+          "proc_start_abstime": 15726269722398,
+          "sample_count": 300,
+          "rss_median_bytes": 22229598208.0,
+          "rss_sampled_peak_bytes": 24538791936,
+          "physical_footprint_valid_sample_count": 300,
+          "physical_footprint_median_bytes": 23772866168.0,
+          "physical_footprint_sampled_peak_bytes": 27870522464
+        }
+      ]
+    },
+    {
+      "source": "bench/e2e/android-results/bench-android-e2e-31b-it-mlx-5bit-20260926T185230Z.memory.summary.json",
+      "model": "bench-android-e2e-31b-it-mlx-5bit",
+      "rss_sum_sampled_peak_bytes": 28648046592,
+      "physical_footprint_sum_sampled_peak_bytes": 32394949224,
+      "large_processes": [
+        {
+          "pid": 89583,
+          "executable": "/Users/kei/.lmstudio/.internal/utils/node",
+          "proc_start_abstime": 15763282742893,
+          "sample_count": 323,
+          "rss_median_bytes": 25660735488,
+          "rss_sampled_peak_bytes": 27880521728,
+          "physical_footprint_valid_sample_count": 323,
+          "physical_footprint_median_bytes": 27572776752,
+          "physical_footprint_sampled_peak_bytes": 31624787560
+        }
+      ]
+    },
+    {
+      "source": "bench/e2e/android-results/bench-android-e2e-31b-it-mlx-6bit-20260926T185832Z.memory.summary.json",
+      "model": "bench-android-e2e-31b-it-mlx-6bit",
+      "rss_sum_sampled_peak_bytes": 31489130496,
+      "physical_footprint_sum_sampled_peak_bytes": 36372577944,
+      "large_processes": [
+        {
+          "pid": 92852,
+          "executable": "/Users/kei/.lmstudio/.internal/utils/node",
+          "proc_start_abstime": 15771978045664,
+          "sample_count": 297,
+          "rss_median_bytes": 29450190848,
+          "rss_sampled_peak_bytes": 30828822528,
+          "physical_footprint_valid_sample_count": 297,
+          "physical_footprint_median_bytes": 31391497344,
+          "physical_footprint_sampled_peak_bytes": 35600728728
+        }
+      ]
+    },
+    {
+      "source": "bench/e2e/android-results/bench-android-e2e-31b-it-mlx-8bit-20260926T190417Z.memory.summary.json",
+      "model": "bench-android-e2e-31b-it-mlx-8bit",
+      "rss_sum_sampled_peak_bytes": 15907241984,
+      "physical_footprint_sum_sampled_peak_bytes": 43828106112,
+      "large_processes": [
+        {
+          "pid": 95998,
+          "executable": "/Users/kei/.lmstudio/.internal/utils/node",
+          "proc_start_abstime": 15780250941802,
+          "sample_count": 314,
+          "rss_median_bytes": 14147141632.0,
+          "rss_sampled_peak_bytes": 15273558016,
+          "physical_footprint_valid_sample_count": 314,
+          "physical_footprint_median_bytes": 39112069552.0,
+          "physical_footprint_sampled_peak_bytes": 43182987208
+        }
+      ]
+    }
+  ],
+  "conclusion": "No model/quantization mismatch, missing high-memory worker, arithmetic/unit conversion error, or PID change was found. The low RSS with high footprint is present in the same worker across the original samples, not generated by comparing different process sets.",
+  "cause_limit": "Per-process compression/swap/Metal allocator counters and vmmap were not captured for this PID during the run. OS compression, paging or GPU mapping as causes cannot be confirmed retrospectively. Neither metric alone guarantees required RAM."
+}

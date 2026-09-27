@@ -1,0 +1,2825 @@
+{
+  "generated_at": "2026-09-26T19:56:59.789290+00:00",
+  "status": "passed",
+  "complete": true,
+  "final_full_raw_recheck": true,
+  "expected_model_count": 18,
+  "completed_capture_count": 18,
+  "expected_models": [
+    "bench-android-e2e-26b-a4b-it-qat-mlx-4bit",
+    "bench-android-e2e-31b-it-mlx-4bit",
+    "bench-android-e2e-26b-a4b-it-qat-gguf",
+    "bench-android-e2e-e4b-it-qat-gguf",
+    "bench-android-e2e-e4b-it-mlx-8bit",
+    "bench-android-e2e-e2b-it-mlx-4bit",
+    "bench-android-e2e-e2b-it-mlx-8bit",
+    "bench-android-e2e-31b-it-mlx-5bit",
+    "bench-android-e2e-31b-it-mlx-6bit",
+    "bench-android-e2e-31b-it-mlx-8bit",
+    "bench-android-e2e-31b-it-qat-gguf",
+    "bench-android-e2e-12b-it-mlx-5bit",
+    "bench-android-e2e-12b-it-mlx-6bit",
+    "bench-android-e2e-12b-it-mlx-8bit",
+    "bench-android-e2e-12b-it-qat-gguf",
+    "bench-android-e2e-e4b-it-mlx-4bit",
+    "bench-android-e2e-e4b-it-mlx-5bit",
+    "bench-android-e2e-e4b-it-mlx-6bit"
+  ],
+  "missing_models": [],
+  "duplicate_models": [],
+  "failed_models": [],
+  "definition": "Independent recalculation from completed bench-* memory JSONL captures. Memory is LM Studio process-group RSS and physical footprint; no inference, model loading or source-result mutation. Missing physical-footprint samples remain null and are excluded from its median and sampled peak.",
+  "limitations": [
+    "Samples start after model loading, cover the four E2E cases and exclude model-load peaks.",
+    "One-second samples do not establish a continuous peak.",
+    "RSS and physical footprint measure different accounting scopes; neither alone or their sum proves required RAM.",
+    "No inference about compression, swap or GPU allocation is made."
+  ],
+  "models": [
+    {
+      "model": "bench-android-e2e-12b-it-mlx-5bit",
+      "status": "passed",
+      "errors": [],
+      "checks": {
+        "summary.sample_count": true,
+        "summary.valid_sample_count": true,
+        "summary.error_sample_count": true,
+        "summary.rss_sum_first_bytes": true,
+        "summary.rss_sum_last_bytes": true,
+        "summary.rss_sum_median_bytes": true,
+        "summary.rss_sum_sampled_peak_bytes": true,
+        "summary.sampled_peak_timestamp": true,
+        "summary.physical_footprint_valid_sample_count": true,
+        "summary.physical_footprint_unavailable_sample_count": true,
+        "summary.physical_footprint_sum_median_bytes": true,
+        "summary.physical_footprint_sum_sampled_peak_bytes": true,
+        "summary.physical_footprint_sampled_peak_timestamp": true,
+        "summary.observed_pids": true,
+        "completed_by_sigterm": true,
+        "expected_model": true,
+        "raw_model_identifiers_match": true,
+        "one_loaded_model_matches": true,
+        "loaded_parallel_one": true,
+        "loaded_quantization_matches": true,
+        "rss_units": true,
+        "rss_sums": true,
+        "rss_failure_not_zero": true,
+        "footprint_complete_sums": true,
+        "footprint_failure_not_zero": true,
+        "footprint_failed_pid_null": true,
+        "peak_process_sets": true,
+        "sample_times_inside_capture": true,
+        "sample_times_ordered": true,
+        "load_began_before_capture": true,
+        "loaded_snapshot_before_capture": true,
+        "one_e2e_run_in_capture_window": true,
+        "run_case_models_match": true,
+        "capture_starts_before_first_case": true,
+        "capture_finishes_after_last_case": true
+      },
+      "raw_source": "bench/e2e/android-results/bench-android-e2e-12b-it-mlx-5bit-20260926T192049Z.memory.jsonl",
+      "raw_sha256": "386b564731e25c03edb29bf54db6a651ee88ad6391745969ec96460b626fae5b",
+      "summary_source": "bench/e2e/android-results/bench-android-e2e-12b-it-mlx-5bit-20260926T192049Z.memory.summary.json",
+      "loaded_source": "bench/e2e/android-results/bench-android-e2e-12b-it-mlx-5bit-20260926T192049Z.loaded.json",
+      "capture_started_at": "2026-09-26T19:21:11.261038+00:00",
+      "capture_finished_at": "2026-09-26T19:25:01.993644+00:00",
+      "recomputed": {
+        "sample_count": 230,
+        "valid_sample_count": 230,
+        "error_sample_count": 0,
+        "rss_sum_first_bytes": 10532700160,
+        "rss_sum_last_bytes": 12498124800,
+        "rss_sum_median_bytes": 11360436224.0,
+        "rss_sum_sampled_peak_bytes": 12585107456,
+        "sampled_peak_timestamp": "2026-09-26T19:24:52.487117+00:00",
+        "physical_footprint_valid_sample_count": 228,
+        "physical_footprint_unavailable_sample_count": 2,
+        "physical_footprint_sum_median_bytes": 12206809392.0,
+        "physical_footprint_sum_sampled_peak_bytes": 14275085480,
+        "physical_footprint_sampled_peak_timestamp": "2026-09-26T19:24:39.428226+00:00",
+        "observed_pids": [
+          2264,
+          2526,
+          2539,
+          2546,
+          2600,
+          4693,
+          5277,
+          9240,
+          84007
+        ]
+      },
+      "run_window": {
+        "summary": "bench/e2e/android-results/bench-android-e2e-12b-it-mlx-5bit-20260926T192111272081Z/summary.json",
+        "run_id": "1f5597d3-bb71-4085-9a12-66c6400fe744",
+        "started_at": "2026-09-26T19:21:11.272774+00:00",
+        "finished_at_from_elapsed": "2026-09-26T19:25:01.936774+00:00",
+        "first_case_started_at": "2026-09-26T19:21:11.329000+00:00",
+        "last_case_finished_at": "2026-09-26T19:25:00.852000+00:00",
+        "capture_start_minus_run_start_seconds": -0.011736,
+        "capture_end_minus_run_end_seconds": 0.05687
+      },
+      "missing_samples": [
+        {
+          "timestamp": "2026-09-26T19:22:19.650536+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 5277,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 5277,
+              "ppid": 2600,
+              "name": "(bash)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-09-26T19:23:49.168867+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 9240,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 9240,
+              "ppid": 2600,
+              "name": "(bash)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        }
+      ],
+      "max_sample_gap_seconds": 1.012913
+    },
+    {
+      "model": "bench-android-e2e-12b-it-mlx-6bit",
+      "status": "passed",
+      "errors": [],
+      "checks": {
+        "summary.sample_count": true,
+        "summary.valid_sample_count": true,
+        "summary.error_sample_count": true,
+        "summary.rss_sum_first_bytes": true,
+        "summary.rss_sum_last_bytes": true,
+        "summary.rss_sum_median_bytes": true,
+        "summary.rss_sum_sampled_peak_bytes": true,
+        "summary.sampled_peak_timestamp": true,
+        "summary.physical_footprint_valid_sample_count": true,
+        "summary.physical_footprint_unavailable_sample_count": true,
+        "summary.physical_footprint_sum_median_bytes": true,
+        "summary.physical_footprint_sum_sampled_peak_bytes": true,
+        "summary.physical_footprint_sampled_peak_timestamp": true,
+        "summary.observed_pids": true,
+        "completed_by_sigterm": true,
+        "expected_model": true,
+        "raw_model_identifiers_match": true,
+        "one_loaded_model_matches": true,
+        "loaded_parallel_one": true,
+        "loaded_quantization_matches": true,
+        "rss_units": true,
+        "rss_sums": true,
+        "rss_failure_not_zero": true,
+        "footprint_complete_sums": true,
+        "footprint_failure_not_zero": true,
+        "footprint_failed_pid_null": true,
+        "peak_process_sets": true,
+        "sample_times_inside_capture": true,
+        "sample_times_ordered": true,
+        "load_began_before_capture": true,
+        "loaded_snapshot_before_capture": true,
+        "one_e2e_run_in_capture_window": true,
+        "run_case_models_match": true,
+        "capture_starts_before_first_case": true,
+        "capture_finishes_after_last_case": true
+      },
+      "raw_source": "bench/e2e/android-results/bench-android-e2e-12b-it-mlx-6bit-20260926T192503Z.memory.jsonl",
+      "raw_sha256": "2b07198dc84f8b6bc082d284dbf3dea6dcb0bdef00ea75e36ab8770a68fea9f4",
+      "summary_source": "bench/e2e/android-results/bench-android-e2e-12b-it-mlx-6bit-20260926T192503Z.memory.summary.json",
+      "loaded_source": "bench/e2e/android-results/bench-android-e2e-12b-it-mlx-6bit-20260926T192503Z.loaded.json",
+      "capture_started_at": "2026-09-26T19:25:29.168868+00:00",
+      "capture_finished_at": "2026-09-26T19:29:50.407030+00:00",
+      "recomputed": {
+        "sample_count": 260,
+        "valid_sample_count": 260,
+        "error_sample_count": 0,
+        "rss_sum_first_bytes": 12050710528,
+        "rss_sum_last_bytes": 14473691136,
+        "rss_sum_median_bytes": 13260906496.0,
+        "rss_sum_sampled_peak_bytes": 14560952320,
+        "sampled_peak_timestamp": "2026-09-26T19:29:42.710804+00:00",
+        "physical_footprint_valid_sample_count": 256,
+        "physical_footprint_unavailable_sample_count": 4,
+        "physical_footprint_sum_median_bytes": 13855934196.0,
+        "physical_footprint_sum_sampled_peak_bytes": 16156347120,
+        "physical_footprint_sampled_peak_timestamp": "2026-09-26T19:29:36.662375+00:00",
+        "observed_pids": [
+          2264,
+          2526,
+          2539,
+          2546,
+          2600,
+          9721,
+          10011,
+          10471,
+          11130,
+          11155,
+          84007
+        ]
+      },
+      "run_window": {
+        "summary": "bench/e2e/android-results/bench-android-e2e-12b-it-mlx-6bit-20260926T192529180360Z/summary.json",
+        "run_id": "f5ac8f4d-57f5-4a55-83b4-59b65217d564",
+        "started_at": "2026-09-26T19:25:29.180733+00:00",
+        "finished_at_from_elapsed": "2026-09-26T19:29:50.377733+00:00",
+        "first_case_started_at": "2026-09-26T19:25:29.233000+00:00",
+        "last_case_finished_at": "2026-09-26T19:29:49.223000+00:00",
+        "capture_start_minus_run_start_seconds": -0.011865,
+        "capture_end_minus_run_end_seconds": 0.029297
+      },
+      "missing_samples": [
+        {
+          "timestamp": "2026-09-26T19:25:44.280994+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 10011,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 10011,
+              "ppid": 2600,
+              "name": "(ps)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-09-26T19:26:43.595815+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 10471,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 10471,
+              "ppid": 2600,
+              "name": "(sh)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-09-26T19:28:19.144514+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 11130,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 11130,
+              "ppid": 2600,
+              "name": "(ps)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-09-26T19:28:22.168658+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 11155,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 11155,
+              "ppid": 2600,
+              "name": "(ps)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        }
+      ],
+      "max_sample_gap_seconds": 1.012947
+    },
+    {
+      "model": "bench-android-e2e-12b-it-mlx-8bit",
+      "status": "passed",
+      "errors": [],
+      "checks": {
+        "summary.sample_count": true,
+        "summary.valid_sample_count": true,
+        "summary.error_sample_count": true,
+        "summary.rss_sum_first_bytes": true,
+        "summary.rss_sum_last_bytes": true,
+        "summary.rss_sum_median_bytes": true,
+        "summary.rss_sum_sampled_peak_bytes": true,
+        "summary.sampled_peak_timestamp": true,
+        "summary.physical_footprint_valid_sample_count": true,
+        "summary.physical_footprint_unavailable_sample_count": true,
+        "summary.physical_footprint_sum_median_bytes": true,
+        "summary.physical_footprint_sum_sampled_peak_bytes": true,
+        "summary.physical_footprint_sampled_peak_timestamp": true,
+        "summary.observed_pids": true,
+        "completed_by_sigterm": true,
+        "expected_model": true,
+        "raw_model_identifiers_match": true,
+        "one_loaded_model_matches": true,
+        "loaded_parallel_one": true,
+        "loaded_quantization_matches": true,
+        "rss_units": true,
+        "rss_sums": true,
+        "rss_failure_not_zero": true,
+        "footprint_complete_sums": true,
+        "footprint_failure_not_zero": true,
+        "footprint_failed_pid_null": true,
+        "peak_process_sets": true,
+        "sample_times_inside_capture": true,
+        "sample_times_ordered": true,
+        "load_began_before_capture": true,
+        "loaded_snapshot_before_capture": true,
+        "one_e2e_run_in_capture_window": true,
+        "run_case_models_match": true,
+        "capture_starts_before_first_case": true,
+        "capture_finishes_after_last_case": true
+      },
+      "raw_source": "bench/e2e/android-results/bench-android-e2e-12b-it-mlx-8bit-20260926T192952Z.memory.jsonl",
+      "raw_sha256": "df89186bc94ba9ba7f2990548f6d19aa163ae713a416595a58260b28e427d645",
+      "summary_source": "bench/e2e/android-results/bench-android-e2e-12b-it-mlx-8bit-20260926T192952Z.memory.summary.json",
+      "loaded_source": "bench/e2e/android-results/bench-android-e2e-12b-it-mlx-8bit-20260926T192952Z.loaded.json",
+      "capture_started_at": "2026-09-26T19:30:17.062468+00:00",
+      "capture_finished_at": "2026-09-26T19:34:01.340727+00:00",
+      "recomputed": {
+        "sample_count": 223,
+        "valid_sample_count": 223,
+        "error_sample_count": 0,
+        "rss_sum_first_bytes": 15052161024,
+        "rss_sum_last_bytes": 17371955200,
+        "rss_sum_median_bytes": 16224059392,
+        "rss_sum_sampled_peak_bytes": 17459363840,
+        "sampled_peak_timestamp": "2026-09-26T19:33:54.546197+00:00",
+        "physical_footprint_valid_sample_count": 221,
+        "physical_footprint_unavailable_sample_count": 2,
+        "physical_footprint_sum_median_bytes": 16702328376,
+        "physical_footprint_sum_sampled_peak_bytes": 18943152608,
+        "physical_footprint_sampled_peak_timestamp": "2026-09-26T19:33:50.515940+00:00",
+        "observed_pids": [
+          2264,
+          2526,
+          2539,
+          2546,
+          2600,
+          12148,
+          12913,
+          12921,
+          84007
+        ]
+      },
+      "run_window": {
+        "summary": "bench/e2e/android-results/bench-android-e2e-12b-it-mlx-8bit-20260926T193017067169Z/summary.json",
+        "run_id": "644b910d-8843-484b-9b30-2022d8a53bab",
+        "started_at": "2026-09-26T19:30:17.067712+00:00",
+        "finished_at_from_elapsed": "2026-09-26T19:34:01.285712+00:00",
+        "first_case_started_at": "2026-09-26T19:30:17.105000+00:00",
+        "last_case_finished_at": "2026-09-26T19:34:00.971000+00:00",
+        "capture_start_minus_run_start_seconds": -0.005244,
+        "capture_end_minus_run_end_seconds": 0.055015
+      },
+      "missing_samples": [
+        {
+          "timestamp": "2026-09-26T19:31:37.590153+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 12913,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 12913,
+              "ppid": 2600,
+              "name": "(sh)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-09-26T19:31:40.614584+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 12921,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 12921,
+              "ppid": 2600,
+              "name": "(bash)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        }
+      ],
+      "max_sample_gap_seconds": 1.014946
+    },
+    {
+      "model": "bench-android-e2e-12b-it-qat-gguf",
+      "status": "passed",
+      "errors": [],
+      "checks": {
+        "summary.sample_count": true,
+        "summary.valid_sample_count": true,
+        "summary.error_sample_count": true,
+        "summary.rss_sum_first_bytes": true,
+        "summary.rss_sum_last_bytes": true,
+        "summary.rss_sum_median_bytes": true,
+        "summary.rss_sum_sampled_peak_bytes": true,
+        "summary.sampled_peak_timestamp": true,
+        "summary.physical_footprint_valid_sample_count": true,
+        "summary.physical_footprint_unavailable_sample_count": true,
+        "summary.physical_footprint_sum_median_bytes": true,
+        "summary.physical_footprint_sum_sampled_peak_bytes": true,
+        "summary.physical_footprint_sampled_peak_timestamp": true,
+        "summary.observed_pids": true,
+        "completed_by_sigterm": true,
+        "expected_model": true,
+        "raw_model_identifiers_match": true,
+        "one_loaded_model_matches": true,
+        "loaded_parallel_one": true,
+        "loaded_quantization_matches": true,
+        "rss_units": true,
+        "rss_sums": true,
+        "rss_failure_not_zero": true,
+        "footprint_complete_sums": true,
+        "footprint_failure_not_zero": true,
+        "footprint_failed_pid_null": true,
+        "peak_process_sets": true,
+        "sample_times_inside_capture": true,
+        "sample_times_ordered": true,
+        "load_began_before_capture": true,
+        "loaded_snapshot_before_capture": true,
+        "one_e2e_run_in_capture_window": true,
+        "run_case_models_match": true,
+        "capture_starts_before_first_case": true,
+        "capture_finishes_after_last_case": true
+      },
+      "raw_source": "bench/e2e/android-results/bench-android-e2e-12b-it-qat-gguf-20260926T193402Z.memory.jsonl",
+      "raw_sha256": "81432d5a3f9bcb3d6fd90b12efb8171fd13e923fe0130fcee9cd097ac1fda624",
+      "summary_source": "bench/e2e/android-results/bench-android-e2e-12b-it-qat-gguf-20260926T193402Z.memory.summary.json",
+      "loaded_source": "bench/e2e/android-results/bench-android-e2e-12b-it-qat-gguf-20260926T193402Z.loaded.json",
+      "capture_started_at": "2026-09-26T19:34:17.238717+00:00",
+      "capture_finished_at": "2026-09-26T19:39:00.967018+00:00",
+      "recomputed": {
+        "sample_count": 282,
+        "valid_sample_count": 282,
+        "error_sample_count": 0,
+        "rss_sum_first_bytes": 8931344384,
+        "rss_sum_last_bytes": 9710895104,
+        "rss_sum_median_bytes": 9996402688.0,
+        "rss_sum_sampled_peak_bytes": 10822451200,
+        "sampled_peak_timestamp": "2026-09-26T19:34:53.507247+00:00",
+        "physical_footprint_valid_sample_count": 278,
+        "physical_footprint_unavailable_sample_count": 4,
+        "physical_footprint_sum_median_bytes": 3000244664.0,
+        "physical_footprint_sum_sampled_peak_bytes": 3827735520,
+        "physical_footprint_sampled_peak_timestamp": "2026-09-26T19:34:52.497162+00:00",
+        "observed_pids": [
+          2264,
+          2526,
+          2539,
+          2546,
+          2600,
+          13918,
+          15594,
+          15605,
+          15611,
+          15619,
+          84007
+        ]
+      },
+      "run_window": {
+        "summary": "bench/e2e/android-results/bench-android-e2e-12b-it-qat-gguf-20260926T193417245618Z/summary.json",
+        "run_id": "55ca5a73-41a1-4da4-b86d-2e356a962e64",
+        "started_at": "2026-09-26T19:34:17.245937+00:00",
+        "finished_at_from_elapsed": "2026-09-26T19:39:00.920937+00:00",
+        "first_case_started_at": "2026-09-26T19:34:17.274000+00:00",
+        "last_case_finished_at": "2026-09-26T19:39:00.036000+00:00",
+        "capture_start_minus_run_start_seconds": -0.00722,
+        "capture_end_minus_run_end_seconds": 0.046081
+      },
+      "missing_samples": [
+        {
+          "timestamp": "2026-09-26T19:38:50.079717+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 15594,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 15594,
+              "ppid": 2600,
+              "name": "(ps)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-09-26T19:38:53.102901+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 15605,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 15605,
+              "ppid": 2600,
+              "name": "(ps)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-09-26T19:38:56.127634+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 15611,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 15611,
+              "ppid": 2600,
+              "name": "(bash)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-09-26T19:38:59.158007+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 15619,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 15619,
+              "ppid": 2600,
+              "name": "(sh)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        }
+      ],
+      "max_sample_gap_seconds": 1.023285
+    },
+    {
+      "model": "bench-android-e2e-26b-a4b-it-qat-gguf",
+      "status": "passed",
+      "errors": [],
+      "checks": {
+        "summary.sample_count": true,
+        "summary.valid_sample_count": true,
+        "summary.error_sample_count": true,
+        "summary.rss_sum_first_bytes": true,
+        "summary.rss_sum_last_bytes": true,
+        "summary.rss_sum_median_bytes": true,
+        "summary.rss_sum_sampled_peak_bytes": true,
+        "summary.sampled_peak_timestamp": true,
+        "summary.physical_footprint_valid_sample_count": true,
+        "summary.physical_footprint_unavailable_sample_count": true,
+        "summary.physical_footprint_sum_median_bytes": true,
+        "summary.physical_footprint_sum_sampled_peak_bytes": true,
+        "summary.physical_footprint_sampled_peak_timestamp": true,
+        "summary.observed_pids": true,
+        "completed_by_sigterm": true,
+        "expected_model": true,
+        "raw_model_identifiers_match": true,
+        "one_loaded_model_matches": true,
+        "loaded_parallel_one": true,
+        "loaded_quantization_matches": true,
+        "rss_units": true,
+        "rss_sums": true,
+        "rss_failure_not_zero": true,
+        "footprint_complete_sums": true,
+        "footprint_failure_not_zero": true,
+        "footprint_failed_pid_null": true,
+        "peak_process_sets": true,
+        "sample_times_inside_capture": true,
+        "sample_times_ordered": true,
+        "load_began_before_capture": true,
+        "loaded_snapshot_before_capture": true,
+        "one_e2e_run_in_capture_window": true,
+        "run_case_models_match": true,
+        "capture_starts_before_first_case": true,
+        "capture_finishes_after_last_case": true
+      },
+      "raw_source": "bench/e2e/android-results/bench-android-e2e-26b-a4b-it-qat-gguf-20260926T183202Z.memory.jsonl",
+      "raw_sha256": "5840eadf2486c8e581266bfe288a6766e310fee5e65b49c06655c49573c8be2f",
+      "summary_source": "bench/e2e/android-results/bench-android-e2e-26b-a4b-it-qat-gguf-20260926T183202Z.memory.summary.json",
+      "loaded_source": "bench/e2e/android-results/bench-android-e2e-26b-a4b-it-qat-gguf-20260926T183202Z.loaded.json",
+      "capture_started_at": "2026-09-26T18:32:33.387809+00:00",
+      "capture_finished_at": "2026-09-26T18:35:42.166543+00:00",
+      "recomputed": {
+        "sample_count": 188,
+        "valid_sample_count": 188,
+        "error_sample_count": 0,
+        "rss_sum_first_bytes": 17102159872,
+        "rss_sum_last_bytes": 17827676160,
+        "rss_sum_median_bytes": 17850384384.0,
+        "rss_sum_sampled_peak_bytes": 18237882368,
+        "sampled_peak_timestamp": "2026-09-26T18:34:09.967873+00:00",
+        "physical_footprint_valid_sample_count": 186,
+        "physical_footprint_unavailable_sample_count": 2,
+        "physical_footprint_sum_median_bytes": 3411775304.0,
+        "physical_footprint_sum_sampled_peak_bytes": 3814027344,
+        "physical_footprint_sampled_peak_timestamp": "2026-09-26T18:34:10.971571+00:00",
+        "observed_pids": [
+          2264,
+          2526,
+          2539,
+          2546,
+          2600,
+          79427,
+          80121,
+          80666,
+          84007
+        ]
+      },
+      "run_window": {
+        "summary": "bench/e2e/android-results/bench-android-e2e-26b-a4b-it-qat-gguf-20260926T183233394619Z/summary.json",
+        "run_id": "39954a11-d0d7-4692-9382-0ddb11373bf9",
+        "started_at": "2026-09-26T18:32:33.394970+00:00",
+        "finished_at_from_elapsed": "2026-09-26T18:35:42.155970+00:00",
+        "first_case_started_at": "2026-09-26T18:32:33.422000+00:00",
+        "last_case_finished_at": "2026-09-26T18:35:41.058000+00:00",
+        "capture_start_minus_run_start_seconds": -0.007161,
+        "capture_end_minus_run_end_seconds": 0.010573
+      },
+      "missing_samples": [
+        {
+          "timestamp": "2026-09-26T18:33:31.738619+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 80121,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 80121,
+              "ppid": 2600,
+              "name": "(bash)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-09-26T18:34:28.107448+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 80666,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 80666,
+              "ppid": 2600,
+              "name": "(sh)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        }
+      ],
+      "max_sample_gap_seconds": 1.017713
+    },
+    {
+      "model": "bench-android-e2e-26b-a4b-it-qat-mlx-4bit",
+      "status": "passed",
+      "errors": [],
+      "checks": {
+        "summary.sample_count": true,
+        "summary.valid_sample_count": true,
+        "summary.error_sample_count": true,
+        "summary.rss_sum_first_bytes": true,
+        "summary.rss_sum_last_bytes": true,
+        "summary.rss_sum_median_bytes": true,
+        "summary.rss_sum_sampled_peak_bytes": true,
+        "summary.sampled_peak_timestamp": true,
+        "summary.physical_footprint_valid_sample_count": true,
+        "summary.physical_footprint_unavailable_sample_count": true,
+        "summary.physical_footprint_sum_median_bytes": true,
+        "summary.physical_footprint_sum_sampled_peak_bytes": true,
+        "summary.physical_footprint_sampled_peak_timestamp": true,
+        "summary.observed_pids": true,
+        "completed_by_sigterm": true,
+        "expected_model": true,
+        "raw_model_identifiers_match": true,
+        "one_loaded_model_matches": true,
+        "loaded_parallel_one": true,
+        "loaded_quantization_matches": true,
+        "rss_units": true,
+        "rss_sums": true,
+        "rss_failure_not_zero": true,
+        "footprint_complete_sums": true,
+        "footprint_failure_not_zero": true,
+        "footprint_failed_pid_null": true,
+        "peak_process_sets": true,
+        "sample_times_inside_capture": true,
+        "sample_times_ordered": true,
+        "load_began_before_capture": true,
+        "loaded_snapshot_before_capture": true,
+        "one_e2e_run_in_capture_window": true,
+        "run_case_models_match": true,
+        "capture_starts_before_first_case": true,
+        "capture_finishes_after_last_case": true
+      },
+      "raw_source": "bench/e2e/android-results/bench-android-e2e-26b-a4b-it-qat-mlx-4bit-20260926T182211Z.memory.jsonl",
+      "raw_sha256": "4985ae7f3e0346f971756c146beef02ca769e1db245bcc83534085df0e8670d4",
+      "summary_source": "bench/e2e/android-results/bench-android-e2e-26b-a4b-it-qat-mlx-4bit-20260926T182211Z.memory.summary.json",
+      "loaded_source": "bench/e2e/android-results/bench-android-e2e-26b-a4b-it-qat-mlx-4bit-20260926T182211Z.loaded.json",
+      "capture_started_at": "2026-09-26T18:22:26.324022+00:00",
+      "capture_finished_at": "2026-09-26T18:25:34.728748+00:00",
+      "recomputed": {
+        "sample_count": 188,
+        "valid_sample_count": 188,
+        "error_sample_count": 0,
+        "rss_sum_first_bytes": 13627523072,
+        "rss_sum_last_bytes": 15331655680,
+        "rss_sum_median_bytes": 14606041088.0,
+        "rss_sum_sampled_peak_bytes": 15421882368,
+        "sampled_peak_timestamp": "2026-09-26T18:25:18.959911+00:00",
+        "physical_footprint_valid_sample_count": 187,
+        "physical_footprint_unavailable_sample_count": 1,
+        "physical_footprint_sum_median_bytes": 19511416272,
+        "physical_footprint_sum_sampled_peak_bytes": 21315574040,
+        "physical_footprint_sampled_peak_timestamp": "2026-09-26T18:24:47.845003+00:00",
+        "observed_pids": [
+          2264,
+          2526,
+          2539,
+          2546,
+          2600,
+          71904,
+          74463,
+          84007
+        ]
+      },
+      "run_window": {
+        "summary": "bench/e2e/android-results/bench-android-e2e-26b-a4b-it-qat-mlx-4bit-20260926T182226330596Z/summary.json",
+        "run_id": "a6e8c5dc-ee0b-4420-88be-9ec37a09e62a",
+        "started_at": "2026-09-26T18:22:26.330937+00:00",
+        "finished_at_from_elapsed": "2026-09-26T18:25:34.712937+00:00",
+        "first_case_started_at": "2026-09-26T18:22:26.452000+00:00",
+        "last_case_finished_at": "2026-09-26T18:25:33.331000+00:00",
+        "capture_start_minus_run_start_seconds": -0.006915,
+        "capture_end_minus_run_end_seconds": 0.015811
+      },
+      "missing_samples": [
+        {
+          "timestamp": "2026-09-26T18:24:04.693213+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 74463,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 74463,
+              "ppid": 2600,
+              "name": "(bash)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        }
+      ],
+      "max_sample_gap_seconds": 1.008312
+    },
+    {
+      "model": "bench-android-e2e-31b-it-mlx-4bit",
+      "status": "passed",
+      "errors": [],
+      "checks": {
+        "summary.sample_count": true,
+        "summary.valid_sample_count": true,
+        "summary.error_sample_count": true,
+        "summary.rss_sum_first_bytes": true,
+        "summary.rss_sum_last_bytes": true,
+        "summary.rss_sum_median_bytes": true,
+        "summary.rss_sum_sampled_peak_bytes": true,
+        "summary.sampled_peak_timestamp": true,
+        "summary.physical_footprint_valid_sample_count": true,
+        "summary.physical_footprint_unavailable_sample_count": true,
+        "summary.physical_footprint_sum_median_bytes": true,
+        "summary.physical_footprint_sum_sampled_peak_bytes": true,
+        "summary.physical_footprint_sampled_peak_timestamp": true,
+        "summary.observed_pids": true,
+        "completed_by_sigterm": true,
+        "expected_model": true,
+        "raw_model_identifiers_match": true,
+        "one_loaded_model_matches": true,
+        "loaded_parallel_one": true,
+        "loaded_quantization_matches": true,
+        "rss_units": true,
+        "rss_sums": true,
+        "rss_failure_not_zero": true,
+        "footprint_complete_sums": true,
+        "footprint_failure_not_zero": true,
+        "footprint_failed_pid_null": true,
+        "peak_process_sets": true,
+        "sample_times_inside_capture": true,
+        "sample_times_ordered": true,
+        "load_began_before_capture": true,
+        "loaded_snapshot_before_capture": true,
+        "one_e2e_run_in_capture_window": true,
+        "run_case_models_match": true,
+        "capture_starts_before_first_case": true,
+        "capture_finishes_after_last_case": true
+      },
+      "raw_source": "bench/e2e/android-results/bench-android-e2e-31b-it-mlx-4bit-20260926T182647Z.memory.jsonl",
+      "raw_sha256": "3fff0df313d646f0326d689f7ed2b0d462b460b05bb0ddba39e8e3006a3786f2",
+      "summary_source": "bench/e2e/android-results/bench-android-e2e-31b-it-mlx-4bit-20260926T182647Z.memory.summary.json",
+      "loaded_source": "bench/e2e/android-results/bench-android-e2e-31b-it-mlx-4bit-20260926T182647Z.loaded.json",
+      "capture_started_at": "2026-09-26T18:26:59.902709+00:00",
+      "capture_finished_at": "2026-09-26T18:32:00.931326+00:00",
+      "recomputed": {
+        "sample_count": 300,
+        "valid_sample_count": 300,
+        "error_sample_count": 0,
+        "rss_sum_first_bytes": 20749352960,
+        "rss_sum_last_bytes": 24981209088,
+        "rss_sum_median_bytes": 22901276672.0,
+        "rss_sum_sampled_peak_bytes": 25211666432,
+        "sampled_peak_timestamp": "2026-09-26T18:31:41.367913+00:00",
+        "physical_footprint_valid_sample_count": 299,
+        "physical_footprint_unavailable_sample_count": 1,
+        "physical_footprint_sum_median_bytes": 24542863944,
+        "physical_footprint_sum_sampled_peak_bytes": 28641388592,
+        "physical_footprint_sampled_peak_timestamp": "2026-09-26T18:31:36.328151+00:00",
+        "observed_pids": [
+          2264,
+          2526,
+          2539,
+          2546,
+          2600,
+          76612,
+          78382,
+          84007
+        ]
+      },
+      "run_window": {
+        "summary": "bench/e2e/android-results/bench-android-e2e-31b-it-mlx-4bit-20260926T182659911093Z/summary.json",
+        "run_id": "287cb8b6-9ac2-4734-9306-4ded8494f55d",
+        "started_at": "2026-09-26T18:26:59.911422+00:00",
+        "finished_at_from_elapsed": "2026-09-26T18:32:00.912422+00:00",
+        "first_case_started_at": "2026-09-26T18:26:59.938000+00:00",
+        "last_case_finished_at": "2026-09-26T18:31:59.715000+00:00",
+        "capture_start_minus_run_start_seconds": -0.008713,
+        "capture_end_minus_run_end_seconds": 0.018904
+      },
+      "missing_samples": [
+        {
+          "timestamp": "2026-09-26T18:29:53.630753+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 78382,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 78382,
+              "ppid": 2600,
+              "name": "(bash)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        }
+      ],
+      "max_sample_gap_seconds": 1.011743
+    },
+    {
+      "model": "bench-android-e2e-31b-it-mlx-5bit",
+      "status": "passed",
+      "errors": [],
+      "checks": {
+        "summary.sample_count": true,
+        "summary.valid_sample_count": true,
+        "summary.error_sample_count": true,
+        "summary.rss_sum_first_bytes": true,
+        "summary.rss_sum_last_bytes": true,
+        "summary.rss_sum_median_bytes": true,
+        "summary.rss_sum_sampled_peak_bytes": true,
+        "summary.sampled_peak_timestamp": true,
+        "summary.physical_footprint_valid_sample_count": true,
+        "summary.physical_footprint_unavailable_sample_count": true,
+        "summary.physical_footprint_sum_median_bytes": true,
+        "summary.physical_footprint_sum_sampled_peak_bytes": true,
+        "summary.physical_footprint_sampled_peak_timestamp": true,
+        "summary.observed_pids": true,
+        "completed_by_sigterm": true,
+        "expected_model": true,
+        "raw_model_identifiers_match": true,
+        "one_loaded_model_matches": true,
+        "loaded_parallel_one": true,
+        "loaded_quantization_matches": true,
+        "rss_units": true,
+        "rss_sums": true,
+        "rss_failure_not_zero": true,
+        "footprint_complete_sums": true,
+        "footprint_failure_not_zero": true,
+        "footprint_failed_pid_null": true,
+        "peak_process_sets": true,
+        "sample_times_inside_capture": true,
+        "sample_times_ordered": true,
+        "load_began_before_capture": true,
+        "loaded_snapshot_before_capture": true,
+        "one_e2e_run_in_capture_window": true,
+        "run_case_models_match": true,
+        "capture_starts_before_first_case": true,
+        "capture_finishes_after_last_case": true
+      },
+      "raw_source": "bench/e2e/android-results/bench-android-e2e-31b-it-mlx-5bit-20260926T185230Z.memory.jsonl",
+      "raw_sha256": "60b491f370fe62f7e0d3897e05ad7ce32c79d09d51fdc9133c2e75c26b0cbe40",
+      "summary_source": "bench/e2e/android-results/bench-android-e2e-31b-it-mlx-5bit-20260926T185230Z.memory.summary.json",
+      "loaded_source": "bench/e2e/android-results/bench-android-e2e-31b-it-mlx-5bit-20260926T185230Z.loaded.json",
+      "capture_started_at": "2026-09-26T18:53:07.246972+00:00",
+      "capture_finished_at": "2026-09-26T18:58:30.644019+00:00",
+      "recomputed": {
+        "sample_count": 323,
+        "valid_sample_count": 323,
+        "error_sample_count": 0,
+        "rss_sum_first_bytes": 24715329536,
+        "rss_sum_last_bytes": 28417622016,
+        "rss_sum_median_bytes": 26440630272,
+        "rss_sum_sampled_peak_bytes": 28648046592,
+        "sampled_peak_timestamp": "2026-09-26T18:58:16.368811+00:00",
+        "physical_footprint_valid_sample_count": 320,
+        "physical_footprint_unavailable_sample_count": 3,
+        "physical_footprint_sum_median_bytes": 28331494192.0,
+        "physical_footprint_sum_sampled_peak_bytes": 32394949224,
+        "physical_footprint_sampled_peak_timestamp": "2026-09-26T18:58:10.349385+00:00",
+        "observed_pids": [
+          2264,
+          2526,
+          2539,
+          2546,
+          2600,
+          84007,
+          89583,
+          91473,
+          92136,
+          92767
+        ]
+      },
+      "run_window": {
+        "summary": "bench/e2e/android-results/bench-android-e2e-31b-it-mlx-5bit-20260926T185307250066Z/summary.json",
+        "run_id": "ad0be9ae-5a94-4ce4-9706-e01a1b2f8e71",
+        "started_at": "2026-09-26T18:53:07.250355+00:00",
+        "finished_at_from_elapsed": "2026-09-26T18:58:30.637355+00:00",
+        "first_case_started_at": "2026-09-26T18:53:07.281000+00:00",
+        "last_case_finished_at": "2026-09-26T18:58:29.193000+00:00",
+        "capture_start_minus_run_start_seconds": -0.003383,
+        "capture_end_minus_run_end_seconds": 0.006664
+      },
+      "missing_samples": [
+        {
+          "timestamp": "2026-09-26T18:56:17.966795+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 91473,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 91473,
+              "ppid": 2600,
+              "name": "(sh)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-09-26T18:57:14.184401+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 92136,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 92136,
+              "ppid": 2600,
+              "name": "(bash)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-09-26T18:58:22.390798+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 92767,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 92767,
+              "ppid": 2600,
+              "name": "(ps)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        }
+      ],
+      "max_sample_gap_seconds": 1.052891
+    },
+    {
+      "model": "bench-android-e2e-31b-it-mlx-6bit",
+      "status": "passed",
+      "errors": [],
+      "checks": {
+        "summary.sample_count": true,
+        "summary.valid_sample_count": true,
+        "summary.error_sample_count": true,
+        "summary.rss_sum_first_bytes": true,
+        "summary.rss_sum_last_bytes": true,
+        "summary.rss_sum_median_bytes": true,
+        "summary.rss_sum_sampled_peak_bytes": true,
+        "summary.sampled_peak_timestamp": true,
+        "summary.physical_footprint_valid_sample_count": true,
+        "summary.physical_footprint_unavailable_sample_count": true,
+        "summary.physical_footprint_sum_median_bytes": true,
+        "summary.physical_footprint_sum_sampled_peak_bytes": true,
+        "summary.physical_footprint_sampled_peak_timestamp": true,
+        "summary.observed_pids": true,
+        "completed_by_sigterm": true,
+        "expected_model": true,
+        "raw_model_identifiers_match": true,
+        "one_loaded_model_matches": true,
+        "loaded_parallel_one": true,
+        "loaded_quantization_matches": true,
+        "rss_units": true,
+        "rss_sums": true,
+        "rss_failure_not_zero": true,
+        "footprint_complete_sums": true,
+        "footprint_failure_not_zero": true,
+        "footprint_failed_pid_null": true,
+        "peak_process_sets": true,
+        "sample_times_inside_capture": true,
+        "sample_times_ordered": true,
+        "load_began_before_capture": true,
+        "loaded_snapshot_before_capture": true,
+        "one_e2e_run_in_capture_window": true,
+        "run_case_models_match": true,
+        "capture_starts_before_first_case": true,
+        "capture_finishes_after_last_case": true
+      },
+      "raw_source": "bench/e2e/android-results/bench-android-e2e-31b-it-mlx-6bit-20260926T185832Z.memory.jsonl",
+      "raw_sha256": "60af95b9d0a64f52b13c3087a563a44d842b138c4b8c88134be158ac24489154",
+      "summary_source": "bench/e2e/android-results/bench-android-e2e-31b-it-mlx-6bit-20260926T185832Z.memory.summary.json",
+      "loaded_source": "bench/e2e/android-results/bench-android-e2e-31b-it-mlx-6bit-20260926T185832Z.loaded.json",
+      "capture_started_at": "2026-09-26T18:59:16.653791+00:00",
+      "capture_finished_at": "2026-09-26T19:04:15.348910+00:00",
+      "recomputed": {
+        "sample_count": 297,
+        "valid_sample_count": 297,
+        "error_sample_count": 0,
+        "rss_sum_first_bytes": 28528607232,
+        "rss_sum_last_bytes": 30578081792,
+        "rss_sum_median_bytes": 30133239808,
+        "rss_sum_sampled_peak_bytes": 31489130496,
+        "sampled_peak_timestamp": "2026-09-26T19:03:57.339119+00:00",
+        "physical_footprint_valid_sample_count": 295,
+        "physical_footprint_unavailable_sample_count": 2,
+        "physical_footprint_sum_median_bytes": 32176797800,
+        "physical_footprint_sum_sampled_peak_bytes": 36372577944,
+        "physical_footprint_sampled_peak_timestamp": "2026-09-26T19:03:52.303777+00:00",
+        "observed_pids": [
+          2264,
+          2526,
+          2539,
+          2546,
+          2600,
+          84007,
+          92852,
+          94497,
+          94516
+        ]
+      },
+      "run_window": {
+        "summary": "bench/e2e/android-results/bench-android-e2e-31b-it-mlx-6bit-20260926T185916655803Z/summary.json",
+        "run_id": "78598a70-4064-461b-9928-d00ece18fd0e",
+        "started_at": "2026-09-26T18:59:16.656080+00:00",
+        "finished_at_from_elapsed": "2026-09-26T19:04:15.333080+00:00",
+        "first_case_started_at": "2026-09-26T18:59:16.686000+00:00",
+        "last_case_finished_at": "2026-09-26T19:04:13.941000+00:00",
+        "capture_start_minus_run_start_seconds": -0.002289,
+        "capture_end_minus_run_end_seconds": 0.01583
+      },
+      "missing_samples": [
+        {
+          "timestamp": "2026-09-26T19:01:34.450833+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 94497,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 94497,
+              "ppid": 2600,
+              "name": "(ps)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-09-26T19:01:37.469869+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 94516,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 94516,
+              "ppid": 2600,
+              "name": "(sh)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        }
+      ],
+      "max_sample_gap_seconds": 1.014936
+    },
+    {
+      "model": "bench-android-e2e-31b-it-mlx-8bit",
+      "status": "passed",
+      "errors": [],
+      "checks": {
+        "summary.sample_count": true,
+        "summary.valid_sample_count": true,
+        "summary.error_sample_count": true,
+        "summary.rss_sum_first_bytes": true,
+        "summary.rss_sum_last_bytes": true,
+        "summary.rss_sum_median_bytes": true,
+        "summary.rss_sum_sampled_peak_bytes": true,
+        "summary.sampled_peak_timestamp": true,
+        "summary.physical_footprint_valid_sample_count": true,
+        "summary.physical_footprint_unavailable_sample_count": true,
+        "summary.physical_footprint_sum_median_bytes": true,
+        "summary.physical_footprint_sum_sampled_peak_bytes": true,
+        "summary.physical_footprint_sampled_peak_timestamp": true,
+        "summary.observed_pids": true,
+        "completed_by_sigterm": true,
+        "expected_model": true,
+        "raw_model_identifiers_match": true,
+        "one_loaded_model_matches": true,
+        "loaded_parallel_one": true,
+        "loaded_quantization_matches": true,
+        "rss_units": true,
+        "rss_sums": true,
+        "rss_failure_not_zero": true,
+        "footprint_complete_sums": true,
+        "footprint_failure_not_zero": true,
+        "footprint_failed_pid_null": true,
+        "peak_process_sets": true,
+        "sample_times_inside_capture": true,
+        "sample_times_ordered": true,
+        "load_began_before_capture": true,
+        "loaded_snapshot_before_capture": true,
+        "one_e2e_run_in_capture_window": true,
+        "run_case_models_match": true,
+        "capture_starts_before_first_case": true,
+        "capture_finishes_after_last_case": true
+      },
+      "raw_source": "bench/e2e/android-results/bench-android-e2e-31b-it-mlx-8bit-20260926T190417Z.memory.jsonl",
+      "raw_sha256": "68c9b8927fb8d96e7d0f4e6a70b0058f3f8126e1e2d27407df4735bfac2b7b3c",
+      "summary_source": "bench/e2e/android-results/bench-android-e2e-31b-it-mlx-8bit-20260926T190417Z.memory.summary.json",
+      "loaded_source": "bench/e2e/android-results/bench-android-e2e-31b-it-mlx-8bit-20260926T190417Z.loaded.json",
+      "capture_started_at": "2026-09-26T19:05:15.029113+00:00",
+      "capture_finished_at": "2026-09-26T19:10:30.710815+00:00",
+      "recomputed": {
+        "sample_count": 314,
+        "valid_sample_count": 314,
+        "error_sample_count": 0,
+        "rss_sum_first_bytes": 13983121408,
+        "rss_sum_last_bytes": 14844542976,
+        "rss_sum_median_bytes": 14767620096.0,
+        "rss_sum_sampled_peak_bytes": 15907241984,
+        "sampled_peak_timestamp": "2026-09-26T19:07:52.055554+00:00",
+        "physical_footprint_valid_sample_count": 313,
+        "physical_footprint_unavailable_sample_count": 1,
+        "physical_footprint_sum_median_bytes": 39761120616,
+        "physical_footprint_sum_sampled_peak_bytes": 43828106112,
+        "physical_footprint_sampled_peak_timestamp": "2026-09-26T19:10:06.907161+00:00",
+        "observed_pids": [
+          2264,
+          2526,
+          2539,
+          2546,
+          2600,
+          84007,
+          95998,
+          97118
+        ]
+      },
+      "run_window": {
+        "summary": "bench/e2e/android-results/bench-android-e2e-31b-it-mlx-8bit-20260926T190515036748Z/summary.json",
+        "run_id": "8f9ad3f3-5a81-4d6b-ab2e-1162a1540dee",
+        "started_at": "2026-09-26T19:05:15.037060+00:00",
+        "finished_at_from_elapsed": "2026-09-26T19:10:30.682060+00:00",
+        "first_case_started_at": "2026-09-26T19:05:15.071000+00:00",
+        "last_case_finished_at": "2026-09-26T19:10:29.501000+00:00",
+        "capture_start_minus_run_start_seconds": -0.007947,
+        "capture_end_minus_run_end_seconds": 0.028755
+      },
+      "missing_samples": [
+        {
+          "timestamp": "2026-09-26T19:07:04.720792+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 97118,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 97118,
+              "ppid": 2600,
+              "name": "(sh)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        }
+      ],
+      "max_sample_gap_seconds": 1.023553
+    },
+    {
+      "model": "bench-android-e2e-31b-it-qat-gguf",
+      "status": "passed",
+      "errors": [],
+      "checks": {
+        "summary.sample_count": true,
+        "summary.valid_sample_count": true,
+        "summary.error_sample_count": true,
+        "summary.rss_sum_first_bytes": true,
+        "summary.rss_sum_last_bytes": true,
+        "summary.rss_sum_median_bytes": true,
+        "summary.rss_sum_sampled_peak_bytes": true,
+        "summary.sampled_peak_timestamp": true,
+        "summary.physical_footprint_valid_sample_count": true,
+        "summary.physical_footprint_unavailable_sample_count": true,
+        "summary.physical_footprint_sum_median_bytes": true,
+        "summary.physical_footprint_sum_sampled_peak_bytes": true,
+        "summary.physical_footprint_sampled_peak_timestamp": true,
+        "summary.observed_pids": true,
+        "completed_by_sigterm": true,
+        "expected_model": true,
+        "raw_model_identifiers_match": true,
+        "one_loaded_model_matches": true,
+        "loaded_parallel_one": true,
+        "loaded_quantization_matches": true,
+        "rss_units": true,
+        "rss_sums": true,
+        "rss_failure_not_zero": true,
+        "footprint_complete_sums": true,
+        "footprint_failure_not_zero": true,
+        "footprint_failed_pid_null": true,
+        "peak_process_sets": true,
+        "sample_times_inside_capture": true,
+        "sample_times_ordered": true,
+        "load_began_before_capture": true,
+        "loaded_snapshot_before_capture": true,
+        "one_e2e_run_in_capture_window": true,
+        "run_case_models_match": true,
+        "capture_starts_before_first_case": true,
+        "capture_finishes_after_last_case": true
+      },
+      "raw_source": "bench/e2e/android-results/bench-android-e2e-31b-it-qat-gguf-20260926T191033Z.memory.jsonl",
+      "raw_sha256": "aec26bfd9feffe80dfffb3999c7d417dea956c2ce6ee75e991b4eab4fa1f2f61",
+      "summary_source": "bench/e2e/android-results/bench-android-e2e-31b-it-qat-gguf-20260926T191033Z.memory.summary.json",
+      "loaded_source": "bench/e2e/android-results/bench-android-e2e-31b-it-qat-gguf-20260926T191033Z.loaded.json",
+      "capture_started_at": "2026-09-26T19:11:12.419834+00:00",
+      "capture_finished_at": "2026-09-26T19:20:47.028408+00:00",
+      "recomputed": {
+        "sample_count": 572,
+        "valid_sample_count": 572,
+        "error_sample_count": 0,
+        "rss_sum_first_bytes": 21645590528,
+        "rss_sum_last_bytes": 24096391168,
+        "rss_sum_median_bytes": 24096210944.0,
+        "rss_sum_sampled_peak_bytes": 25744687104,
+        "sampled_peak_timestamp": "2026-09-26T19:12:34.937520+00:00",
+        "physical_footprint_valid_sample_count": 568,
+        "physical_footprint_unavailable_sample_count": 4,
+        "physical_footprint_sum_median_bytes": 6455902464.0,
+        "physical_footprint_sum_sampled_peak_bytes": 8105526656,
+        "physical_footprint_sampled_peak_timestamp": "2026-09-26T19:12:14.793600+00:00",
+        "observed_pids": [
+          1391,
+          1735,
+          2264,
+          2526,
+          2539,
+          2546,
+          2600,
+          3193,
+          3694,
+          84007,
+          99762
+        ]
+      },
+      "run_window": {
+        "summary": "bench/e2e/android-results/bench-android-e2e-31b-it-qat-gguf-20260926T191112428757Z/summary.json",
+        "run_id": "19e92ad7-20cc-49bf-b46a-8224a89b19bc",
+        "started_at": "2026-09-26T19:11:12.429408+00:00",
+        "finished_at_from_elapsed": "2026-09-26T19:20:46.972408+00:00",
+        "first_case_started_at": "2026-09-26T19:11:12.492000+00:00",
+        "last_case_finished_at": "2026-09-26T19:20:45.851000+00:00",
+        "capture_start_minus_run_start_seconds": -0.009574,
+        "capture_end_minus_run_end_seconds": 0.056
+      },
+      "missing_samples": [
+        {
+          "timestamp": "2026-09-26T19:12:34.937520+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 1391,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 1391,
+              "ppid": 2600,
+              "name": "(bash)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-09-26T19:13:31.230715+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 1735,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 1735,
+              "ppid": 2600,
+              "name": "(bash)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-09-26T19:16:10.241217+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 3193,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 3193,
+              "ppid": 2600,
+              "name": "(bash)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-09-26T19:18:12.941728+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 3694,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 3694,
+              "ppid": 2600,
+              "name": "(bash)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        }
+      ],
+      "max_sample_gap_seconds": 1.027221
+    },
+    {
+      "model": "bench-android-e2e-e2b-it-mlx-4bit",
+      "status": "passed",
+      "errors": [],
+      "checks": {
+        "summary.sample_count": true,
+        "summary.valid_sample_count": true,
+        "summary.error_sample_count": true,
+        "summary.rss_sum_first_bytes": true,
+        "summary.rss_sum_last_bytes": true,
+        "summary.rss_sum_median_bytes": true,
+        "summary.rss_sum_sampled_peak_bytes": true,
+        "summary.sampled_peak_timestamp": true,
+        "summary.physical_footprint_valid_sample_count": true,
+        "summary.physical_footprint_unavailable_sample_count": true,
+        "summary.physical_footprint_sum_median_bytes": true,
+        "summary.physical_footprint_sum_sampled_peak_bytes": true,
+        "summary.physical_footprint_sampled_peak_timestamp": true,
+        "summary.observed_pids": true,
+        "completed_by_sigterm": true,
+        "expected_model": true,
+        "raw_model_identifiers_match": true,
+        "one_loaded_model_matches": true,
+        "loaded_parallel_one": true,
+        "loaded_quantization_matches": true,
+        "rss_units": true,
+        "rss_sums": true,
+        "rss_failure_not_zero": true,
+        "footprint_complete_sums": true,
+        "footprint_failure_not_zero": true,
+        "footprint_failed_pid_null": true,
+        "peak_process_sets": true,
+        "sample_times_inside_capture": true,
+        "sample_times_ordered": true,
+        "load_began_before_capture": true,
+        "loaded_snapshot_before_capture": true,
+        "one_e2e_run_in_capture_window": true,
+        "run_case_models_match": true,
+        "capture_starts_before_first_case": true,
+        "capture_finishes_after_last_case": true
+      },
+      "raw_source": "bench/e2e/android-results/bench-android-e2e-e2b-it-mlx-4bit-20260926T184240Z.memory.jsonl",
+      "raw_sha256": "cb58ec8c9f108383daaa773c4f0d9ec64317ba53bf73e6275e5cb2e8bd71d238",
+      "summary_source": "bench/e2e/android-results/bench-android-e2e-e2b-it-mlx-4bit-20260926T184240Z.memory.summary.json",
+      "loaded_source": "bench/e2e/android-results/bench-android-e2e-e2b-it-mlx-4bit-20260926T184240Z.loaded.json",
+      "capture_started_at": "2026-09-26T18:42:53.740956+00:00",
+      "capture_finished_at": "2026-09-26T18:48:04.600373+00:00",
+      "recomputed": {
+        "sample_count": 310,
+        "valid_sample_count": 310,
+        "error_sample_count": 0,
+        "rss_sum_first_bytes": 6742507520,
+        "rss_sum_last_bytes": 7014334464,
+        "rss_sum_median_bytes": 7086211072.0,
+        "rss_sum_sampled_peak_bytes": 7100825600,
+        "sampled_peak_timestamp": "2026-09-26T18:46:09.481648+00:00",
+        "physical_footprint_valid_sample_count": 308,
+        "physical_footprint_unavailable_sample_count": 2,
+        "physical_footprint_sum_median_bytes": 7392539748.0,
+        "physical_footprint_sum_sampled_peak_bytes": 8192799424,
+        "physical_footprint_sampled_peak_timestamp": "2026-09-26T18:43:01.774928+00:00",
+        "observed_pids": [
+          2264,
+          2526,
+          2539,
+          2546,
+          2600,
+          83541,
+          84007,
+          84697,
+          85674
+        ]
+      },
+      "run_window": {
+        "summary": "bench/e2e/android-results/bench-android-e2e-e2b-it-mlx-4bit-20260926T184253746083Z/summary.json",
+        "run_id": "4c345c72-c301-4594-bce7-45c640522b2a",
+        "started_at": "2026-09-26T18:42:53.746428+00:00",
+        "finished_at_from_elapsed": "2026-09-26T18:48:04.533428+00:00",
+        "first_case_started_at": "2026-09-26T18:42:53.773000+00:00",
+        "last_case_finished_at": "2026-09-26T18:48:03.891000+00:00",
+        "capture_start_minus_run_start_seconds": -0.005472,
+        "capture_end_minus_run_end_seconds": 0.066945
+      },
+      "missing_samples": [
+        {
+          "timestamp": "2026-09-26T18:45:08.247149+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 84697,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 84697,
+              "ppid": 2600,
+              "name": "(sh)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-09-26T18:46:43.630257+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 85674,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 85674,
+              "ppid": 2600,
+              "name": "(sh)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        }
+      ],
+      "max_sample_gap_seconds": 1.008988
+    },
+    {
+      "model": "bench-android-e2e-e2b-it-mlx-8bit",
+      "status": "passed",
+      "errors": [],
+      "checks": {
+        "summary.sample_count": true,
+        "summary.valid_sample_count": true,
+        "summary.error_sample_count": true,
+        "summary.rss_sum_first_bytes": true,
+        "summary.rss_sum_last_bytes": true,
+        "summary.rss_sum_median_bytes": true,
+        "summary.rss_sum_sampled_peak_bytes": true,
+        "summary.sampled_peak_timestamp": true,
+        "summary.physical_footprint_valid_sample_count": true,
+        "summary.physical_footprint_unavailable_sample_count": true,
+        "summary.physical_footprint_sum_median_bytes": true,
+        "summary.physical_footprint_sum_sampled_peak_bytes": true,
+        "summary.physical_footprint_sampled_peak_timestamp": true,
+        "summary.observed_pids": true,
+        "completed_by_sigterm": true,
+        "expected_model": true,
+        "raw_model_identifiers_match": true,
+        "one_loaded_model_matches": true,
+        "loaded_parallel_one": true,
+        "loaded_quantization_matches": true,
+        "rss_units": true,
+        "rss_sums": true,
+        "rss_failure_not_zero": true,
+        "footprint_complete_sums": true,
+        "footprint_failure_not_zero": true,
+        "footprint_failed_pid_null": true,
+        "peak_process_sets": true,
+        "sample_times_inside_capture": true,
+        "sample_times_ordered": true,
+        "load_began_before_capture": true,
+        "loaded_snapshot_before_capture": true,
+        "one_e2e_run_in_capture_window": true,
+        "run_case_models_match": true,
+        "capture_starts_before_first_case": true,
+        "capture_finishes_after_last_case": true
+      },
+      "raw_source": "bench/e2e/android-results/bench-android-e2e-e2b-it-mlx-8bit-20260926T184805Z.memory.jsonl",
+      "raw_sha256": "6db989a4a0365e754dbc141ad3dee6c18fa5f6efa749db5cab03bd0cf9d6d1d9",
+      "summary_source": "bench/e2e/android-results/bench-android-e2e-e2b-it-mlx-8bit-20260926T184805Z.memory.summary.json",
+      "loaded_source": "bench/e2e/android-results/bench-android-e2e-e2b-it-mlx-8bit-20260926T184805Z.loaded.json",
+      "capture_started_at": "2026-09-26T18:48:20.979610+00:00",
+      "capture_finished_at": "2026-09-26T18:52:29.058830+00:00",
+      "recomputed": {
+        "sample_count": 248,
+        "valid_sample_count": 248,
+        "error_sample_count": 0,
+        "rss_sum_first_bytes": 8302149632,
+        "rss_sum_last_bytes": 8622227456,
+        "rss_sum_median_bytes": 8624717824.0,
+        "rss_sum_sampled_peak_bytes": 8693972992,
+        "sampled_peak_timestamp": "2026-09-26T18:48:29.010623+00:00",
+        "physical_footprint_valid_sample_count": 247,
+        "physical_footprint_unavailable_sample_count": 1,
+        "physical_footprint_sum_median_bytes": 8843360856,
+        "physical_footprint_sum_sampled_peak_bytes": 9729243160,
+        "physical_footprint_sampled_peak_timestamp": "2026-09-26T18:48:29.010623+00:00",
+        "observed_pids": [
+          2264,
+          2526,
+          2539,
+          2546,
+          2600,
+          84007,
+          86264,
+          87224
+        ]
+      },
+      "run_window": {
+        "summary": "bench/e2e/android-results/bench-android-e2e-e2b-it-mlx-8bit-20260926T184820986009Z/summary.json",
+        "run_id": "75782f2e-d1ec-4305-a8f7-1868f7e03841",
+        "started_at": "2026-09-26T18:48:20.986345+00:00",
+        "finished_at_from_elapsed": "2026-09-26T18:52:29.028345+00:00",
+        "first_case_started_at": "2026-09-26T18:48:21.013000+00:00",
+        "last_case_finished_at": "2026-09-26T18:52:28.592000+00:00",
+        "capture_start_minus_run_start_seconds": -0.006735,
+        "capture_end_minus_run_end_seconds": 0.030485
+      },
+      "missing_samples": [
+        {
+          "timestamp": "2026-09-26T18:49:48.321804+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 87224,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 87224,
+              "ppid": 2600,
+              "name": "(bash)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        }
+      ],
+      "max_sample_gap_seconds": 1.013552
+    },
+    {
+      "model": "bench-android-e2e-e4b-it-mlx-4bit",
+      "status": "passed",
+      "errors": [],
+      "checks": {
+        "summary.sample_count": true,
+        "summary.valid_sample_count": true,
+        "summary.error_sample_count": true,
+        "summary.rss_sum_first_bytes": true,
+        "summary.rss_sum_last_bytes": true,
+        "summary.rss_sum_median_bytes": true,
+        "summary.rss_sum_sampled_peak_bytes": true,
+        "summary.sampled_peak_timestamp": true,
+        "summary.physical_footprint_valid_sample_count": true,
+        "summary.physical_footprint_unavailable_sample_count": true,
+        "summary.physical_footprint_sum_median_bytes": true,
+        "summary.physical_footprint_sum_sampled_peak_bytes": true,
+        "summary.physical_footprint_sampled_peak_timestamp": true,
+        "summary.observed_pids": true,
+        "completed_by_sigterm": true,
+        "expected_model": true,
+        "raw_model_identifiers_match": true,
+        "one_loaded_model_matches": true,
+        "loaded_parallel_one": true,
+        "loaded_quantization_matches": true,
+        "rss_units": true,
+        "rss_sums": true,
+        "rss_failure_not_zero": true,
+        "footprint_complete_sums": true,
+        "footprint_failure_not_zero": true,
+        "footprint_failed_pid_null": true,
+        "peak_process_sets": true,
+        "sample_times_inside_capture": true,
+        "sample_times_ordered": true,
+        "load_began_before_capture": true,
+        "loaded_snapshot_before_capture": true,
+        "one_e2e_run_in_capture_window": true,
+        "run_case_models_match": true,
+        "capture_starts_before_first_case": true,
+        "capture_finishes_after_last_case": true
+      },
+      "raw_source": "bench/e2e/android-results/bench-android-e2e-e4b-it-mlx-4bit-20260926T193901Z.memory.jsonl",
+      "raw_sha256": "b4759f5aa2d7d9471850567b3ebc4856445d11b15f2d8d18a07b5eec461fb884",
+      "summary_source": "bench/e2e/android-results/bench-android-e2e-e4b-it-mlx-4bit-20260926T193901Z.memory.summary.json",
+      "loaded_source": "bench/e2e/android-results/bench-android-e2e-e4b-it-mlx-4bit-20260926T193901Z.loaded.json",
+      "capture_started_at": "2026-09-26T19:39:17.681507+00:00",
+      "capture_finished_at": "2026-09-26T19:47:47.107095+00:00",
+      "recomputed": {
+        "sample_count": 507,
+        "valid_sample_count": 507,
+        "error_sample_count": 0,
+        "rss_sum_first_bytes": 9146122240,
+        "rss_sum_last_bytes": 9969270784,
+        "rss_sum_median_bytes": 9904422912,
+        "rss_sum_sampled_peak_bytes": 10046996480,
+        "sampled_peak_timestamp": "2026-09-26T19:44:46.806979+00:00",
+        "physical_footprint_valid_sample_count": 500,
+        "physical_footprint_unavailable_sample_count": 7,
+        "physical_footprint_sum_median_bytes": 9523903832.0,
+        "physical_footprint_sum_sampled_peak_bytes": 10537188696,
+        "physical_footprint_sampled_peak_timestamp": "2026-09-26T19:47:35.520522+00:00",
+        "observed_pids": [
+          2264,
+          2526,
+          2539,
+          2546,
+          2600,
+          15633,
+          16757,
+          16773,
+          16783,
+          17446,
+          17468,
+          17677,
+          18117,
+          84007
+        ]
+      },
+      "run_window": {
+        "summary": "bench/e2e/android-results/bench-android-e2e-e4b-it-mlx-4bit-20260926T193917688850Z/summary.json",
+        "run_id": "4747f972-22dc-42a6-b904-37f0afb9a961",
+        "started_at": "2026-09-26T19:39:17.689186+00:00",
+        "finished_at_from_elapsed": "2026-09-26T19:47:47.061186+00:00",
+        "first_case_started_at": "2026-09-26T19:39:17.719000+00:00",
+        "last_case_finished_at": "2026-09-26T19:47:46.858000+00:00",
+        "capture_start_minus_run_start_seconds": -0.007679,
+        "capture_end_minus_run_end_seconds": 0.045909
+      },
+      "missing_samples": [
+        {
+          "timestamp": "2026-09-26T19:41:57.717810+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 16757,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 16757,
+              "ppid": 2600,
+              "name": "(ps)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-09-26T19:42:03.764678+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 16773,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 16773,
+              "ppid": 2600,
+              "name": "(bash)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-09-26T19:42:06.789731+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 16783,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 16783,
+              "ppid": 2600,
+              "name": "(sh)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-09-26T19:44:33.721011+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 17446,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 17446,
+              "ppid": 2600,
+              "name": "(bash)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-09-26T19:44:36.749200+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 17468,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 17468,
+              "ppid": 2600,
+              "name": "(sh)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-09-26T19:45:00.914937+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 17677,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 17677,
+              "ppid": 2600,
+              "name": "(ps)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-09-26T19:45:48.116515+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 18117,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 18117,
+              "ppid": 2600,
+              "name": "(ps)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        }
+      ],
+      "max_sample_gap_seconds": 1.015653
+    },
+    {
+      "model": "bench-android-e2e-e4b-it-mlx-5bit",
+      "status": "passed",
+      "errors": [],
+      "checks": {
+        "summary.sample_count": true,
+        "summary.valid_sample_count": true,
+        "summary.error_sample_count": true,
+        "summary.rss_sum_first_bytes": true,
+        "summary.rss_sum_last_bytes": true,
+        "summary.rss_sum_median_bytes": true,
+        "summary.rss_sum_sampled_peak_bytes": true,
+        "summary.sampled_peak_timestamp": true,
+        "summary.physical_footprint_valid_sample_count": true,
+        "summary.physical_footprint_unavailable_sample_count": true,
+        "summary.physical_footprint_sum_median_bytes": true,
+        "summary.physical_footprint_sum_sampled_peak_bytes": true,
+        "summary.physical_footprint_sampled_peak_timestamp": true,
+        "summary.observed_pids": true,
+        "completed_by_sigterm": true,
+        "expected_model": true,
+        "raw_model_identifiers_match": true,
+        "one_loaded_model_matches": true,
+        "loaded_parallel_one": true,
+        "loaded_quantization_matches": true,
+        "rss_units": true,
+        "rss_sums": true,
+        "rss_failure_not_zero": true,
+        "footprint_complete_sums": true,
+        "footprint_failure_not_zero": true,
+        "footprint_failed_pid_null": true,
+        "peak_process_sets": true,
+        "sample_times_inside_capture": true,
+        "sample_times_ordered": true,
+        "load_began_before_capture": true,
+        "loaded_snapshot_before_capture": true,
+        "one_e2e_run_in_capture_window": true,
+        "run_case_models_match": true,
+        "capture_starts_before_first_case": true,
+        "capture_finishes_after_last_case": true
+      },
+      "raw_source": "bench/e2e/android-results/bench-android-e2e-e4b-it-mlx-5bit-20260926T194748Z.memory.jsonl",
+      "raw_sha256": "1c1e880ec4afe67c075fc2e8a8b743cfb43cd0726bc09392a2eaae09ba5f02b5",
+      "summary_source": "bench/e2e/android-results/bench-android-e2e-e4b-it-mlx-5bit-20260926T194748Z.memory.summary.json",
+      "loaded_source": "bench/e2e/android-results/bench-android-e2e-e4b-it-mlx-5bit-20260926T194748Z.loaded.json",
+      "capture_started_at": "2026-09-26T19:48:05.404660+00:00",
+      "capture_finished_at": "2026-09-26T19:53:48.797418+00:00",
+      "recomputed": {
+        "sample_count": 342,
+        "valid_sample_count": 342,
+        "error_sample_count": 0,
+        "rss_sum_first_bytes": 9725083648,
+        "rss_sum_last_bytes": 10621714432,
+        "rss_sum_median_bytes": 10355867648.0,
+        "rss_sum_sampled_peak_bytes": 10677878784,
+        "sampled_peak_timestamp": "2026-09-26T19:53:23.891707+00:00",
+        "physical_footprint_valid_sample_count": 340,
+        "physical_footprint_unavailable_sample_count": 2,
+        "physical_footprint_sum_median_bytes": 10271686216.0,
+        "physical_footprint_sum_sampled_peak_bytes": 11248336912,
+        "physical_footprint_sampled_peak_timestamp": "2026-09-26T19:53:32.947922+00:00",
+        "observed_pids": [
+          2264,
+          2526,
+          2539,
+          2546,
+          2600,
+          18655,
+          18806,
+          20048,
+          84007
+        ]
+      },
+      "run_window": {
+        "summary": "bench/e2e/android-results/bench-android-e2e-e4b-it-mlx-5bit-20260926T194805411806Z/summary.json",
+        "run_id": "1b45c097-2195-4ac6-8927-aa0700f916a4",
+        "started_at": "2026-09-26T19:48:05.412095+00:00",
+        "finished_at_from_elapsed": "2026-09-26T19:53:48.740095+00:00",
+        "first_case_started_at": "2026-09-26T19:48:05.445000+00:00",
+        "last_case_finished_at": "2026-09-26T19:53:48.449000+00:00",
+        "capture_start_minus_run_start_seconds": -0.007435,
+        "capture_end_minus_run_end_seconds": 0.057323
+      },
+      "missing_samples": [
+        {
+          "timestamp": "2026-09-26T19:48:13.433328+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 18806,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 18806,
+              "ppid": 2600,
+              "name": "(sh)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-09-26T19:51:33.181336+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 20048,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 20048,
+              "ppid": 2600,
+              "name": "(bash)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        }
+      ],
+      "max_sample_gap_seconds": 1.016724
+    },
+    {
+      "model": "bench-android-e2e-e4b-it-mlx-6bit",
+      "status": "passed",
+      "errors": [],
+      "checks": {
+        "summary.sample_count": true,
+        "summary.valid_sample_count": true,
+        "summary.error_sample_count": true,
+        "summary.rss_sum_first_bytes": true,
+        "summary.rss_sum_last_bytes": true,
+        "summary.rss_sum_median_bytes": true,
+        "summary.rss_sum_sampled_peak_bytes": true,
+        "summary.sampled_peak_timestamp": true,
+        "summary.physical_footprint_valid_sample_count": true,
+        "summary.physical_footprint_unavailable_sample_count": true,
+        "summary.physical_footprint_sum_median_bytes": true,
+        "summary.physical_footprint_sum_sampled_peak_bytes": true,
+        "summary.physical_footprint_sampled_peak_timestamp": true,
+        "summary.observed_pids": true,
+        "completed_by_sigterm": true,
+        "expected_model": true,
+        "raw_model_identifiers_match": true,
+        "one_loaded_model_matches": true,
+        "loaded_parallel_one": true,
+        "loaded_quantization_matches": true,
+        "rss_units": true,
+        "rss_sums": true,
+        "rss_failure_not_zero": true,
+        "footprint_complete_sums": true,
+        "footprint_failure_not_zero": true,
+        "footprint_failed_pid_null": true,
+        "peak_process_sets": true,
+        "sample_times_inside_capture": true,
+        "sample_times_ordered": true,
+        "load_began_before_capture": true,
+        "loaded_snapshot_before_capture": true,
+        "one_e2e_run_in_capture_window": true,
+        "run_case_models_match": true,
+        "capture_starts_before_first_case": true,
+        "capture_finishes_after_last_case": true
+      },
+      "raw_source": "bench/e2e/android-results/bench-android-e2e-e4b-it-mlx-6bit-20260926T195349Z.memory.jsonl",
+      "raw_sha256": "d36d3784173381280c6bf70efb7a9f2b618dfd4270fc92a203449c89d5ada769",
+      "summary_source": "bench/e2e/android-results/bench-android-e2e-e4b-it-mlx-6bit-20260926T195349Z.memory.summary.json",
+      "loaded_source": "bench/e2e/android-results/bench-android-e2e-e4b-it-mlx-6bit-20260926T195349Z.loaded.json",
+      "capture_started_at": "2026-09-26T19:54:07.536609+00:00",
+      "capture_finished_at": "2026-09-26T19:56:49.047475+00:00",
+      "recomputed": {
+        "sample_count": 161,
+        "valid_sample_count": 161,
+        "error_sample_count": 0,
+        "rss_sum_first_bytes": 10246701056,
+        "rss_sum_last_bytes": 10906304512,
+        "rss_sum_median_bytes": 10678124544,
+        "rss_sum_sampled_peak_bytes": 10935992320,
+        "sampled_peak_timestamp": "2026-09-26T19:56:43.536482+00:00",
+        "physical_footprint_valid_sample_count": 159,
+        "physical_footprint_unavailable_sample_count": 2,
+        "physical_footprint_sum_median_bytes": 10867228640,
+        "physical_footprint_sum_sampled_peak_bytes": 12359565496,
+        "physical_footprint_sampled_peak_timestamp": "2026-09-26T19:56:42.536367+00:00",
+        "observed_pids": [
+          2264,
+          2526,
+          2539,
+          2546,
+          2600,
+          20712,
+          21814,
+          21830,
+          84007
+        ]
+      },
+      "run_window": {
+        "summary": "bench/e2e/android-results/bench-android-e2e-e4b-it-mlx-6bit-20260926T195407542405Z/summary.json",
+        "run_id": "f5442a94-a067-41f4-bc45-04e19a1b2907",
+        "started_at": "2026-09-26T19:54:07.542715+00:00",
+        "finished_at_from_elapsed": "2026-09-26T19:56:49.014715+00:00",
+        "first_case_started_at": "2026-09-26T19:54:07.574000+00:00",
+        "last_case_finished_at": "2026-09-26T19:56:47.361000+00:00",
+        "capture_start_minus_run_start_seconds": -0.006106,
+        "capture_end_minus_run_end_seconds": 0.03276
+      },
+      "missing_samples": [
+        {
+          "timestamp": "2026-09-26T19:56:22.402072+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 21814,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 21814,
+              "ppid": 2600,
+              "name": "(ps)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-09-26T19:56:25.430323+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 21830,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 21830,
+              "ppid": 2600,
+              "name": "(bash)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        }
+      ],
+      "max_sample_gap_seconds": 1.011629
+    },
+    {
+      "model": "bench-android-e2e-e4b-it-mlx-8bit",
+      "status": "passed",
+      "errors": [],
+      "checks": {
+        "summary.sample_count": true,
+        "summary.valid_sample_count": true,
+        "summary.error_sample_count": true,
+        "summary.rss_sum_first_bytes": true,
+        "summary.rss_sum_last_bytes": true,
+        "summary.rss_sum_median_bytes": true,
+        "summary.rss_sum_sampled_peak_bytes": true,
+        "summary.sampled_peak_timestamp": true,
+        "summary.physical_footprint_valid_sample_count": true,
+        "summary.physical_footprint_unavailable_sample_count": true,
+        "summary.physical_footprint_sum_median_bytes": true,
+        "summary.physical_footprint_sum_sampled_peak_bytes": true,
+        "summary.physical_footprint_sampled_peak_timestamp": true,
+        "summary.observed_pids": true,
+        "completed_by_sigterm": true,
+        "expected_model": true,
+        "raw_model_identifiers_match": true,
+        "one_loaded_model_matches": true,
+        "loaded_parallel_one": true,
+        "loaded_quantization_matches": true,
+        "rss_units": true,
+        "rss_sums": true,
+        "rss_failure_not_zero": true,
+        "footprint_complete_sums": true,
+        "footprint_failure_not_zero": true,
+        "footprint_failed_pid_null": true,
+        "peak_process_sets": true,
+        "sample_times_inside_capture": true,
+        "sample_times_ordered": true,
+        "load_began_before_capture": true,
+        "loaded_snapshot_before_capture": true,
+        "one_e2e_run_in_capture_window": true,
+        "run_case_models_match": true,
+        "capture_starts_before_first_case": true,
+        "capture_finishes_after_last_case": true
+      },
+      "raw_source": "bench/e2e/android-results/bench-android-e2e-e4b-it-mlx-8bit-20260926T183846Z.memory.jsonl",
+      "raw_sha256": "4b1cf67bdf417ad43bbe9a13b0e6780e2af099bbb69967f3e4094153782714b0",
+      "summary_source": "bench/e2e/android-results/bench-android-e2e-e4b-it-mlx-8bit-20260926T183846Z.memory.summary.json",
+      "loaded_source": "bench/e2e/android-results/bench-android-e2e-e4b-it-mlx-8bit-20260926T183846Z.loaded.json",
+      "capture_started_at": "2026-09-26T18:39:05.676540+00:00",
+      "capture_finished_at": "2026-09-26T18:42:39.640230+00:00",
+      "recomputed": {
+        "sample_count": 213,
+        "valid_sample_count": 213,
+        "error_sample_count": 0,
+        "rss_sum_first_bytes": 11295653888,
+        "rss_sum_last_bytes": 11924668416,
+        "rss_sum_median_bytes": 11654971392,
+        "rss_sum_sampled_peak_bytes": 11953963008,
+        "sampled_peak_timestamp": "2026-09-26T18:42:32.797711+00:00",
+        "physical_footprint_valid_sample_count": 211,
+        "physical_footprint_unavailable_sample_count": 2,
+        "physical_footprint_sum_median_bytes": 11805180064,
+        "physical_footprint_sum_sampled_peak_bytes": 13140754784,
+        "physical_footprint_sampled_peak_timestamp": "2026-09-26T18:41:49.601599+00:00",
+        "observed_pids": [
+          2264,
+          2526,
+          2539,
+          2546,
+          2600,
+          82502,
+          82934,
+          83467,
+          84007
+        ]
+      },
+      "run_window": {
+        "summary": "bench/e2e/android-results/bench-android-e2e-e4b-it-mlx-8bit-20260926T183905681748Z/summary.json",
+        "run_id": "64fe8d87-834e-4eb0-986e-c0fd6ad8a3bf",
+        "started_at": "2026-09-26T18:39:05.682188+00:00",
+        "finished_at_from_elapsed": "2026-09-26T18:42:39.620188+00:00",
+        "first_case_started_at": "2026-09-26T18:39:05.708000+00:00",
+        "last_case_finished_at": "2026-09-26T18:42:38.403000+00:00",
+        "capture_start_minus_run_start_seconds": -0.005648,
+        "capture_end_minus_run_end_seconds": 0.020042
+      },
+      "missing_samples": [
+        {
+          "timestamp": "2026-09-26T18:40:19.081210+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 82934,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 82934,
+              "ppid": 2600,
+              "name": "(sh)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-09-26T18:42:21.741290+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 83467,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 83467,
+              "ppid": 2600,
+              "name": "(bash)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        }
+      ],
+      "max_sample_gap_seconds": 1.011625
+    },
+    {
+      "model": "bench-android-e2e-e4b-it-qat-gguf",
+      "status": "passed",
+      "errors": [],
+      "checks": {
+        "summary.sample_count": true,
+        "summary.valid_sample_count": true,
+        "summary.error_sample_count": true,
+        "summary.rss_sum_first_bytes": true,
+        "summary.rss_sum_last_bytes": true,
+        "summary.rss_sum_median_bytes": true,
+        "summary.rss_sum_sampled_peak_bytes": true,
+        "summary.sampled_peak_timestamp": true,
+        "summary.physical_footprint_valid_sample_count": true,
+        "summary.physical_footprint_unavailable_sample_count": true,
+        "summary.physical_footprint_sum_median_bytes": true,
+        "summary.physical_footprint_sum_sampled_peak_bytes": true,
+        "summary.physical_footprint_sampled_peak_timestamp": true,
+        "summary.observed_pids": true,
+        "completed_by_sigterm": true,
+        "expected_model": true,
+        "raw_model_identifiers_match": true,
+        "one_loaded_model_matches": true,
+        "loaded_parallel_one": true,
+        "loaded_quantization_matches": true,
+        "rss_units": true,
+        "rss_sums": true,
+        "rss_failure_not_zero": true,
+        "footprint_complete_sums": true,
+        "footprint_failure_not_zero": true,
+        "footprint_failed_pid_null": true,
+        "peak_process_sets": true,
+        "sample_times_inside_capture": true,
+        "sample_times_ordered": true,
+        "load_began_before_capture": true,
+        "loaded_snapshot_before_capture": true,
+        "one_e2e_run_in_capture_window": true,
+        "run_case_models_match": true,
+        "capture_starts_before_first_case": true,
+        "capture_finishes_after_last_case": true
+      },
+      "raw_source": "bench/e2e/android-results/bench-android-e2e-e4b-it-qat-gguf-20260926T183543Z.memory.jsonl",
+      "raw_sha256": "51c5edd6d82a79e6da7a7bfc38ad3d8b8096b6108e82e2076ed220bb1d6d1e03",
+      "summary_source": "bench/e2e/android-results/bench-android-e2e-e4b-it-qat-gguf-20260926T183543Z.memory.summary.json",
+      "loaded_source": "bench/e2e/android-results/bench-android-e2e-e4b-it-qat-gguf-20260926T183543Z.loaded.json",
+      "capture_started_at": "2026-09-26T18:35:57.298622+00:00",
+      "capture_finished_at": "2026-09-26T18:38:45.384151+00:00",
+      "recomputed": {
+        "sample_count": 167,
+        "valid_sample_count": 167,
+        "error_sample_count": 0,
+        "rss_sum_first_bytes": 7350992896,
+        "rss_sum_last_bytes": 7558201344,
+        "rss_sum_median_bytes": 7490076672,
+        "rss_sum_sampled_peak_bytes": 7558201344,
+        "sampled_peak_timestamp": "2026-09-26T18:38:42.413652+00:00",
+        "physical_footprint_valid_sample_count": 165,
+        "physical_footprint_unavailable_sample_count": 2,
+        "physical_footprint_sum_median_bytes": 2231226936,
+        "physical_footprint_sum_sampled_peak_bytes": 2301022848,
+        "physical_footprint_sampled_peak_timestamp": "2026-09-26T18:38:42.413652+00:00",
+        "observed_pids": [
+          2264,
+          2526,
+          2539,
+          2546,
+          2600,
+          81524,
+          82002,
+          82352,
+          84007
+        ]
+      },
+      "run_window": {
+        "summary": "bench/e2e/android-results/bench-android-e2e-e4b-it-qat-gguf-20260926T183557304786Z/summary.json",
+        "run_id": "fd5052d2-b3b8-4ceb-80fe-bf226d3604f9",
+        "started_at": "2026-09-26T18:35:57.305156+00:00",
+        "finished_at_from_elapsed": "2026-09-26T18:38:45.361156+00:00",
+        "first_case_started_at": "2026-09-26T18:35:57.331000+00:00",
+        "last_case_finished_at": "2026-09-26T18:38:44.390000+00:00",
+        "capture_start_minus_run_start_seconds": -0.006534,
+        "capture_end_minus_run_end_seconds": 0.022995
+      },
+      "missing_samples": [
+        {
+          "timestamp": "2026-09-26T18:36:55.707209+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 82002,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 82002,
+              "ppid": 2600,
+              "name": "(bash)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-09-26T18:38:16.225589+00:00",
+          "rss_status": "ok",
+          "physical_footprint_status": "partial",
+          "errors": [
+            {
+              "pid": 82352,
+              "kind": "proc_pid_rusage_failure",
+              "returncode": -1,
+              "errno": 3,
+              "message": "No such process"
+            }
+          ],
+          "failed_processes": [
+            {
+              "pid": 82352,
+              "ppid": 2600,
+              "name": "(sh)",
+              "error": {
+                "kind": "proc_pid_rusage_failure",
+                "returncode": -1,
+                "errno": 3,
+                "message": "No such process"
+              }
+            }
+          ]
+        }
+      ],
+      "max_sample_gap_seconds": 1.012928
+    }
+  ],
+  "totals": {
+    "raw_sample_count": 5125,
+    "valid_rss_sample_count": 5125,
+    "valid_physical_footprint_sample_count": 5081,
+    "missing_physical_footprint_sample_count": 44,
+    "missing_causes": [
+      {
+        "kind": "proc_pid_rusage_failure",
+        "errno": 3,
+        "message": "No such process",
+        "count": 44
+      }
+    ],
+    "missing_process_names": {
+      "(bash)": 19,
+      "(ps)": 11,
+      "(sh)": 14
+    },
+    "missing_process_parent_pids": [
+      2600
+    ],
+    "largest_observed_sample_gap_seconds": 1.052891
+  }
+}

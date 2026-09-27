@@ -1,0 +1,192 @@
+{
+  "method": "Existing GenkitLlm with intercepted fetch; no live inference or network request",
+  "action": {
+    "type": "tap",
+    "ref": 0
+  },
+  "requests": [
+    {
+      "model": "probe",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are an E2E test operator. The screen may be a\nphone app or a web page; you drive both the same way.\n\nYou are given a test goal, a summary of what you have already done, and a text\nrendering of the current screen's UI tree. Choose exactly ONE next action.\n\nInteractive elements are numbered like [0], [1]. Use those numbers as \"ref\".\nNever invent a ref that is not on the screen.\n\nActions:\n- tap: press the element with the given ref.\n- input_text: type text into the element with the given ref. Tap a field before\n  typing into it if it is not already focused.\n- swipe: scroll the screen (up scrolls toward later content).\n- key_event: back returns to the previous screen, home goes to the start, and\n  enter submits the focused field.\n- wait: pause when the screen looks like it is still loading.\n- remember: record a fact from the current screen that a later step will need\n  (a confirmation code, an order number, a total). It touches nothing on the\n  device, so use it only for values you would otherwise lose once you navigate\n  away — never for narrating what you just did. If such a value is on the screen\n  now, remember it BEFORE the action that leaves that screen: once you have left,\n  the value is gone and you cannot go back for it.\n- finish: end the test. Use verdict \"passed\" once you can SEE the goal has been\n  met, and \"failed\" when the goal cannot be achieved (a blocking error, a dead\n  end, or the same screen repeating with no progress). Always give a reason.\n\nPrefer finishing over repeating an action that changed nothing.\n\nAnswer by calling exactly one tool. Do not describe what you would do, and do\nnot call several tools at once: one turn is one action, and the screen you see\nnext is the result of it."
+        },
+        {
+          "role": "user",
+          "content": "# Goal\nTap Settings.\n\n# Steps so far\n(nothing yet - this is the first step)\n\n# Current screen\n[0] Button text=\"Settings\"\n\nChoose the next action."
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "tap",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "ref": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "ref"
+              ],
+              "additionalProperties": true,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "input_text",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "ref": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "ref",
+                "text"
+              ],
+              "additionalProperties": true,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "swipe",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "direction": {
+                  "type": "string",
+                  "enum": [
+                    "up",
+                    "down",
+                    "left",
+                    "right"
+                  ]
+                }
+              },
+              "required": [
+                "direction"
+              ],
+              "additionalProperties": true,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "key_event",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "enum": [
+                    "back",
+                    "home",
+                    "enter"
+                  ]
+                }
+              },
+              "required": [
+                "key"
+              ],
+              "additionalProperties": true,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "wait",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "ms": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                }
+              },
+              "required": [
+                "ms"
+              ],
+              "additionalProperties": true,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "remember",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": true,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "finish",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "verdict": {
+                  "type": "string",
+                  "enum": [
+                    "passed",
+                    "failed"
+                  ]
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "verdict",
+                "reason"
+              ],
+              "additionalProperties": true,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "source_reference": {
+    "file": "packages/agent/node_modules/@genkit-ai/compat-oai/lib/model.js",
+    "functions": [
+      "toOpenAITool",
+      "toOpenAIRequestBody"
+    ],
+    "version": "1.40.1"
+  }
+}

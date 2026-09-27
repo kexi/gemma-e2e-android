@@ -1,0 +1,346 @@
+{
+  "at": "2026-09-26T17:11:31.831546+00:00",
+  "normal_models": 18,
+  "normal_trials": 810,
+  "all_case_trials_are_five": true,
+  "requests_match_except_model": true,
+  "request_hashes_by_case": {
+    "tap": [
+      "0c62e06c7364e97d7f8e924c0861aa06a6fd7232a31d7a7041d2006ae824355f"
+    ],
+    "input_text": [
+      "694853a258146efb42a9180917afeef5dbacf1bc2d43c14d67f735a0e627b2ff"
+    ],
+    "finish_passed": [
+      "2612ddf4cd427852e566a095fd5c3ab37d237620c48b60ca187193cda49812bb"
+    ],
+    "finish_failed": [
+      "e5f88c0c6ea175dd54fba663a7cdafc0adfae6662ee80109564b326fd8b2a43a"
+    ],
+    "remember": [
+      "9b9cc5a7f7df86e335782a05101350d2d3aa6ea31b0e0992bee3a20a2fdb5ffa"
+    ],
+    "wait": [
+      "66ec3695bde1386d27fbf503189cd63d25d8955041048a1cb308c43bb3ec85dd"
+    ],
+    "swipe": [
+      "fc4e8cd5a0a8536a867a22a63b064897e6b559b8f44bde4d0b0e7184e37dcbc9"
+    ],
+    "key_back": [
+      "f305c84b0717d56e9146ebb182aa7744f6be882bf41b963f2e332672d2735690"
+    ],
+    "long_screen": [
+      "709fd4107e9c6250f081fe0f4a307ae6b846903d2b57c319914865e45ada863c"
+    ]
+  },
+  "rows": [
+    {
+      "model": "bench-12b-it-mlx-5bit",
+      "file": "bench/tool-call/results/bench-12b-it-mlx-5bit-20260926T164213Z.jsonl",
+      "warmups_excluded": 1,
+      "case_trials": {
+        "tap": 5,
+        "input_text": 5,
+        "finish_passed": 5,
+        "finish_failed": 5,
+        "remember": 5,
+        "wait": 5,
+        "swipe": 5,
+        "key_back": 5,
+        "long_screen": 5
+      },
+      "passed": 45
+    },
+    {
+      "model": "bench-12b-it-mlx-6bit",
+      "file": "bench/tool-call/results/bench-12b-it-mlx-6bit-20260926T164423Z.jsonl",
+      "warmups_excluded": 1,
+      "case_trials": {
+        "tap": 5,
+        "input_text": 5,
+        "finish_passed": 5,
+        "finish_failed": 5,
+        "remember": 5,
+        "wait": 5,
+        "swipe": 5,
+        "key_back": 5,
+        "long_screen": 5
+      },
+      "passed": 45
+    },
+    {
+      "model": "bench-12b-it-mlx-8bit",
+      "file": "bench/tool-call/results/bench-12b-it-mlx-8bit-20260926T164631Z.jsonl",
+      "warmups_excluded": 1,
+      "case_trials": {
+        "tap": 5,
+        "input_text": 5,
+        "finish_passed": 5,
+        "finish_failed": 5,
+        "remember": 5,
+        "wait": 5,
+        "swipe": 5,
+        "key_back": 5,
+        "long_screen": 5
+      },
+      "passed": 45
+    },
+    {
+      "model": "bench-12b-it-qat",
+      "file": "bench/tool-call/results/bench-12b-it-qat-20260926T161543Z.jsonl",
+      "warmups_excluded": 1,
+      "case_trials": {
+        "tap": 5,
+        "input_text": 5,
+        "finish_passed": 5,
+        "finish_failed": 5,
+        "remember": 5,
+        "wait": 5,
+        "swipe": 5,
+        "key_back": 5,
+        "long_screen": 5
+      },
+      "passed": 45
+    },
+    {
+      "model": "bench-26b-a4b-it-qat",
+      "file": "bench/tool-call/results/bench-26b-a4b-it-qat-20260926T153747Z.jsonl",
+      "warmups_excluded": 1,
+      "case_trials": {
+        "tap": 5,
+        "input_text": 5,
+        "finish_passed": 5,
+        "finish_failed": 5,
+        "remember": 5,
+        "wait": 5,
+        "swipe": 5,
+        "key_back": 5,
+        "long_screen": 5
+      },
+      "passed": 45
+    },
+    {
+      "model": "bench-26b-a4b-qat-mlx-4bit",
+      "file": "bench/tool-call/results/bench-26b-a4b-qat-mlx-4bit-20260926T141844Z.jsonl",
+      "warmups_excluded": 1,
+      "case_trials": {
+        "tap": 5,
+        "input_text": 5,
+        "finish_passed": 5,
+        "finish_failed": 5,
+        "remember": 5,
+        "wait": 5,
+        "swipe": 5,
+        "key_back": 5,
+        "long_screen": 5
+      },
+      "passed": 45
+    },
+    {
+      "model": "bench-31b-it-mlx-4bit",
+      "file": "bench/tool-call/results/bench-31b-it-mlx-4bit-20260926T152953Z.jsonl",
+      "warmups_excluded": 1,
+      "case_trials": {
+        "tap": 5,
+        "input_text": 5,
+        "finish_passed": 5,
+        "finish_failed": 5,
+        "remember": 5,
+        "wait": 5,
+        "swipe": 5,
+        "key_back": 5,
+        "long_screen": 5
+      },
+      "passed": 45
+    },
+    {
+      "model": "bench-31b-it-mlx-5bit",
+      "file": "bench/tool-call/results/bench-31b-it-mlx-5bit-20260926T154301Z.jsonl",
+      "warmups_excluded": 1,
+      "case_trials": {
+        "tap": 5,
+        "input_text": 5,
+        "finish_passed": 5,
+        "finish_failed": 5,
+        "remember": 5,
+        "wait": 5,
+        "swipe": 5,
+        "key_back": 5,
+        "long_screen": 5
+      },
+      "passed": 45
+    },
+    {
+      "model": "bench-31b-it-mlx-6bit",
+      "file": "bench/tool-call/results/bench-31b-it-mlx-6bit-20260926T155329Z.jsonl",
+      "warmups_excluded": 1,
+      "case_trials": {
+        "tap": 5,
+        "input_text": 5,
+        "finish_passed": 5,
+        "finish_failed": 5,
+        "remember": 5,
+        "wait": 5,
+        "swipe": 5,
+        "key_back": 5,
+        "long_screen": 5
+      },
+      "passed": 45
+    },
+    {
+      "model": "bench-31b-it-mlx-8bit",
+      "file": "bench/tool-call/results/bench-31b-it-mlx-8bit-20260926T160019Z.jsonl",
+      "warmups_excluded": 1,
+      "case_trials": {
+        "tap": 5,
+        "input_text": 5,
+        "finish_passed": 5,
+        "finish_failed": 5,
+        "remember": 5,
+        "wait": 5,
+        "swipe": 5,
+        "key_back": 5,
+        "long_screen": 5
+      },
+      "passed": 45
+    },
+    {
+      "model": "bench-31b-it-qat",
+      "file": "bench/tool-call/results/bench-31b-it-qat-20260926T160636Z.jsonl",
+      "warmups_excluded": 1,
+      "case_trials": {
+        "tap": 5,
+        "input_text": 5,
+        "finish_passed": 5,
+        "finish_failed": 5,
+        "remember": 5,
+        "wait": 5,
+        "swipe": 5,
+        "key_back": 5,
+        "long_screen": 5
+      },
+      "passed": 45
+    },
+    {
+      "model": "bench-e2b-it-mlx-4bit",
+      "file": "bench/tool-call/results/bench-e2b-it-mlx-4bit-20260926T162633Z.jsonl",
+      "warmups_excluded": 1,
+      "case_trials": {
+        "tap": 5,
+        "input_text": 5,
+        "finish_passed": 5,
+        "finish_failed": 5,
+        "remember": 5,
+        "wait": 5,
+        "swipe": 5,
+        "key_back": 5,
+        "long_screen": 5
+      },
+      "passed": 5
+    },
+    {
+      "model": "bench-e2b-it-mlx-8bit",
+      "file": "bench/tool-call/results/bench-e2b-it-mlx-8bit-20260926T162726Z.jsonl",
+      "warmups_excluded": 1,
+      "case_trials": {
+        "tap": 5,
+        "input_text": 5,
+        "finish_passed": 5,
+        "finish_failed": 5,
+        "remember": 5,
+        "wait": 5,
+        "swipe": 5,
+        "key_back": 5,
+        "long_screen": 5
+      },
+      "passed": 15
+    },
+    {
+      "model": "bench-e4b-it-mlx-4bit",
+      "file": "bench/tool-call/results/bench-e4b-it-mlx-4bit-20260926T162237Z.jsonl",
+      "warmups_excluded": 1,
+      "case_trials": {
+        "tap": 5,
+        "input_text": 5,
+        "finish_passed": 5,
+        "finish_failed": 5,
+        "remember": 5,
+        "wait": 5,
+        "swipe": 5,
+        "key_back": 5,
+        "long_screen": 5
+      },
+      "passed": 15
+    },
+    {
+      "model": "bench-e4b-it-mlx-5bit",
+      "file": "bench/tool-call/results/bench-e4b-it-mlx-5bit-20260926T162404Z.jsonl",
+      "warmups_excluded": 1,
+      "case_trials": {
+        "tap": 5,
+        "input_text": 5,
+        "finish_passed": 5,
+        "finish_failed": 5,
+        "remember": 5,
+        "wait": 5,
+        "swipe": 5,
+        "key_back": 5,
+        "long_screen": 5
+      },
+      "passed": 20
+    },
+    {
+      "model": "bench-e4b-it-mlx-6bit",
+      "file": "bench/tool-call/results/bench-e4b-it-mlx-6bit-20260926T162518Z.jsonl",
+      "warmups_excluded": 1,
+      "case_trials": {
+        "tap": 5,
+        "input_text": 5,
+        "finish_passed": 5,
+        "finish_failed": 5,
+        "remember": 5,
+        "wait": 5,
+        "swipe": 5,
+        "key_back": 5,
+        "long_screen": 5
+      },
+      "passed": 25
+    },
+    {
+      "model": "bench-e4b-mlx-8bit",
+      "file": "bench/tool-call/results/bench-e4b-mlx-8bit-20260926T142356Z.jsonl",
+      "warmups_excluded": 1,
+      "case_trials": {
+        "tap": 5,
+        "input_text": 5,
+        "finish_passed": 5,
+        "finish_failed": 5,
+        "remember": 5,
+        "wait": 5,
+        "swipe": 5,
+        "key_back": 5,
+        "long_screen": 5
+      },
+      "passed": 25
+    },
+    {
+      "model": "bench-e4b-qat-gguf-q4_0",
+      "file": "bench/tool-call/results/bench-e4b-qat-gguf-q4_0-20260926T142829Z.jsonl",
+      "warmups_excluded": 1,
+      "case_trials": {
+        "tap": 5,
+        "input_text": 5,
+        "finish_passed": 5,
+        "finish_failed": 5,
+        "remember": 5,
+        "wait": 5,
+        "swipe": 5,
+        "key_back": 5,
+        "long_screen": 5
+      },
+      "passed": 35
+    }
+  ],
+  "completed_controls": 5,
+  "warmup_failed_control": "E4B QAT GGUF reasoning none: HTTP 400 peg-gemma4 format mismatch; no scored cases"
+}

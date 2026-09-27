@@ -1,0 +1,20 @@
+{
+  "at": "2026-09-26T17:44:10.452090+00:00",
+  "ruff_check": "passed",
+  "ruff_format_check": "9 files already formatted",
+  "python_compileall": "passed",
+  "gitleaks": {
+    "exit_code": 1,
+    "findings": 88,
+    "classified_public_model_identifiers": {
+      "gemma-4-31b-it-mlx-bench": 43,
+      "gemma-4-26b-a4b-it-qat-bench": 45
+    },
+    "unclassified_findings": [],
+    "policy_changes": false,
+    "note": "Raw scanner exits 1 due to public model-key strings, not credentials. Every reported line was inspected; scanner rules were not relaxed."
+  },
+  "knowledge_lint": "passed",
+  "git_diff_check": "passed",
+  "finalized_at": "2026-09-26T17:46:03.937548+00:00"
+}

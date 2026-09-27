@@ -1,0 +1,23 @@
+model: bench/gemma-4-e4b-mlx-8bit-thinking
+base:
+  - key: lmstudio-community/gemma-4-e4b-it-mlx-8bit
+    sources: []
+config:
+  operation:
+    fields:
+      - key: llm.prediction.reasoning.parsing
+        value:
+          enabled: true
+          startString: "<|channel>thought"
+          endString: "<channel|>"
+customFields:
+  - key: enableThinking
+    displayName: Enable Thinking
+    description: Controls whether the model will think before replying
+    type: boolean
+    defaultValue: true
+    effects:
+      - type: setJinjaVariable
+        variable: enable_thinking
+metadataOverrides:
+  reasoning: true

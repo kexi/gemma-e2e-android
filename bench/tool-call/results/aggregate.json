@@ -1,0 +1,1428 @@
+[
+  {
+    "file": "bench-12b-it-mlx-5bit-20260926T164213Z.jsonl",
+    "model": "bench-12b-it-mlx-5bit",
+    "reasoning_effort": null,
+    "max_tokens": null,
+    "case_ids": [
+      "tap",
+      "input_text",
+      "finish_passed",
+      "finish_failed",
+      "remember",
+      "wait",
+      "swipe",
+      "key_back",
+      "long_screen"
+    ],
+    "total": 45,
+    "single_tool_calls": 45,
+    "valid_arguments": 45,
+    "passed": 45,
+    "reasoning_responses": 0,
+    "all_median_ms": 1556,
+    "passed_median_ms": 1556,
+    "cases": {
+      "tap": {
+        "passed": 5,
+        "median_ms": 1049
+      },
+      "input_text": {
+        "passed": 5,
+        "median_ms": 1541
+      },
+      "finish_passed": {
+        "passed": 5,
+        "median_ms": 4655
+      },
+      "finish_failed": {
+        "passed": 5,
+        "median_ms": 3756
+      },
+      "remember": {
+        "passed": 5,
+        "median_ms": 2541
+      },
+      "wait": {
+        "passed": 5,
+        "median_ms": 1016
+      },
+      "swipe": {
+        "passed": 5,
+        "median_ms": 867
+      },
+      "key_back": {
+        "passed": 5,
+        "median_ms": 955
+      },
+      "long_screen": {
+        "passed": 5,
+        "median_ms": 2245
+      }
+    }
+  },
+  {
+    "file": "bench-12b-it-mlx-6bit-20260926T164423Z.jsonl",
+    "model": "bench-12b-it-mlx-6bit",
+    "reasoning_effort": null,
+    "max_tokens": null,
+    "case_ids": [
+      "tap",
+      "input_text",
+      "finish_passed",
+      "finish_failed",
+      "remember",
+      "wait",
+      "swipe",
+      "key_back",
+      "long_screen"
+    ],
+    "total": 45,
+    "single_tool_calls": 45,
+    "valid_arguments": 45,
+    "passed": 45,
+    "reasoning_responses": 0,
+    "all_median_ms": 1690,
+    "passed_median_ms": 1690,
+    "cases": {
+      "tap": {
+        "passed": 5,
+        "median_ms": 550
+      },
+      "input_text": {
+        "passed": 5,
+        "median_ms": 1662
+      },
+      "finish_passed": {
+        "passed": 5,
+        "median_ms": 4252
+      },
+      "finish_failed": {
+        "passed": 5,
+        "median_ms": 3579
+      },
+      "remember": {
+        "passed": 5,
+        "median_ms": 2631
+      },
+      "wait": {
+        "passed": 5,
+        "median_ms": 901
+      },
+      "swipe": {
+        "passed": 5,
+        "median_ms": 958
+      },
+      "key_back": {
+        "passed": 5,
+        "median_ms": 1076
+      },
+      "long_screen": {
+        "passed": 5,
+        "median_ms": 2489
+      }
+    }
+  },
+  {
+    "file": "bench-12b-it-mlx-8bit-20260926T164631Z.jsonl",
+    "model": "bench-12b-it-mlx-8bit",
+    "reasoning_effort": null,
+    "max_tokens": null,
+    "case_ids": [
+      "tap",
+      "input_text",
+      "finish_passed",
+      "finish_failed",
+      "remember",
+      "wait",
+      "swipe",
+      "key_back",
+      "long_screen"
+    ],
+    "total": 45,
+    "single_tool_calls": 45,
+    "valid_arguments": 45,
+    "passed": 45,
+    "reasoning_responses": 0,
+    "all_median_ms": 1939,
+    "passed_median_ms": 1939,
+    "cases": {
+      "tap": {
+        "passed": 5,
+        "median_ms": 669
+      },
+      "input_text": {
+        "passed": 5,
+        "median_ms": 1708
+      },
+      "finish_passed": {
+        "passed": 5,
+        "median_ms": 5008
+      },
+      "finish_failed": {
+        "passed": 5,
+        "median_ms": 4526
+      },
+      "remember": {
+        "passed": 5,
+        "median_ms": 3102
+      },
+      "wait": {
+        "passed": 5,
+        "median_ms": 1184
+      },
+      "swipe": {
+        "passed": 5,
+        "median_ms": 1112
+      },
+      "key_back": {
+        "passed": 5,
+        "median_ms": 1316
+      },
+      "long_screen": {
+        "passed": 5,
+        "median_ms": 2331
+      }
+    }
+  },
+  {
+    "file": "bench-12b-it-qat-20260926T161543Z.jsonl",
+    "model": "bench-12b-it-qat",
+    "reasoning_effort": null,
+    "max_tokens": null,
+    "case_ids": [
+      "tap",
+      "input_text",
+      "finish_passed",
+      "finish_failed",
+      "remember",
+      "wait",
+      "swipe",
+      "key_back",
+      "long_screen"
+    ],
+    "total": 45,
+    "single_tool_calls": 45,
+    "valid_arguments": 45,
+    "passed": 45,
+    "reasoning_responses": 45,
+    "all_median_ms": 4461,
+    "passed_median_ms": 4461,
+    "cases": {
+      "tap": {
+        "passed": 5,
+        "median_ms": 2541
+      },
+      "input_text": {
+        "passed": 5,
+        "median_ms": 3873
+      },
+      "finish_passed": {
+        "passed": 5,
+        "median_ms": 7639
+      },
+      "finish_failed": {
+        "passed": 5,
+        "median_ms": 16017
+      },
+      "remember": {
+        "passed": 5,
+        "median_ms": 8935
+      },
+      "wait": {
+        "passed": 5,
+        "median_ms": 3376
+      },
+      "swipe": {
+        "passed": 5,
+        "median_ms": 4345
+      },
+      "key_back": {
+        "passed": 5,
+        "median_ms": 27705
+      },
+      "long_screen": {
+        "passed": 5,
+        "median_ms": 2741
+      }
+    }
+  },
+  {
+    "file": "bench-26b-a4b-it-qat-20260926T153747Z.jsonl",
+    "model": "bench-26b-a4b-it-qat",
+    "reasoning_effort": null,
+    "max_tokens": null,
+    "case_ids": [
+      "tap",
+      "input_text",
+      "finish_passed",
+      "finish_failed",
+      "remember",
+      "wait",
+      "swipe",
+      "key_back",
+      "long_screen"
+    ],
+    "total": 45,
+    "single_tool_calls": 45,
+    "valid_arguments": 45,
+    "passed": 45,
+    "reasoning_responses": 45,
+    "all_median_ms": 4749,
+    "passed_median_ms": 4749,
+    "cases": {
+      "tap": {
+        "passed": 5,
+        "median_ms": 2680
+      },
+      "input_text": {
+        "passed": 5,
+        "median_ms": 4974
+      },
+      "finish_passed": {
+        "passed": 5,
+        "median_ms": 4749
+      },
+      "finish_failed": {
+        "passed": 5,
+        "median_ms": 5272
+      },
+      "remember": {
+        "passed": 5,
+        "median_ms": 7887
+      },
+      "wait": {
+        "passed": 5,
+        "median_ms": 4289
+      },
+      "swipe": {
+        "passed": 5,
+        "median_ms": 3996
+      },
+      "key_back": {
+        "passed": 5,
+        "median_ms": 14559
+      },
+      "long_screen": {
+        "passed": 5,
+        "median_ms": 2265
+      }
+    }
+  },
+  {
+    "file": "bench-26b-a4b-qat-mlx-4bit-20260926T141844Z.jsonl",
+    "model": "bench-26b-a4b-qat-mlx-4bit",
+    "reasoning_effort": null,
+    "max_tokens": null,
+    "case_ids": [
+      "tap",
+      "input_text",
+      "finish_passed",
+      "finish_failed",
+      "remember",
+      "wait",
+      "swipe",
+      "key_back",
+      "long_screen"
+    ],
+    "total": 45,
+    "single_tool_calls": 45,
+    "valid_arguments": 45,
+    "passed": 45,
+    "reasoning_responses": 45,
+    "all_median_ms": 3787,
+    "passed_median_ms": 3787,
+    "cases": {
+      "tap": {
+        "passed": 5,
+        "median_ms": 2118
+      },
+      "input_text": {
+        "passed": 5,
+        "median_ms": 4852
+      },
+      "finish_passed": {
+        "passed": 5,
+        "median_ms": 3689
+      },
+      "finish_failed": {
+        "passed": 5,
+        "median_ms": 3460
+      },
+      "remember": {
+        "passed": 5,
+        "median_ms": 5465
+      },
+      "wait": {
+        "passed": 5,
+        "median_ms": 3749
+      },
+      "swipe": {
+        "passed": 5,
+        "median_ms": 3597
+      },
+      "key_back": {
+        "passed": 5,
+        "median_ms": 3617
+      },
+      "long_screen": {
+        "passed": 5,
+        "median_ms": 5340
+      }
+    }
+  },
+  {
+    "file": "bench-31b-it-mlx-4bit-20260926T152953Z.jsonl",
+    "model": "bench-31b-it-mlx-4bit",
+    "reasoning_effort": null,
+    "max_tokens": null,
+    "case_ids": [
+      "tap",
+      "input_text",
+      "finish_passed",
+      "finish_failed",
+      "remember",
+      "wait",
+      "swipe",
+      "key_back",
+      "long_screen"
+    ],
+    "total": 45,
+    "single_tool_calls": 45,
+    "valid_arguments": 45,
+    "passed": 45,
+    "reasoning_responses": 0,
+    "all_median_ms": 7673,
+    "passed_median_ms": 7673,
+    "cases": {
+      "tap": {
+        "passed": 5,
+        "median_ms": 1681
+      },
+      "input_text": {
+        "passed": 5,
+        "median_ms": 3535
+      },
+      "finish_passed": {
+        "passed": 5,
+        "median_ms": 10334
+      },
+      "finish_failed": {
+        "passed": 5,
+        "median_ms": 15684
+      },
+      "remember": {
+        "passed": 5,
+        "median_ms": 14822
+      },
+      "wait": {
+        "passed": 5,
+        "median_ms": 3881
+      },
+      "swipe": {
+        "passed": 5,
+        "median_ms": 3665
+      },
+      "key_back": {
+        "passed": 5,
+        "median_ms": 4304
+      },
+      "long_screen": {
+        "passed": 5,
+        "median_ms": 16487
+      }
+    }
+  },
+  {
+    "file": "bench-31b-it-mlx-5bit-20260926T154301Z.jsonl",
+    "model": "bench-31b-it-mlx-5bit",
+    "reasoning_effort": null,
+    "max_tokens": null,
+    "case_ids": [
+      "tap",
+      "input_text",
+      "finish_passed",
+      "finish_failed",
+      "remember",
+      "wait",
+      "swipe",
+      "key_back",
+      "long_screen"
+    ],
+    "total": 45,
+    "single_tool_calls": 45,
+    "valid_arguments": 45,
+    "passed": 45,
+    "reasoning_responses": 0,
+    "all_median_ms": 9003,
+    "passed_median_ms": 9003,
+    "cases": {
+      "tap": {
+        "passed": 5,
+        "median_ms": 3906
+      },
+      "input_text": {
+        "passed": 5,
+        "median_ms": 7485
+      },
+      "finish_passed": {
+        "passed": 5,
+        "median_ms": 21204
+      },
+      "finish_failed": {
+        "passed": 5,
+        "median_ms": 24842
+      },
+      "remember": {
+        "passed": 5,
+        "median_ms": 16310
+      },
+      "wait": {
+        "passed": 5,
+        "median_ms": 5186
+      },
+      "swipe": {
+        "passed": 5,
+        "median_ms": 4778
+      },
+      "key_back": {
+        "passed": 5,
+        "median_ms": 6220
+      },
+      "long_screen": {
+        "passed": 5,
+        "median_ms": 11521
+      }
+    }
+  },
+  {
+    "file": "bench-31b-it-mlx-6bit-20260926T155329Z.jsonl",
+    "model": "bench-31b-it-mlx-6bit",
+    "reasoning_effort": null,
+    "max_tokens": null,
+    "case_ids": [
+      "tap",
+      "input_text",
+      "finish_passed",
+      "finish_failed",
+      "remember",
+      "wait",
+      "swipe",
+      "key_back",
+      "long_screen"
+    ],
+    "total": 45,
+    "single_tool_calls": 45,
+    "valid_arguments": 45,
+    "passed": 45,
+    "reasoning_responses": 0,
+    "all_median_ms": 6199,
+    "passed_median_ms": 6199,
+    "cases": {
+      "tap": {
+        "passed": 5,
+        "median_ms": 2875
+      },
+      "input_text": {
+        "passed": 5,
+        "median_ms": 5640
+      },
+      "finish_passed": {
+        "passed": 5,
+        "median_ms": 13530
+      },
+      "finish_failed": {
+        "passed": 5,
+        "median_ms": 13055
+      },
+      "remember": {
+        "passed": 5,
+        "median_ms": 8136
+      },
+      "wait": {
+        "passed": 5,
+        "median_ms": 3143
+      },
+      "swipe": {
+        "passed": 5,
+        "median_ms": 3077
+      },
+      "key_back": {
+        "passed": 5,
+        "median_ms": 3592
+      },
+      "long_screen": {
+        "passed": 5,
+        "median_ms": 7706
+      }
+    }
+  },
+  {
+    "file": "bench-31b-it-mlx-8bit-20260926T160019Z.jsonl",
+    "model": "bench-31b-it-mlx-8bit",
+    "reasoning_effort": null,
+    "max_tokens": null,
+    "case_ids": [
+      "tap",
+      "input_text",
+      "finish_passed",
+      "finish_failed",
+      "remember",
+      "wait",
+      "swipe",
+      "key_back",
+      "long_screen"
+    ],
+    "total": 45,
+    "single_tool_calls": 45,
+    "valid_arguments": 45,
+    "passed": 45,
+    "reasoning_responses": 0,
+    "all_median_ms": 4696,
+    "passed_median_ms": 4696,
+    "cases": {
+      "tap": {
+        "passed": 5,
+        "median_ms": 2069
+      },
+      "input_text": {
+        "passed": 5,
+        "median_ms": 4265
+      },
+      "finish_passed": {
+        "passed": 5,
+        "median_ms": 12319
+      },
+      "finish_failed": {
+        "passed": 5,
+        "median_ms": 11720
+      },
+      "remember": {
+        "passed": 5,
+        "median_ms": 8947
+      },
+      "wait": {
+        "passed": 5,
+        "median_ms": 2907
+      },
+      "swipe": {
+        "passed": 5,
+        "median_ms": 2681
+      },
+      "key_back": {
+        "passed": 5,
+        "median_ms": 3064
+      },
+      "long_screen": {
+        "passed": 5,
+        "median_ms": 7940
+      }
+    }
+  },
+  {
+    "file": "bench-31b-it-qat-20260926T160636Z.jsonl",
+    "model": "bench-31b-it-qat",
+    "reasoning_effort": null,
+    "max_tokens": null,
+    "case_ids": [
+      "tap",
+      "input_text",
+      "finish_passed",
+      "finish_failed",
+      "remember",
+      "wait",
+      "swipe",
+      "key_back",
+      "long_screen"
+    ],
+    "total": 45,
+    "single_tool_calls": 45,
+    "valid_arguments": 45,
+    "passed": 45,
+    "reasoning_responses": 45,
+    "all_median_ms": 12024,
+    "passed_median_ms": 12024,
+    "cases": {
+      "tap": {
+        "passed": 5,
+        "median_ms": 6170
+      },
+      "input_text": {
+        "passed": 5,
+        "median_ms": 8171
+      },
+      "finish_passed": {
+        "passed": 5,
+        "median_ms": 12867
+      },
+      "finish_failed": {
+        "passed": 5,
+        "median_ms": 15794
+      },
+      "remember": {
+        "passed": 5,
+        "median_ms": 14301
+      },
+      "wait": {
+        "passed": 5,
+        "median_ms": 12090
+      },
+      "swipe": {
+        "passed": 5,
+        "median_ms": 11852
+      },
+      "key_back": {
+        "passed": 5,
+        "median_ms": 10374
+      },
+      "long_screen": {
+        "passed": 5,
+        "median_ms": 7521
+      }
+    }
+  },
+  {
+    "file": "bench-control-26b-a4b-qat-gguf-low-reasoning-low-20260926T165441Z.jsonl",
+    "model": "bench-control-26b-a4b-qat-gguf-low",
+    "reasoning_effort": "low",
+    "max_tokens": 1024,
+    "case_ids": [
+      "tap",
+      "input_text",
+      "finish_passed",
+      "finish_failed",
+      "remember",
+      "wait",
+      "swipe",
+      "key_back",
+      "long_screen"
+    ],
+    "total": 9,
+    "single_tool_calls": 9,
+    "valid_arguments": 9,
+    "passed": 9,
+    "reasoning_responses": 9,
+    "all_median_ms": 2786,
+    "passed_median_ms": 2786,
+    "cases": {
+      "tap": {
+        "passed": 1,
+        "median_ms": 1165
+      },
+      "input_text": {
+        "passed": 1,
+        "median_ms": 2527
+      },
+      "finish_passed": {
+        "passed": 1,
+        "median_ms": 2876
+      },
+      "finish_failed": {
+        "passed": 1,
+        "median_ms": 3018
+      },
+      "remember": {
+        "passed": 1,
+        "median_ms": 4422
+      },
+      "wait": {
+        "passed": 1,
+        "median_ms": 2127
+      },
+      "swipe": {
+        "passed": 1,
+        "median_ms": 2239
+      },
+      "key_back": {
+        "passed": 1,
+        "median_ms": 6905
+      },
+      "long_screen": {
+        "passed": 1,
+        "median_ms": 2786
+      }
+    }
+  },
+  {
+    "file": "bench-control-26b-a4b-qat-mlx-4bit-low-reasoning-low-20260926T165328Z.jsonl",
+    "model": "bench-control-26b-a4b-qat-mlx-4bit-low",
+    "reasoning_effort": "low",
+    "max_tokens": 1024,
+    "case_ids": [
+      "tap",
+      "input_text",
+      "finish_passed",
+      "finish_failed",
+      "remember",
+      "wait",
+      "swipe",
+      "key_back",
+      "long_screen"
+    ],
+    "total": 9,
+    "single_tool_calls": 9,
+    "valid_arguments": 9,
+    "passed": 9,
+    "reasoning_responses": 9,
+    "all_median_ms": 3310,
+    "passed_median_ms": 3310,
+    "cases": {
+      "tap": {
+        "passed": 1,
+        "median_ms": 1713
+      },
+      "input_text": {
+        "passed": 1,
+        "median_ms": 4012
+      },
+      "finish_passed": {
+        "passed": 1,
+        "median_ms": 3414
+      },
+      "finish_failed": {
+        "passed": 1,
+        "median_ms": 3277
+      },
+      "remember": {
+        "passed": 1,
+        "median_ms": 4085
+      },
+      "wait": {
+        "passed": 1,
+        "median_ms": 2819
+      },
+      "swipe": {
+        "passed": 1,
+        "median_ms": 3310
+      },
+      "key_back": {
+        "passed": 1,
+        "median_ms": 2912
+      },
+      "long_screen": {
+        "passed": 1,
+        "median_ms": 5088
+      }
+    }
+  },
+  {
+    "file": "bench-control-31b-mlx-4bit-low-reasoning-low-20260926T165033Z.jsonl",
+    "model": "bench-control-31b-mlx-4bit-low",
+    "reasoning_effort": "low",
+    "max_tokens": 1024,
+    "case_ids": [
+      "tap",
+      "input_text",
+      "finish_passed",
+      "finish_failed",
+      "remember",
+      "wait",
+      "swipe",
+      "key_back",
+      "long_screen"
+    ],
+    "total": 9,
+    "single_tool_calls": 9,
+    "valid_arguments": 9,
+    "passed": 9,
+    "reasoning_responses": 9,
+    "all_median_ms": 13537,
+    "passed_median_ms": 13537,
+    "cases": {
+      "tap": {
+        "passed": 1,
+        "median_ms": 9031
+      },
+      "input_text": {
+        "passed": 1,
+        "median_ms": 12311
+      },
+      "finish_passed": {
+        "passed": 1,
+        "median_ms": 13871
+      },
+      "finish_failed": {
+        "passed": 1,
+        "median_ms": 22046
+      },
+      "remember": {
+        "passed": 1,
+        "median_ms": 19026
+      },
+      "wait": {
+        "passed": 1,
+        "median_ms": 13537
+      },
+      "swipe": {
+        "passed": 1,
+        "median_ms": 11923
+      },
+      "key_back": {
+        "passed": 1,
+        "median_ms": 13026
+      },
+      "long_screen": {
+        "passed": 1,
+        "median_ms": 26193
+      }
+    }
+  },
+  {
+    "file": "bench-control-e4b-mlx-8bit-low-reasoning-low-20260926T164912Z.jsonl",
+    "model": "bench-control-e4b-mlx-8bit-low",
+    "reasoning_effort": "low",
+    "max_tokens": 1024,
+    "case_ids": [
+      "tap",
+      "input_text",
+      "finish_passed",
+      "finish_failed",
+      "remember",
+      "wait",
+      "swipe",
+      "key_back",
+      "long_screen"
+    ],
+    "total": 9,
+    "single_tool_calls": 8,
+    "valid_arguments": 8,
+    "passed": 6,
+    "reasoning_responses": 9,
+    "all_median_ms": 3181,
+    "passed_median_ms": 3560.0,
+    "cases": {
+      "tap": {
+        "passed": 1,
+        "median_ms": 1746
+      },
+      "input_text": {
+        "passed": 1,
+        "median_ms": 3181
+      },
+      "finish_passed": {
+        "passed": 1,
+        "median_ms": 4670
+      },
+      "finish_failed": {
+        "passed": 1,
+        "median_ms": 2797
+      },
+      "remember": {
+        "passed": 0,
+        "median_ms": 3215
+      },
+      "wait": {
+        "passed": 0,
+        "median_ms": 2320
+      },
+      "swipe": {
+        "passed": 0,
+        "median_ms": 2902
+      },
+      "key_back": {
+        "passed": 1,
+        "median_ms": 5585
+      },
+      "long_screen": {
+        "passed": 1,
+        "median_ms": 3939
+      }
+    }
+  },
+  {
+    "file": "bench-control-e4b-mlx-8bit-none-reasoning-none-20260926T164849Z.jsonl",
+    "model": "bench-control-e4b-mlx-8bit-none",
+    "reasoning_effort": "none",
+    "max_tokens": 1024,
+    "case_ids": [
+      "tap",
+      "input_text",
+      "finish_passed",
+      "finish_failed",
+      "remember",
+      "wait",
+      "swipe",
+      "key_back",
+      "long_screen"
+    ],
+    "total": 9,
+    "single_tool_calls": 6,
+    "valid_arguments": 6,
+    "passed": 5,
+    "reasoning_responses": 0,
+    "all_median_ms": 983,
+    "passed_median_ms": 1078,
+    "cases": {
+      "tap": {
+        "passed": 1,
+        "median_ms": 760
+      },
+      "input_text": {
+        "passed": 1,
+        "median_ms": 1078
+      },
+      "finish_passed": {
+        "passed": 1,
+        "median_ms": 1665
+      },
+      "finish_failed": {
+        "passed": 0,
+        "median_ms": 983
+      },
+      "remember": {
+        "passed": 0,
+        "median_ms": 847
+      },
+      "wait": {
+        "passed": 0,
+        "median_ms": 585
+      },
+      "swipe": {
+        "passed": 1,
+        "median_ms": 1000
+      },
+      "key_back": {
+        "passed": 0,
+        "median_ms": 790
+      },
+      "long_screen": {
+        "passed": 1,
+        "median_ms": 2956
+      }
+    }
+  },
+  {
+    "file": "bench-e2b-it-mlx-4bit-20260926T162633Z.jsonl",
+    "model": "bench-e2b-it-mlx-4bit",
+    "reasoning_effort": null,
+    "max_tokens": null,
+    "case_ids": [
+      "tap",
+      "input_text",
+      "finish_passed",
+      "finish_failed",
+      "remember",
+      "wait",
+      "swipe",
+      "key_back",
+      "long_screen"
+    ],
+    "total": 45,
+    "single_tool_calls": 5,
+    "valid_arguments": 5,
+    "passed": 5,
+    "reasoning_responses": 0,
+    "all_median_ms": 563,
+    "passed_median_ms": 516,
+    "cases": {
+      "tap": {
+        "passed": 0,
+        "median_ms": 464
+      },
+      "input_text": {
+        "passed": 0,
+        "median_ms": 505
+      },
+      "finish_passed": {
+        "passed": 0,
+        "median_ms": 874
+      },
+      "finish_failed": {
+        "passed": 0,
+        "median_ms": 1010
+      },
+      "remember": {
+        "passed": 0,
+        "median_ms": 537
+      },
+      "wait": {
+        "passed": 0,
+        "median_ms": 1222
+      },
+      "swipe": {
+        "passed": 0,
+        "median_ms": 559
+      },
+      "key_back": {
+        "passed": 0,
+        "median_ms": 662
+      },
+      "long_screen": {
+        "passed": 5,
+        "median_ms": 516
+      }
+    }
+  },
+  {
+    "file": "bench-e2b-it-mlx-8bit-20260926T162726Z.jsonl",
+    "model": "bench-e2b-it-mlx-8bit",
+    "reasoning_effort": null,
+    "max_tokens": null,
+    "case_ids": [
+      "tap",
+      "input_text",
+      "finish_passed",
+      "finish_failed",
+      "remember",
+      "wait",
+      "swipe",
+      "key_back",
+      "long_screen"
+    ],
+    "total": 45,
+    "single_tool_calls": 15,
+    "valid_arguments": 15,
+    "passed": 15,
+    "reasoning_responses": 0,
+    "all_median_ms": 709,
+    "passed_median_ms": 662,
+    "cases": {
+      "tap": {
+        "passed": 5,
+        "median_ms": 493
+      },
+      "input_text": {
+        "passed": 5,
+        "median_ms": 697
+      },
+      "finish_passed": {
+        "passed": 0,
+        "median_ms": 1248
+      },
+      "finish_failed": {
+        "passed": 0,
+        "median_ms": 995
+      },
+      "remember": {
+        "passed": 0,
+        "median_ms": 581
+      },
+      "wait": {
+        "passed": 0,
+        "median_ms": 982
+      },
+      "swipe": {
+        "passed": 0,
+        "median_ms": 453
+      },
+      "key_back": {
+        "passed": 0,
+        "median_ms": 798
+      },
+      "long_screen": {
+        "passed": 5,
+        "median_ms": 662
+      }
+    }
+  },
+  {
+    "file": "bench-e4b-it-mlx-4bit-20260926T162237Z.jsonl",
+    "model": "bench-e4b-it-mlx-4bit",
+    "reasoning_effort": null,
+    "max_tokens": null,
+    "case_ids": [
+      "tap",
+      "input_text",
+      "finish_passed",
+      "finish_failed",
+      "remember",
+      "wait",
+      "swipe",
+      "key_back",
+      "long_screen"
+    ],
+    "total": 45,
+    "single_tool_calls": 25,
+    "valid_arguments": 25,
+    "passed": 15,
+    "reasoning_responses": 0,
+    "all_median_ms": 1028,
+    "passed_median_ms": 1907,
+    "cases": {
+      "tap": {
+        "passed": 5,
+        "median_ms": 896
+      },
+      "input_text": {
+        "passed": 5,
+        "median_ms": 1907
+      },
+      "finish_passed": {
+        "passed": 0,
+        "median_ms": 1151
+      },
+      "finish_failed": {
+        "passed": 5,
+        "median_ms": 3390
+      },
+      "remember": {
+        "passed": 0,
+        "median_ms": 1214
+      },
+      "wait": {
+        "passed": 0,
+        "median_ms": 718
+      },
+      "swipe": {
+        "passed": 0,
+        "median_ms": 896
+      },
+      "key_back": {
+        "passed": 0,
+        "median_ms": 967
+      },
+      "long_screen": {
+        "passed": 0,
+        "median_ms": 1001
+      }
+    }
+  },
+  {
+    "file": "bench-e4b-it-mlx-5bit-20260926T162404Z.jsonl",
+    "model": "bench-e4b-it-mlx-5bit",
+    "reasoning_effort": null,
+    "max_tokens": null,
+    "case_ids": [
+      "tap",
+      "input_text",
+      "finish_passed",
+      "finish_failed",
+      "remember",
+      "wait",
+      "swipe",
+      "key_back",
+      "long_screen"
+    ],
+    "total": 45,
+    "single_tool_calls": 25,
+    "valid_arguments": 25,
+    "passed": 20,
+    "reasoning_responses": 0,
+    "all_median_ms": 1064,
+    "passed_median_ms": 1163.0,
+    "cases": {
+      "tap": {
+        "passed": 5,
+        "median_ms": 977
+      },
+      "input_text": {
+        "passed": 5,
+        "median_ms": 1472
+      },
+      "finish_passed": {
+        "passed": 0,
+        "median_ms": 900
+      },
+      "finish_failed": {
+        "passed": 0,
+        "median_ms": 880
+      },
+      "remember": {
+        "passed": 0,
+        "median_ms": 1090
+      },
+      "wait": {
+        "passed": 0,
+        "median_ms": 755
+      },
+      "swipe": {
+        "passed": 5,
+        "median_ms": 1230
+      },
+      "key_back": {
+        "passed": 0,
+        "median_ms": 1066
+      },
+      "long_screen": {
+        "passed": 5,
+        "median_ms": 1073
+      }
+    }
+  },
+  {
+    "file": "bench-e4b-it-mlx-6bit-20260926T162518Z.jsonl",
+    "model": "bench-e4b-it-mlx-6bit",
+    "reasoning_effort": null,
+    "max_tokens": null,
+    "case_ids": [
+      "tap",
+      "input_text",
+      "finish_passed",
+      "finish_failed",
+      "remember",
+      "wait",
+      "swipe",
+      "key_back",
+      "long_screen"
+    ],
+    "total": 45,
+    "single_tool_calls": 30,
+    "valid_arguments": 30,
+    "passed": 25,
+    "reasoning_responses": 0,
+    "all_median_ms": 1054,
+    "passed_median_ms": 1133,
+    "cases": {
+      "tap": {
+        "passed": 5,
+        "median_ms": 823
+      },
+      "input_text": {
+        "passed": 5,
+        "median_ms": 1475
+      },
+      "finish_passed": {
+        "passed": 5,
+        "median_ms": 2106
+      },
+      "finish_failed": {
+        "passed": 0,
+        "median_ms": 1315
+      },
+      "remember": {
+        "passed": 0,
+        "median_ms": 1054
+      },
+      "wait": {
+        "passed": 0,
+        "median_ms": 703
+      },
+      "swipe": {
+        "passed": 5,
+        "median_ms": 1100
+      },
+      "key_back": {
+        "passed": 0,
+        "median_ms": 994
+      },
+      "long_screen": {
+        "passed": 5,
+        "median_ms": 1047
+      }
+    }
+  },
+  {
+    "file": "bench-e4b-mlx-8bit-20260926T142356Z.jsonl",
+    "model": "bench-e4b-mlx-8bit",
+    "reasoning_effort": null,
+    "max_tokens": null,
+    "case_ids": [
+      "tap",
+      "input_text",
+      "finish_passed",
+      "finish_failed",
+      "remember",
+      "wait",
+      "swipe",
+      "key_back",
+      "long_screen"
+    ],
+    "total": 45,
+    "single_tool_calls": 30,
+    "valid_arguments": 30,
+    "passed": 25,
+    "reasoning_responses": 0,
+    "all_median_ms": 2371,
+    "passed_median_ms": 2430,
+    "cases": {
+      "tap": {
+        "passed": 5,
+        "median_ms": 1907
+      },
+      "input_text": {
+        "passed": 5,
+        "median_ms": 2476
+      },
+      "finish_passed": {
+        "passed": 5,
+        "median_ms": 4646
+      },
+      "finish_failed": {
+        "passed": 0,
+        "median_ms": 3568
+      },
+      "remember": {
+        "passed": 0,
+        "median_ms": 2441
+      },
+      "wait": {
+        "passed": 0,
+        "median_ms": 1518
+      },
+      "swipe": {
+        "passed": 5,
+        "median_ms": 2304
+      },
+      "key_back": {
+        "passed": 0,
+        "median_ms": 1942
+      },
+      "long_screen": {
+        "passed": 5,
+        "median_ms": 2462
+      }
+    }
+  },
+  {
+    "file": "bench-e4b-qat-gguf-q4_0-20260926T142829Z.jsonl",
+    "model": "bench-e4b-qat-gguf-q4_0",
+    "reasoning_effort": null,
+    "max_tokens": null,
+    "case_ids": [
+      "tap",
+      "input_text",
+      "finish_passed",
+      "finish_failed",
+      "remember",
+      "wait",
+      "swipe",
+      "key_back",
+      "long_screen"
+    ],
+    "total": 45,
+    "single_tool_calls": 45,
+    "valid_arguments": 45,
+    "passed": 35,
+    "reasoning_responses": 45,
+    "all_median_ms": 5259,
+    "passed_median_ms": 5497,
+    "cases": {
+      "tap": {
+        "passed": 5,
+        "median_ms": 2216
+      },
+      "input_text": {
+        "passed": 5,
+        "median_ms": 12450
+      },
+      "finish_passed": {
+        "passed": 5,
+        "median_ms": 7656
+      },
+      "finish_failed": {
+        "passed": 5,
+        "median_ms": 5387
+      },
+      "remember": {
+        "passed": 0,
+        "median_ms": 5329
+      },
+      "wait": {
+        "passed": 5,
+        "median_ms": 4522
+      },
+      "swipe": {
+        "passed": 0,
+        "median_ms": 4232
+      },
+      "key_back": {
+        "passed": 5,
+        "median_ms": 7602
+      },
+      "long_screen": {
+        "passed": 5,
+        "median_ms": 2973
+      }
+    }
+  }
+]

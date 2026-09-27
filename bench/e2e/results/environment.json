@@ -1,0 +1,28 @@
+{
+  "recorded_at": "2026-09-26T16:38:27.052780+00:00",
+  "repository_commit": "b705c2e44bc735493103ca551c4523b2caa991af",
+  "python": "3.13.14",
+  "platform_tested": "web",
+  "chrome_version": "153.0.8010.53",
+  "chrome_flags": [
+    "--headless=new",
+    "--disable-gpu"
+  ],
+  "fixture_sha256": "09a262d2d135ee79a8d8e4aff65b54110766bb019d2a8e500e0a54e6d7743e57",
+  "cases_per_model": 4,
+  "repetitions": 1,
+  "temperature": "application default; not sent",
+  "reasoning_effort": "application default; not sent",
+  "max_tokens": "application default; not sent",
+  "tool_choice": "Genkit required; compat-oai 1.40.1 omits HTTP tool_choice",
+  "max_llm_attempts": 3,
+  "driver": "production CdpClient and runScenario",
+  "recording": true,
+  "android_device_attached": false,
+  "existing_android_avds": [],
+  "api": "http://localhost:5175",
+  "model_endpoint": "http://localhost:1234/v1",
+  "artifacts": "var/model-e2e-20260927",
+  "tool_descriptions": "Genkit defines descriptions, but intercepted compat-oai HTTP tool functions omit description; system prompt still describes actions",
+  "wire_probe": "bench/e2e/results/genkit-wire-probe.json"
+}

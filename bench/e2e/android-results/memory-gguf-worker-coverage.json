@@ -1,0 +1,176 @@
+{
+  "checked_at": "2026-09-26T18:33:25.740016+00:00",
+  "model": "bench-android-e2e-26b-a4b-it-qat-gguf",
+  "loaded_record": "bench/e2e/android-results/bench-android-e2e-26b-a4b-it-qat-gguf-20260926T183202Z.loaded.json",
+  "sampling_evidence": "bench/e2e/android-results/bench-android-e2e-26b-a4b-it-qat-gguf-20260926T183202Z.memory.jsonl",
+  "latest_sample": {
+    "timestamp": "2026-09-26T18:33:24.694166+00:00",
+    "elapsed_seconds": 51.305661,
+    "model": "bench-android-e2e-26b-a4b-it-qat-gguf",
+    "status": "ok",
+    "processes": [
+      {
+        "pid": 2264,
+        "ppid": 1,
+        "name": "LM Studio",
+        "executable": "/Applications/LM Studio.app/Contents/MacOS/LM Studio",
+        "rss_kib": 360864,
+        "rss_bytes": 369524736,
+        "identification": "executable_path_prefix",
+        "matched_root": "/Applications/LM Studio.app/Contents/",
+        "seed_pid": 2264,
+        "physical_footprint_timestamp": "2026-09-26T18:33:24.791184+00:00",
+        "physical_footprint_bytes": 371739048,
+        "proc_start_abstime": 16732647380,
+        "physical_footprint_error": null
+      },
+      {
+        "pid": 2526,
+        "ppid": 1,
+        "name": "chrome_crashpad_handler",
+        "executable": "/Applications/LM Studio.app/Contents/Frameworks/Electron Framework.framework/Helpers/chrome_crashpad_handler",
+        "rss_kib": 5712,
+        "rss_bytes": 5849088,
+        "identification": "executable_path_prefix",
+        "matched_root": "/Applications/LM Studio.app/Contents/",
+        "seed_pid": 2526,
+        "physical_footprint_timestamp": "2026-09-26T18:33:24.791298+00:00",
+        "physical_footprint_bytes": 3129920,
+        "proc_start_abstime": 16909374708,
+        "physical_footprint_error": null
+      },
+      {
+        "pid": 2539,
+        "ppid": 2264,
+        "name": "LM Studio Helper (GPU)",
+        "executable": "/Applications/LM Studio.app/Contents/Frameworks/LM Studio Helper (GPU).app/Contents/MacOS/LM Studio Helper (GPU)",
+        "rss_kib": 29744,
+        "rss_bytes": 30457856,
+        "identification": "executable_path_prefix",
+        "matched_root": "/Applications/LM Studio.app/Contents/",
+        "seed_pid": 2539,
+        "physical_footprint_timestamp": "2026-09-26T18:33:24.791310+00:00",
+        "physical_footprint_bytes": 43451520,
+        "proc_start_abstime": 16950239921,
+        "physical_footprint_error": null
+      },
+      {
+        "pid": 2546,
+        "ppid": 2264,
+        "name": "LM Studio Helper",
+        "executable": "/Applications/LM Studio.app/Contents/Frameworks/LM Studio Helper.app/Contents/MacOS/LM Studio Helper",
+        "rss_kib": 14432,
+        "rss_bytes": 14778368,
+        "identification": "executable_path_prefix",
+        "matched_root": "/Applications/LM Studio.app/Contents/",
+        "seed_pid": 2546,
+        "physical_footprint_timestamp": "2026-09-26T18:33:24.791322+00:00",
+        "physical_footprint_bytes": 7275552,
+        "proc_start_abstime": 16966202048,
+        "physical_footprint_error": null
+      },
+      {
+        "pid": 2600,
+        "ppid": 2264,
+        "name": "node",
+        "executable": "/Users/kei/.lmstudio/.internal/utils/node",
+        "rss_kib": 27808,
+        "rss_bytes": 28475392,
+        "identification": "executable_path_prefix",
+        "matched_root": "/Users/kei/.lmstudio/",
+        "seed_pid": 2600,
+        "physical_footprint_timestamp": "2026-09-26T18:33:24.791331+00:00",
+        "physical_footprint_bytes": 57450536,
+        "proc_start_abstime": 16996779039,
+        "physical_footprint_error": null
+      },
+      {
+        "pid": 79427,
+        "ppid": 2264,
+        "name": "llama-server",
+        "executable": "/Users/kei/.lmstudio/extensions/backends/llama.cpp-mac-arm64-apple-metal-advsimd-2.41.0/llama-server",
+        "rss_kib": 16973664,
+        "rss_bytes": 17381031936,
+        "identification": "executable_path_prefix",
+        "matched_root": "/Users/kei/.lmstudio/",
+        "seed_pid": 79427,
+        "physical_footprint_timestamp": "2026-09-26T18:33:24.791339+00:00",
+        "physical_footprint_bytes": 2858906584,
+        "proc_start_abstime": 15733829504104,
+        "physical_footprint_error": null
+      },
+      {
+        "pid": 84007,
+        "ppid": 2264,
+        "name": "LM Studio Helper (Renderer)",
+        "executable": "/Applications/LM Studio.app/Contents/Frameworks/LM Studio Helper (Renderer).app/Contents/MacOS/LM Studio Helper (Renderer)",
+        "rss_kib": 223616,
+        "rss_bytes": 228982784,
+        "identification": "executable_path_prefix",
+        "matched_root": "/Applications/LM Studio.app/Contents/",
+        "seed_pid": 84007,
+        "physical_footprint_timestamp": "2026-09-26T18:33:24.791350+00:00",
+        "physical_footprint_bytes": 293340960,
+        "proc_start_abstime": 15437443133597,
+        "physical_footprint_error": null
+      }
+    ],
+    "rss_sum_bytes": 18059100160,
+    "physical_footprint_sum_bytes": 3635294120,
+    "physical_footprint_status": "ok",
+    "errors": []
+  },
+  "worker_pid": 79427,
+  "worker_ppid": 2264,
+  "worker_process_observation": "79427  2264 /Users/kei/.lmstudio/extensions/backends/llama.cpp-mac-arm64-apple-metal-advsimd-2.41.0/llama-server",
+  "runtime_modules_and_model_files": [
+    "/Users/kei/.lmstudio/extensions/backends/llama.cpp-mac-arm64-apple-metal-advsimd-2.41.0/llama-server",
+    "/Users/kei/.lmstudio/extensions/backends/llama.cpp-mac-arm64-apple-metal-advsimd-2.41.0/libggml_llamacpp.dylib",
+    "/Users/kei/.lmstudio/extensions/backends/llama.cpp-mac-arm64-apple-metal-advsimd-2.41.0/libggml-blas.dylib",
+    "/Users/kei/.lmstudio/extensions/backends/llama.cpp-mac-arm64-apple-metal-advsimd-2.41.0/libggml-base.dylib",
+    "/Users/kei/.lmstudio/extensions/backends/llama.cpp-mac-arm64-apple-metal-advsimd-2.41.0/libggml-cpu.dylib",
+    "/Users/kei/.lmstudio/extensions/backends/llama.cpp-mac-arm64-apple-metal-advsimd-2.41.0/libllama-server-impl.dylib",
+    "/Users/kei/.lmstudio/extensions/backends/llama.cpp-mac-arm64-apple-metal-advsimd-2.41.0/libggml-metal.dylib",
+    "/Users/kei/.lmstudio/extensions/backends/llama.cpp-mac-arm64-apple-metal-advsimd-2.41.0/libllama-common.0.4.1.dylib",
+    "/Users/kei/.lmstudio/extensions/backends/llama.cpp-mac-arm64-apple-metal-advsimd-2.41.0/libllama.dylib",
+    "/Volumes/PortableSSD/gemma-model-bench-20260926/lmstudio-community/gemma-4-26B-A4B-it-QAT-GGUF/gemma-4-26B-A4B-it-QAT-Q4_0.gguf"
+  ],
+  "sample_count_so_far": 52,
+  "physical_footprint_invalid_sample_count_so_far": 0,
+  "coverage": "The actual llama.cpp llama-server PID is included by its ~/.lmstudio executable root, parented to LM Studio; physical footprint succeeds.",
+  "interpretation": "Intermediate sample, not completed-run peak. Footprint is substantially below RSS in this mmap-based GGUF runtime; do not treat footprint alone as the RAM needed to run the model.",
+  "vmmap_observation": {
+    "command": [
+      "vmmap",
+      "-summary",
+      "79427"
+    ],
+    "observed_at": "2026-09-27T03:33:54.094+09:00",
+    "physical_footprint_reported": "2.6G",
+    "physical_footprint_lifetime_peak_reported": "2.7G",
+    "column_order": "VIRTUAL RESIDENT DIRTY SWAPPED VOLATILE NONVOL EMPTY REGION_COUNT",
+    "mapped_file_row": "mapped file 13.5G 13.5G 0K 0K 0K 0K 0K 8",
+    "total_row": "TOTAL 404.2G 17.0G 2.7G 0K 0K 7744K 0K 2793",
+    "note": "Selected lines transcribed from one read-only vmmap summary observation. vmmap lifetime peak is not the sampler-period peak. G units retained as emitted by vmmap."
+  },
+  "physical_footprint_explanation": {
+    "sources": [
+      "https://developer.apple.com/videos/play/wwdc2021/10180/",
+      "https://developer.apple.com/videos/play/wwdc2024/10173/"
+    ],
+    "summary": "Apple distinguishes clean memory from dirty/compressed or swapped memory counted toward application footprint. The observed worker has 13.5G resident mapped-file memory with 0K dirty, consistent with RSS being substantially larger than footprint. Both metrics must remain visible; footprint is not the full working RAM requirement."
+  },
+  "gguf_mapped_region_observation": {
+    "checked_at": "2026-09-26T18:34:52.577056+00:00",
+    "command": [
+      "vmmap",
+      "-w",
+      "79427"
+    ],
+    "returncode": 0,
+    "gguf_region_lines": [
+      "mapped file                7000f14000-735ca74000   [ 13.4G  13.4G     0K     0K] r--/r-- SM=SHM          /Volumes/PortableSSD/gemma-model-bench-20260926/lmstudio-community/gemma-4-26B-A4B-it-QAT-GGUF/gemma-4-26B-A4B-it-QAT-Q4_0.gguf"
+    ],
+    "stderr": ""
+  }
+}

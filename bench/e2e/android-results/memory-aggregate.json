@@ -1,0 +1,917 @@
+{
+  "generated_at": "2026-09-26T19:57:16.571310+00:00",
+  "model_count": 18,
+  "summary_glob": "bench-*.memory.summary.json",
+  "method": "Read saved per-model summaries and corresponding loaded-model metadata. Statistics are copied from each summary; incomplete process-group footprint samples remain missing and are not filled or summed. Decimal GB = bytes / 1,000,000,000.",
+  "scope": "LM Studio process tree after model load through E2E completion; includes UI/helpers, excludes emulator/API and model-loading peak. Sampled peaks are not allocator peaks or unique system memory use. Smoke/validation summaries are excluded.",
+  "models": [
+    {
+      "model": "bench-android-e2e-12b-it-mlx-5bit",
+      "summary_source": "bench-android-e2e-12b-it-mlx-5bit-20260926T192049Z.memory.summary.json",
+      "loaded_source": "bench-android-e2e-12b-it-mlx-5bit-20260926T192049Z.loaded.json",
+      "status": "complete",
+      "started_at": "2026-09-26T19:21:11.261038+00:00",
+      "finished_at": "2026-09-26T19:25:01.993644+00:00",
+      "disk_bytes": 8267185600,
+      "loaded_context_length": 262144,
+      "sample_count": 230,
+      "rss_valid_sample_count": 230,
+      "rss_missing_sample_count": 0,
+      "physical_footprint_valid_sample_count": 228,
+      "physical_footprint_missing_sample_count": 2,
+      "physical_footprint": {
+        "median_bytes": 12206809392.0,
+        "sampled_peak_bytes": 14275085480,
+        "median_decimal_gb": 12.206809392,
+        "sampled_peak_decimal_gb": 14.27508548
+      },
+      "rss": {
+        "median_bytes": 11360436224.0,
+        "sampled_peak_bytes": 12585107456,
+        "median_decimal_gb": 11.360436224,
+        "sampled_peak_decimal_gb": 12.585107456
+      },
+      "observed_pids": [
+        2264,
+        2526,
+        2539,
+        2546,
+        2600,
+        4693,
+        5277,
+        9240,
+        84007
+      ],
+      "interval_seconds": 1.0,
+      "limitations": [
+        "RSS sums can double-count shared resident pages between processes.",
+        "RSS is not total unified-memory use, Metal allocation, or allocator peak.",
+        "Physical footprint is the kernel's per-process accounting, not allocator peak.",
+        "A process-group footprint sum is not system-wide unique memory consumption.",
+        "Processes are read sequentially; a sample is not an atomic system snapshot.",
+        "One-second sampling can miss short-lived processes and between-sample peaks.",
+        "The group includes LM Studio UI/helpers, not only model inference workers.",
+        "The model label is supplied by the caller; no exclusive model attribution is inferred.",
+        "No baseline subtraction or OS memory-pressure correction is applied."
+      ]
+    },
+    {
+      "model": "bench-android-e2e-12b-it-mlx-6bit",
+      "summary_source": "bench-android-e2e-12b-it-mlx-6bit-20260926T192503Z.memory.summary.json",
+      "loaded_source": "bench-android-e2e-12b-it-mlx-6bit-20260926T192503Z.loaded.json",
+      "status": "complete",
+      "started_at": "2026-09-26T19:25:29.168868+00:00",
+      "finished_at": "2026-09-26T19:29:50.407030+00:00",
+      "disk_bytes": 9760976416,
+      "loaded_context_length": 262144,
+      "sample_count": 260,
+      "rss_valid_sample_count": 260,
+      "rss_missing_sample_count": 0,
+      "physical_footprint_valid_sample_count": 256,
+      "physical_footprint_missing_sample_count": 4,
+      "physical_footprint": {
+        "median_bytes": 13855934196.0,
+        "sampled_peak_bytes": 16156347120,
+        "median_decimal_gb": 13.855934196,
+        "sampled_peak_decimal_gb": 16.15634712
+      },
+      "rss": {
+        "median_bytes": 13260906496.0,
+        "sampled_peak_bytes": 14560952320,
+        "median_decimal_gb": 13.260906496,
+        "sampled_peak_decimal_gb": 14.56095232
+      },
+      "observed_pids": [
+        2264,
+        2526,
+        2539,
+        2546,
+        2600,
+        9721,
+        10011,
+        10471,
+        11130,
+        11155,
+        84007
+      ],
+      "interval_seconds": 1.0,
+      "limitations": [
+        "RSS sums can double-count shared resident pages between processes.",
+        "RSS is not total unified-memory use, Metal allocation, or allocator peak.",
+        "Physical footprint is the kernel's per-process accounting, not allocator peak.",
+        "A process-group footprint sum is not system-wide unique memory consumption.",
+        "Processes are read sequentially; a sample is not an atomic system snapshot.",
+        "One-second sampling can miss short-lived processes and between-sample peaks.",
+        "The group includes LM Studio UI/helpers, not only model inference workers.",
+        "The model label is supplied by the caller; no exclusive model attribution is inferred.",
+        "No baseline subtraction or OS memory-pressure correction is applied."
+      ]
+    },
+    {
+      "model": "bench-android-e2e-12b-it-mlx-8bit",
+      "summary_source": "bench-android-e2e-12b-it-mlx-8bit-20260926T192952Z.memory.summary.json",
+      "loaded_source": "bench-android-e2e-12b-it-mlx-8bit-20260926T192952Z.loaded.json",
+      "status": "complete",
+      "started_at": "2026-09-26T19:30:17.062468+00:00",
+      "finished_at": "2026-09-26T19:34:01.340727+00:00",
+      "disk_bytes": 12748557851,
+      "loaded_context_length": 262144,
+      "sample_count": 223,
+      "rss_valid_sample_count": 223,
+      "rss_missing_sample_count": 0,
+      "physical_footprint_valid_sample_count": 221,
+      "physical_footprint_missing_sample_count": 2,
+      "physical_footprint": {
+        "median_bytes": 16702328376,
+        "sampled_peak_bytes": 18943152608,
+        "median_decimal_gb": 16.702328376,
+        "sampled_peak_decimal_gb": 18.943152608
+      },
+      "rss": {
+        "median_bytes": 16224059392,
+        "sampled_peak_bytes": 17459363840,
+        "median_decimal_gb": 16.224059392,
+        "sampled_peak_decimal_gb": 17.45936384
+      },
+      "observed_pids": [
+        2264,
+        2526,
+        2539,
+        2546,
+        2600,
+        12148,
+        12913,
+        12921,
+        84007
+      ],
+      "interval_seconds": 1.0,
+      "limitations": [
+        "RSS sums can double-count shared resident pages between processes.",
+        "RSS is not total unified-memory use, Metal allocation, or allocator peak.",
+        "Physical footprint is the kernel's per-process accounting, not allocator peak.",
+        "A process-group footprint sum is not system-wide unique memory consumption.",
+        "Processes are read sequentially; a sample is not an atomic system snapshot.",
+        "One-second sampling can miss short-lived processes and between-sample peaks.",
+        "The group includes LM Studio UI/helpers, not only model inference workers.",
+        "The model label is supplied by the caller; no exclusive model attribution is inferred.",
+        "No baseline subtraction or OS memory-pressure correction is applied."
+      ]
+    },
+    {
+      "model": "bench-android-e2e-12b-it-qat-gguf",
+      "summary_source": "bench-android-e2e-12b-it-qat-gguf-20260926T193402Z.memory.summary.json",
+      "loaded_source": "bench-android-e2e-12b-it-qat-gguf-20260926T193402Z.loaded.json",
+      "status": "complete",
+      "started_at": "2026-09-26T19:34:17.238717+00:00",
+      "finished_at": "2026-09-26T19:39:00.967018+00:00",
+      "disk_bytes": 7150994336,
+      "loaded_context_length": 8192,
+      "sample_count": 282,
+      "rss_valid_sample_count": 282,
+      "rss_missing_sample_count": 0,
+      "physical_footprint_valid_sample_count": 278,
+      "physical_footprint_missing_sample_count": 4,
+      "physical_footprint": {
+        "median_bytes": 3000244664.0,
+        "sampled_peak_bytes": 3827735520,
+        "median_decimal_gb": 3.000244664,
+        "sampled_peak_decimal_gb": 3.82773552
+      },
+      "rss": {
+        "median_bytes": 9996402688.0,
+        "sampled_peak_bytes": 10822451200,
+        "median_decimal_gb": 9.996402688,
+        "sampled_peak_decimal_gb": 10.8224512
+      },
+      "observed_pids": [
+        2264,
+        2526,
+        2539,
+        2546,
+        2600,
+        13918,
+        15594,
+        15605,
+        15611,
+        15619,
+        84007
+      ],
+      "interval_seconds": 1.0,
+      "limitations": [
+        "RSS sums can double-count shared resident pages between processes.",
+        "RSS is not total unified-memory use, Metal allocation, or allocator peak.",
+        "Physical footprint is the kernel's per-process accounting, not allocator peak.",
+        "A process-group footprint sum is not system-wide unique memory consumption.",
+        "Processes are read sequentially; a sample is not an atomic system snapshot.",
+        "One-second sampling can miss short-lived processes and between-sample peaks.",
+        "The group includes LM Studio UI/helpers, not only model inference workers.",
+        "The model label is supplied by the caller; no exclusive model attribution is inferred.",
+        "No baseline subtraction or OS memory-pressure correction is applied."
+      ]
+    },
+    {
+      "model": "bench-android-e2e-26b-a4b-it-qat-gguf",
+      "summary_source": "bench-android-e2e-26b-a4b-it-qat-gguf-20260926T183202Z.memory.summary.json",
+      "loaded_source": "bench-android-e2e-26b-a4b-it-qat-gguf-20260926T183202Z.loaded.json",
+      "status": "complete",
+      "started_at": "2026-09-26T18:32:33.387809+00:00",
+      "finished_at": "2026-09-26T18:35:42.166543+00:00",
+      "disk_bytes": 15634191104,
+      "loaded_context_length": 8192,
+      "sample_count": 188,
+      "rss_valid_sample_count": 188,
+      "rss_missing_sample_count": 0,
+      "physical_footprint_valid_sample_count": 186,
+      "physical_footprint_missing_sample_count": 2,
+      "physical_footprint": {
+        "median_bytes": 3411775304.0,
+        "sampled_peak_bytes": 3814027344,
+        "median_decimal_gb": 3.411775304,
+        "sampled_peak_decimal_gb": 3.814027344
+      },
+      "rss": {
+        "median_bytes": 17850384384.0,
+        "sampled_peak_bytes": 18237882368,
+        "median_decimal_gb": 17.850384384,
+        "sampled_peak_decimal_gb": 18.237882368
+      },
+      "observed_pids": [
+        2264,
+        2526,
+        2539,
+        2546,
+        2600,
+        79427,
+        80121,
+        80666,
+        84007
+      ],
+      "interval_seconds": 1.0,
+      "limitations": [
+        "RSS sums can double-count shared resident pages between processes.",
+        "RSS is not total unified-memory use, Metal allocation, or allocator peak.",
+        "Physical footprint is the kernel's per-process accounting, not allocator peak.",
+        "A process-group footprint sum is not system-wide unique memory consumption.",
+        "Processes are read sequentially; a sample is not an atomic system snapshot.",
+        "One-second sampling can miss short-lived processes and between-sample peaks.",
+        "The group includes LM Studio UI/helpers, not only model inference workers.",
+        "The model label is supplied by the caller; no exclusive model attribution is inferred.",
+        "No baseline subtraction or OS memory-pressure correction is applied."
+      ]
+    },
+    {
+      "model": "bench-android-e2e-26b-a4b-it-qat-mlx-4bit",
+      "summary_source": "bench-android-e2e-26b-a4b-it-qat-mlx-4bit-20260926T182211Z.memory.summary.json",
+      "loaded_source": "bench-android-e2e-26b-a4b-it-qat-mlx-4bit-20260926T182211Z.loaded.json",
+      "status": "complete",
+      "started_at": "2026-09-26T18:22:26.324022+00:00",
+      "finished_at": "2026-09-26T18:25:34.728748+00:00",
+      "disk_bytes": 15641333028,
+      "loaded_context_length": 262144,
+      "sample_count": 188,
+      "rss_valid_sample_count": 188,
+      "rss_missing_sample_count": 0,
+      "physical_footprint_valid_sample_count": 187,
+      "physical_footprint_missing_sample_count": 1,
+      "physical_footprint": {
+        "median_bytes": 19511416272,
+        "sampled_peak_bytes": 21315574040,
+        "median_decimal_gb": 19.511416272,
+        "sampled_peak_decimal_gb": 21.31557404
+      },
+      "rss": {
+        "median_bytes": 14606041088.0,
+        "sampled_peak_bytes": 15421882368,
+        "median_decimal_gb": 14.606041088,
+        "sampled_peak_decimal_gb": 15.421882368
+      },
+      "observed_pids": [
+        2264,
+        2526,
+        2539,
+        2546,
+        2600,
+        71904,
+        74463,
+        84007
+      ],
+      "interval_seconds": 1.0,
+      "limitations": [
+        "RSS sums can double-count shared resident pages between processes.",
+        "RSS is not total unified-memory use, Metal allocation, or allocator peak.",
+        "Physical footprint is the kernel's per-process accounting, not allocator peak.",
+        "A process-group footprint sum is not system-wide unique memory consumption.",
+        "Processes are read sequentially; a sample is not an atomic system snapshot.",
+        "One-second sampling can miss short-lived processes and between-sample peaks.",
+        "The group includes LM Studio UI/helpers, not only model inference workers.",
+        "The model label is supplied by the caller; no exclusive model attribution is inferred.",
+        "No baseline subtraction or OS memory-pressure correction is applied."
+      ]
+    },
+    {
+      "model": "bench-android-e2e-31b-it-mlx-4bit",
+      "summary_source": "bench-android-e2e-31b-it-mlx-4bit-20260926T182647Z.memory.summary.json",
+      "loaded_source": "bench-android-e2e-31b-it-mlx-4bit-20260926T182647Z.loaded.json",
+      "status": "complete",
+      "started_at": "2026-09-26T18:26:59.902709+00:00",
+      "finished_at": "2026-09-26T18:32:00.931326+00:00",
+      "disk_bytes": 18444444812,
+      "loaded_context_length": 261120,
+      "sample_count": 300,
+      "rss_valid_sample_count": 300,
+      "rss_missing_sample_count": 0,
+      "physical_footprint_valid_sample_count": 299,
+      "physical_footprint_missing_sample_count": 1,
+      "physical_footprint": {
+        "median_bytes": 24542863944,
+        "sampled_peak_bytes": 28641388592,
+        "median_decimal_gb": 24.542863944,
+        "sampled_peak_decimal_gb": 28.641388592
+      },
+      "rss": {
+        "median_bytes": 22901276672.0,
+        "sampled_peak_bytes": 25211666432,
+        "median_decimal_gb": 22.901276672,
+        "sampled_peak_decimal_gb": 25.211666432
+      },
+      "observed_pids": [
+        2264,
+        2526,
+        2539,
+        2546,
+        2600,
+        76612,
+        78382,
+        84007
+      ],
+      "interval_seconds": 1.0,
+      "limitations": [
+        "RSS sums can double-count shared resident pages between processes.",
+        "RSS is not total unified-memory use, Metal allocation, or allocator peak.",
+        "Physical footprint is the kernel's per-process accounting, not allocator peak.",
+        "A process-group footprint sum is not system-wide unique memory consumption.",
+        "Processes are read sequentially; a sample is not an atomic system snapshot.",
+        "One-second sampling can miss short-lived processes and between-sample peaks.",
+        "The group includes LM Studio UI/helpers, not only model inference workers.",
+        "The model label is supplied by the caller; no exclusive model attribution is inferred.",
+        "No baseline subtraction or OS memory-pressure correction is applied."
+      ]
+    },
+    {
+      "model": "bench-android-e2e-31b-it-mlx-5bit",
+      "summary_source": "bench-android-e2e-31b-it-mlx-5bit-20260926T185230Z.memory.summary.json",
+      "loaded_source": "bench-android-e2e-31b-it-mlx-5bit-20260926T185230Z.loaded.json",
+      "status": "complete",
+      "started_at": "2026-09-26T18:53:07.246972+00:00",
+      "finished_at": "2026-09-26T18:58:30.644019+00:00",
+      "disk_bytes": 22282220425,
+      "loaded_context_length": 243968,
+      "sample_count": 323,
+      "rss_valid_sample_count": 323,
+      "rss_missing_sample_count": 0,
+      "physical_footprint_valid_sample_count": 320,
+      "physical_footprint_missing_sample_count": 3,
+      "physical_footprint": {
+        "median_bytes": 28331494192.0,
+        "sampled_peak_bytes": 32394949224,
+        "median_decimal_gb": 28.331494192,
+        "sampled_peak_decimal_gb": 32.394949224
+      },
+      "rss": {
+        "median_bytes": 26440630272,
+        "sampled_peak_bytes": 28648046592,
+        "median_decimal_gb": 26.440630272,
+        "sampled_peak_decimal_gb": 28.648046592
+      },
+      "observed_pids": [
+        2264,
+        2526,
+        2539,
+        2546,
+        2600,
+        84007,
+        89583,
+        91473,
+        92136,
+        92767
+      ],
+      "interval_seconds": 1.0,
+      "limitations": [
+        "RSS sums can double-count shared resident pages between processes.",
+        "RSS is not total unified-memory use, Metal allocation, or allocator peak.",
+        "Physical footprint is the kernel's per-process accounting, not allocator peak.",
+        "A process-group footprint sum is not system-wide unique memory consumption.",
+        "Processes are read sequentially; a sample is not an atomic system snapshot.",
+        "One-second sampling can miss short-lived processes and between-sample peaks.",
+        "The group includes LM Studio UI/helpers, not only model inference workers.",
+        "The model label is supplied by the caller; no exclusive model attribution is inferred.",
+        "No baseline subtraction or OS memory-pressure correction is applied."
+      ]
+    },
+    {
+      "model": "bench-android-e2e-31b-it-mlx-6bit",
+      "summary_source": "bench-android-e2e-31b-it-mlx-6bit-20260926T185832Z.memory.summary.json",
+      "loaded_source": "bench-android-e2e-31b-it-mlx-6bit-20260926T185832Z.loaded.json",
+      "status": "complete",
+      "started_at": "2026-09-26T18:59:16.653791+00:00",
+      "finished_at": "2026-09-26T19:04:15.348910+00:00",
+      "disk_bytes": 26119996887,
+      "loaded_context_length": 226816,
+      "sample_count": 297,
+      "rss_valid_sample_count": 297,
+      "rss_missing_sample_count": 0,
+      "physical_footprint_valid_sample_count": 295,
+      "physical_footprint_missing_sample_count": 2,
+      "physical_footprint": {
+        "median_bytes": 32176797800,
+        "sampled_peak_bytes": 36372577944,
+        "median_decimal_gb": 32.1767978,
+        "sampled_peak_decimal_gb": 36.372577944
+      },
+      "rss": {
+        "median_bytes": 30133239808,
+        "sampled_peak_bytes": 31489130496,
+        "median_decimal_gb": 30.133239808,
+        "sampled_peak_decimal_gb": 31.489130496
+      },
+      "observed_pids": [
+        2264,
+        2526,
+        2539,
+        2546,
+        2600,
+        84007,
+        92852,
+        94497,
+        94516
+      ],
+      "interval_seconds": 1.0,
+      "limitations": [
+        "RSS sums can double-count shared resident pages between processes.",
+        "RSS is not total unified-memory use, Metal allocation, or allocator peak.",
+        "Physical footprint is the kernel's per-process accounting, not allocator peak.",
+        "A process-group footprint sum is not system-wide unique memory consumption.",
+        "Processes are read sequentially; a sample is not an atomic system snapshot.",
+        "One-second sampling can miss short-lived processes and between-sample peaks.",
+        "The group includes LM Studio UI/helpers, not only model inference workers.",
+        "The model label is supplied by the caller; no exclusive model attribution is inferred.",
+        "No baseline subtraction or OS memory-pressure correction is applied."
+      ]
+    },
+    {
+      "model": "bench-android-e2e-31b-it-mlx-8bit",
+      "summary_source": "bench-android-e2e-31b-it-mlx-8bit-20260926T190417Z.memory.summary.json",
+      "loaded_source": "bench-android-e2e-31b-it-mlx-8bit-20260926T190417Z.loaded.json",
+      "status": "complete",
+      "started_at": "2026-09-26T19:05:15.029113+00:00",
+      "finished_at": "2026-09-26T19:10:30.710815+00:00",
+      "disk_bytes": 33795548471,
+      "loaded_context_length": 192512,
+      "sample_count": 314,
+      "rss_valid_sample_count": 314,
+      "rss_missing_sample_count": 0,
+      "physical_footprint_valid_sample_count": 313,
+      "physical_footprint_missing_sample_count": 1,
+      "physical_footprint": {
+        "median_bytes": 39761120616,
+        "sampled_peak_bytes": 43828106112,
+        "median_decimal_gb": 39.761120616,
+        "sampled_peak_decimal_gb": 43.828106112
+      },
+      "rss": {
+        "median_bytes": 14767620096.0,
+        "sampled_peak_bytes": 15907241984,
+        "median_decimal_gb": 14.767620096,
+        "sampled_peak_decimal_gb": 15.907241984
+      },
+      "observed_pids": [
+        2264,
+        2526,
+        2539,
+        2546,
+        2600,
+        84007,
+        95998,
+        97118
+      ],
+      "interval_seconds": 1.0,
+      "limitations": [
+        "RSS sums can double-count shared resident pages between processes.",
+        "RSS is not total unified-memory use, Metal allocation, or allocator peak.",
+        "Physical footprint is the kernel's per-process accounting, not allocator peak.",
+        "A process-group footprint sum is not system-wide unique memory consumption.",
+        "Processes are read sequentially; a sample is not an atomic system snapshot.",
+        "One-second sampling can miss short-lived processes and between-sample peaks.",
+        "The group includes LM Studio UI/helpers, not only model inference workers.",
+        "The model label is supplied by the caller; no exclusive model attribution is inferred.",
+        "No baseline subtraction or OS memory-pressure correction is applied."
+      ]
+    },
+    {
+      "model": "bench-android-e2e-31b-it-qat-gguf",
+      "summary_source": "bench-android-e2e-31b-it-qat-gguf-20260926T191033Z.memory.summary.json",
+      "loaded_source": "bench-android-e2e-31b-it-qat-gguf-20260926T191033Z.loaded.json",
+      "status": "complete",
+      "started_at": "2026-09-26T19:11:12.419834+00:00",
+      "finished_at": "2026-09-26T19:20:47.028408+00:00",
+      "disk_bytes": 18851727360,
+      "loaded_context_length": 8192,
+      "sample_count": 572,
+      "rss_valid_sample_count": 572,
+      "rss_missing_sample_count": 0,
+      "physical_footprint_valid_sample_count": 568,
+      "physical_footprint_missing_sample_count": 4,
+      "physical_footprint": {
+        "median_bytes": 6455902464.0,
+        "sampled_peak_bytes": 8105526656,
+        "median_decimal_gb": 6.455902464,
+        "sampled_peak_decimal_gb": 8.105526656
+      },
+      "rss": {
+        "median_bytes": 24096210944.0,
+        "sampled_peak_bytes": 25744687104,
+        "median_decimal_gb": 24.096210944,
+        "sampled_peak_decimal_gb": 25.744687104
+      },
+      "observed_pids": [
+        1391,
+        1735,
+        2264,
+        2526,
+        2539,
+        2546,
+        2600,
+        3193,
+        3694,
+        84007,
+        99762
+      ],
+      "interval_seconds": 1.0,
+      "limitations": [
+        "RSS sums can double-count shared resident pages between processes.",
+        "RSS is not total unified-memory use, Metal allocation, or allocator peak.",
+        "Physical footprint is the kernel's per-process accounting, not allocator peak.",
+        "A process-group footprint sum is not system-wide unique memory consumption.",
+        "Processes are read sequentially; a sample is not an atomic system snapshot.",
+        "One-second sampling can miss short-lived processes and between-sample peaks.",
+        "The group includes LM Studio UI/helpers, not only model inference workers.",
+        "The model label is supplied by the caller; no exclusive model attribution is inferred.",
+        "No baseline subtraction or OS memory-pressure correction is applied."
+      ]
+    },
+    {
+      "model": "bench-android-e2e-e2b-it-mlx-4bit",
+      "summary_source": "bench-android-e2e-e2b-it-mlx-4bit-20260926T184240Z.memory.summary.json",
+      "loaded_source": "bench-android-e2e-e2b-it-mlx-4bit-20260926T184240Z.loaded.json",
+      "status": "complete",
+      "started_at": "2026-09-26T18:42:53.740956+00:00",
+      "finished_at": "2026-09-26T18:48:04.600373+00:00",
+      "disk_bytes": 4372360872,
+      "loaded_context_length": 131072,
+      "sample_count": 310,
+      "rss_valid_sample_count": 310,
+      "rss_missing_sample_count": 0,
+      "physical_footprint_valid_sample_count": 308,
+      "physical_footprint_missing_sample_count": 2,
+      "physical_footprint": {
+        "median_bytes": 7392539748.0,
+        "sampled_peak_bytes": 8192799424,
+        "median_decimal_gb": 7.392539748,
+        "sampled_peak_decimal_gb": 8.192799424
+      },
+      "rss": {
+        "median_bytes": 7086211072.0,
+        "sampled_peak_bytes": 7100825600,
+        "median_decimal_gb": 7.086211072,
+        "sampled_peak_decimal_gb": 7.1008256
+      },
+      "observed_pids": [
+        2264,
+        2526,
+        2539,
+        2546,
+        2600,
+        83541,
+        84007,
+        84697,
+        85674
+      ],
+      "interval_seconds": 1.0,
+      "limitations": [
+        "RSS sums can double-count shared resident pages between processes.",
+        "RSS is not total unified-memory use, Metal allocation, or allocator peak.",
+        "Physical footprint is the kernel's per-process accounting, not allocator peak.",
+        "A process-group footprint sum is not system-wide unique memory consumption.",
+        "Processes are read sequentially; a sample is not an atomic system snapshot.",
+        "One-second sampling can miss short-lived processes and between-sample peaks.",
+        "The group includes LM Studio UI/helpers, not only model inference workers.",
+        "The model label is supplied by the caller; no exclusive model attribution is inferred.",
+        "No baseline subtraction or OS memory-pressure correction is applied."
+      ]
+    },
+    {
+      "model": "bench-android-e2e-e2b-it-mlx-8bit",
+      "summary_source": "bench-android-e2e-e2b-it-mlx-8bit-20260926T184805Z.memory.summary.json",
+      "loaded_source": "bench-android-e2e-e2b-it-mlx-8bit-20260926T184805Z.loaded.json",
+      "status": "complete",
+      "started_at": "2026-09-26T18:48:20.979610+00:00",
+      "finished_at": "2026-09-26T18:52:29.058830+00:00",
+      "disk_bytes": 5919179696,
+      "loaded_context_length": 131072,
+      "sample_count": 248,
+      "rss_valid_sample_count": 248,
+      "rss_missing_sample_count": 0,
+      "physical_footprint_valid_sample_count": 247,
+      "physical_footprint_missing_sample_count": 1,
+      "physical_footprint": {
+        "median_bytes": 8843360856,
+        "sampled_peak_bytes": 9729243160,
+        "median_decimal_gb": 8.843360856,
+        "sampled_peak_decimal_gb": 9.72924316
+      },
+      "rss": {
+        "median_bytes": 8624717824.0,
+        "sampled_peak_bytes": 8693972992,
+        "median_decimal_gb": 8.624717824,
+        "sampled_peak_decimal_gb": 8.693972992
+      },
+      "observed_pids": [
+        2264,
+        2526,
+        2539,
+        2546,
+        2600,
+        84007,
+        86264,
+        87224
+      ],
+      "interval_seconds": 1.0,
+      "limitations": [
+        "RSS sums can double-count shared resident pages between processes.",
+        "RSS is not total unified-memory use, Metal allocation, or allocator peak.",
+        "Physical footprint is the kernel's per-process accounting, not allocator peak.",
+        "A process-group footprint sum is not system-wide unique memory consumption.",
+        "Processes are read sequentially; a sample is not an atomic system snapshot.",
+        "One-second sampling can miss short-lived processes and between-sample peaks.",
+        "The group includes LM Studio UI/helpers, not only model inference workers.",
+        "The model label is supplied by the caller; no exclusive model attribution is inferred.",
+        "No baseline subtraction or OS memory-pressure correction is applied."
+      ]
+    },
+    {
+      "model": "bench-android-e2e-e4b-it-mlx-4bit",
+      "summary_source": "bench-android-e2e-e4b-it-mlx-4bit-20260926T193901Z.memory.summary.json",
+      "loaded_source": "bench-android-e2e-e4b-it-mlx-4bit-20260926T193901Z.loaded.json",
+      "status": "complete",
+      "started_at": "2026-09-26T19:39:17.681507+00:00",
+      "finished_at": "2026-09-26T19:47:47.107095+00:00",
+      "disk_bytes": 6861844944,
+      "loaded_context_length": 131072,
+      "sample_count": 507,
+      "rss_valid_sample_count": 507,
+      "rss_missing_sample_count": 0,
+      "physical_footprint_valid_sample_count": 500,
+      "physical_footprint_missing_sample_count": 7,
+      "physical_footprint": {
+        "median_bytes": 9523903832.0,
+        "sampled_peak_bytes": 10537188696,
+        "median_decimal_gb": 9.523903832,
+        "sampled_peak_decimal_gb": 10.537188696
+      },
+      "rss": {
+        "median_bytes": 9904422912,
+        "sampled_peak_bytes": 10046996480,
+        "median_decimal_gb": 9.904422912,
+        "sampled_peak_decimal_gb": 10.04699648
+      },
+      "observed_pids": [
+        2264,
+        2526,
+        2539,
+        2546,
+        2600,
+        15633,
+        16757,
+        16773,
+        16783,
+        17446,
+        17468,
+        17677,
+        18117,
+        84007
+      ],
+      "interval_seconds": 1.0,
+      "limitations": [
+        "RSS sums can double-count shared resident pages between processes.",
+        "RSS is not total unified-memory use, Metal allocation, or allocator peak.",
+        "Physical footprint is the kernel's per-process accounting, not allocator peak.",
+        "A process-group footprint sum is not system-wide unique memory consumption.",
+        "Processes are read sequentially; a sample is not an atomic system snapshot.",
+        "One-second sampling can miss short-lived processes and between-sample peaks.",
+        "The group includes LM Studio UI/helpers, not only model inference workers.",
+        "The model label is supplied by the caller; no exclusive model attribution is inferred.",
+        "No baseline subtraction or OS memory-pressure correction is applied."
+      ]
+    },
+    {
+      "model": "bench-android-e2e-e4b-it-mlx-5bit",
+      "summary_source": "bench-android-e2e-e4b-it-mlx-5bit-20260926T194748Z.memory.summary.json",
+      "loaded_source": "bench-android-e2e-e4b-it-mlx-5bit-20260926T194748Z.loaded.json",
+      "status": "complete",
+      "started_at": "2026-09-26T19:48:05.404660+00:00",
+      "finished_at": "2026-09-26T19:53:48.797418+00:00",
+      "disk_bytes": 7389393383,
+      "loaded_context_length": 131072,
+      "sample_count": 342,
+      "rss_valid_sample_count": 342,
+      "rss_missing_sample_count": 0,
+      "physical_footprint_valid_sample_count": 340,
+      "physical_footprint_missing_sample_count": 2,
+      "physical_footprint": {
+        "median_bytes": 10271686216.0,
+        "sampled_peak_bytes": 11248336912,
+        "median_decimal_gb": 10.271686216,
+        "sampled_peak_decimal_gb": 11.248336912
+      },
+      "rss": {
+        "median_bytes": 10355867648.0,
+        "sampled_peak_bytes": 10677878784,
+        "median_decimal_gb": 10.355867648,
+        "sampled_peak_decimal_gb": 10.677878784
+      },
+      "observed_pids": [
+        2264,
+        2526,
+        2539,
+        2546,
+        2600,
+        18655,
+        18806,
+        20048,
+        84007
+      ],
+      "interval_seconds": 1.0,
+      "limitations": [
+        "RSS sums can double-count shared resident pages between processes.",
+        "RSS is not total unified-memory use, Metal allocation, or allocator peak.",
+        "Physical footprint is the kernel's per-process accounting, not allocator peak.",
+        "A process-group footprint sum is not system-wide unique memory consumption.",
+        "Processes are read sequentially; a sample is not an atomic system snapshot.",
+        "One-second sampling can miss short-lived processes and between-sample peaks.",
+        "The group includes LM Studio UI/helpers, not only model inference workers.",
+        "The model label is supplied by the caller; no exclusive model attribution is inferred.",
+        "No baseline subtraction or OS memory-pressure correction is applied."
+      ]
+    },
+    {
+      "model": "bench-android-e2e-e4b-it-mlx-6bit",
+      "summary_source": "bench-android-e2e-e4b-it-mlx-6bit-20260926T195349Z.memory.summary.json",
+      "loaded_source": "bench-android-e2e-e4b-it-mlx-6bit-20260926T195349Z.loaded.json",
+      "status": "complete",
+      "started_at": "2026-09-26T19:54:07.536609+00:00",
+      "finished_at": "2026-09-26T19:56:49.047475+00:00",
+      "disk_bytes": 7916941819,
+      "loaded_context_length": 131072,
+      "sample_count": 161,
+      "rss_valid_sample_count": 161,
+      "rss_missing_sample_count": 0,
+      "physical_footprint_valid_sample_count": 159,
+      "physical_footprint_missing_sample_count": 2,
+      "physical_footprint": {
+        "median_bytes": 10867228640,
+        "sampled_peak_bytes": 12359565496,
+        "median_decimal_gb": 10.86722864,
+        "sampled_peak_decimal_gb": 12.359565496
+      },
+      "rss": {
+        "median_bytes": 10678124544,
+        "sampled_peak_bytes": 10935992320,
+        "median_decimal_gb": 10.678124544,
+        "sampled_peak_decimal_gb": 10.93599232
+      },
+      "observed_pids": [
+        2264,
+        2526,
+        2539,
+        2546,
+        2600,
+        20712,
+        21814,
+        21830,
+        84007
+      ],
+      "interval_seconds": 1.0,
+      "limitations": [
+        "RSS sums can double-count shared resident pages between processes.",
+        "RSS is not total unified-memory use, Metal allocation, or allocator peak.",
+        "Physical footprint is the kernel's per-process accounting, not allocator peak.",
+        "A process-group footprint sum is not system-wide unique memory consumption.",
+        "Processes are read sequentially; a sample is not an atomic system snapshot.",
+        "One-second sampling can miss short-lived processes and between-sample peaks.",
+        "The group includes LM Studio UI/helpers, not only model inference workers.",
+        "The model label is supplied by the caller; no exclusive model attribution is inferred.",
+        "No baseline subtraction or OS memory-pressure correction is applied."
+      ]
+    },
+    {
+      "model": "bench-android-e2e-e4b-it-mlx-8bit",
+      "summary_source": "bench-android-e2e-e4b-it-mlx-8bit-20260926T183846Z.memory.summary.json",
+      "loaded_source": "bench-android-e2e-e4b-it-mlx-8bit-20260926T183846Z.loaded.json",
+      "status": "complete",
+      "started_at": "2026-09-26T18:39:05.676540+00:00",
+      "finished_at": "2026-09-26T18:42:39.640230+00:00",
+      "disk_bytes": 8972038680,
+      "loaded_context_length": 131072,
+      "sample_count": 213,
+      "rss_valid_sample_count": 213,
+      "rss_missing_sample_count": 0,
+      "physical_footprint_valid_sample_count": 211,
+      "physical_footprint_missing_sample_count": 2,
+      "physical_footprint": {
+        "median_bytes": 11805180064,
+        "sampled_peak_bytes": 13140754784,
+        "median_decimal_gb": 11.805180064,
+        "sampled_peak_decimal_gb": 13.140754784
+      },
+      "rss": {
+        "median_bytes": 11654971392,
+        "sampled_peak_bytes": 11953963008,
+        "median_decimal_gb": 11.654971392,
+        "sampled_peak_decimal_gb": 11.953963008
+      },
+      "observed_pids": [
+        2264,
+        2526,
+        2539,
+        2546,
+        2600,
+        82502,
+        82934,
+        83467,
+        84007
+      ],
+      "interval_seconds": 1.0,
+      "limitations": [
+        "RSS sums can double-count shared resident pages between processes.",
+        "RSS is not total unified-memory use, Metal allocation, or allocator peak.",
+        "Physical footprint is the kernel's per-process accounting, not allocator peak.",
+        "A process-group footprint sum is not system-wide unique memory consumption.",
+        "Processes are read sequentially; a sample is not an atomic system snapshot.",
+        "One-second sampling can miss short-lived processes and between-sample peaks.",
+        "The group includes LM Studio UI/helpers, not only model inference workers.",
+        "The model label is supplied by the caller; no exclusive model attribution is inferred.",
+        "No baseline subtraction or OS memory-pressure correction is applied."
+      ]
+    },
+    {
+      "model": "bench-android-e2e-e4b-it-qat-gguf",
+      "summary_source": "bench-android-e2e-e4b-it-qat-gguf-20260926T183543Z.memory.summary.json",
+      "loaded_source": "bench-android-e2e-e4b-it-qat-gguf-20260926T183543Z.loaded.json",
+      "status": "complete",
+      "started_at": "2026-09-26T18:35:57.298622+00:00",
+      "finished_at": "2026-09-26T18:38:45.384151+00:00",
+      "disk_bytes": 6146492960,
+      "loaded_context_length": 8192,
+      "sample_count": 167,
+      "rss_valid_sample_count": 167,
+      "rss_missing_sample_count": 0,
+      "physical_footprint_valid_sample_count": 165,
+      "physical_footprint_missing_sample_count": 2,
+      "physical_footprint": {
+        "median_bytes": 2231226936,
+        "sampled_peak_bytes": 2301022848,
+        "median_decimal_gb": 2.231226936,
+        "sampled_peak_decimal_gb": 2.301022848
+      },
+      "rss": {
+        "median_bytes": 7490076672,
+        "sampled_peak_bytes": 7558201344,
+        "median_decimal_gb": 7.490076672,
+        "sampled_peak_decimal_gb": 7.558201344
+      },
+      "observed_pids": [
+        2264,
+        2526,
+        2539,
+        2546,
+        2600,
+        81524,
+        82002,
+        82352,
+        84007
+      ],
+      "interval_seconds": 1.0,
+      "limitations": [
+        "RSS sums can double-count shared resident pages between processes.",
+        "RSS is not total unified-memory use, Metal allocation, or allocator peak.",
+        "Physical footprint is the kernel's per-process accounting, not allocator peak.",
+        "A process-group footprint sum is not system-wide unique memory consumption.",
+        "Processes are read sequentially; a sample is not an atomic system snapshot.",
+        "One-second sampling can miss short-lived processes and between-sample peaks.",
+        "The group includes LM Studio UI/helpers, not only model inference workers.",
+        "The model label is supplied by the caller; no exclusive model attribution is inferred.",
+        "No baseline subtraction or OS memory-pressure correction is applied."
+      ]
+    }
+  ]
+}
