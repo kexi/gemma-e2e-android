@@ -1,5 +1,5 @@
-# The lab screens of a11y-lab.web.yaml, reviewed the way a scenario normally
-# is: all four preset personas in one request per step. Kept for comparison;
+# The lab screens of a11y-lab.web.yaml, reviewed the way a scenario normally is:
+# the four visual preset personas in one request per step. Kept for comparison;
 # it is the configuration that once looped on the crowded screen until the
 # review deadline. Same tags and model source as a11y-lab.web.yaml.
 title: Accessibility lab, all personas at once (web)
@@ -7,7 +7,7 @@ tags: [a11y, lab]
 target:
   platform: web
   url: http://localhost:5174/?lab=a11y
-accessibility:
+personaReview:
   personas:
     - id: red-green
       label: 赤・緑の見分けにくさ

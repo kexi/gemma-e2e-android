@@ -181,7 +181,13 @@ export function isUnsettledRun(status: RunStatus): boolean {
   return (UNSETTLED_RUN_STATUSES as readonly RunStatus[]).includes(status);
 }
 
-export const AccessibilityPersonaSchema = z.object({
+/**
+ * Someone whose eyes a persona review looks through. Not limited to a
+ * disability: a young child who cannot read kanji yet or someone unused to
+ * apps is as valid a persona, and the description alone says what they would
+ * struggle with.
+ */
+export const PersonaSchema = z.object({
   id: z
     .string()
     .regex(/^[a-z0-9][a-z0-9-]*$/)
@@ -189,9 +195,9 @@ export const AccessibilityPersonaSchema = z.object({
   label: z.string().trim().min(1).max(120),
   description: z.string().trim().min(1).max(2000),
 });
-export type AccessibilityPersona = z.infer<typeof AccessibilityPersonaSchema>;
+export type Persona = z.infer<typeof PersonaSchema>;
 
-export const ACCESSIBILITY_PERSONA_PRESETS: readonly AccessibilityPersona[] = [
+export const PERSONA_PRESETS: readonly Persona[] = [
   {
     id: "red-green",
     label: "赤・緑の見分けにくさ",
@@ -216,55 +222,71 @@ export const ACCESSIBILITY_PERSONA_PRESETS: readonly AccessibilityPersona[] = [
     description:
       "文字やアイコンの細部を認識しにくい利用者。文字・背景・操作部品の区別、視覚的な密集、重要情報の目立ちやすさを確認する。",
   },
+  {
+    id: "kanji-reading",
+    label: "漢字が読みにくい（低学年の子ども）",
+    description:
+      "漢字をまだ多く読めない小学校低学年の子ども。ふりがなの無い漢字、難しい語彙や言い回し、文字だけで伝える説明で理解できない箇所がないか確認する。画像から年齢や読字能力を断定しない。",
+  },
 ];
 
-export const AccessibilitySettingsSchema = z.object({
+export const PersonaReviewSettingsSchema = z.object({
   // An explicit empty list disables an inherited review; omission inherits.
   personas: z
-    .array(AccessibilityPersonaSchema)
+    .array(PersonaSchema)
     .max(8)
     .refine(
       (personas) => new Set(personas.map((persona) => persona.id)).size === personas.length,
       "persona ids must be unique",
     ),
 });
-export type AccessibilitySettings = z.infer<typeof AccessibilitySettingsSchema>;
+export type PersonaReviewSettings = z.infer<typeof PersonaReviewSettingsSchema>;
 
-export const AccessibilityFindingSchema = z.object({
-  category: z.enum(["color_only", "contrast", "text_size", "visual_clutter", "other"]),
+export const PersonaFindingSchema = z.object({
+  // Values are only ever added: steps already stored carry the first five, so
+  // removing or renaming one would make those runs unreadable.
+  category: z.enum([
+    "color_only",
+    "contrast",
+    "text_size",
+    "visual_clutter",
+    "language",
+    "comprehension",
+    "other",
+  ]),
   location: z.string().trim().min(1).max(1000),
   reason: z.string().trim().min(1).max(2000),
   suggestion: z.string().trim().min(1).max(2000),
 });
-export type AccessibilityFinding = z.infer<typeof AccessibilityFindingSchema>;
+export type PersonaFinding = z.infer<typeof PersonaFindingSchema>;
 
-export const AccessibilityPersonaReviewSchema = z.object({
-  personaId: AccessibilityPersonaSchema.shape.id,
-  findings: z.array(AccessibilityFindingSchema).max(20),
+export const PersonaFindingsSchema = z.object({
+  personaId: PersonaSchema.shape.id,
+  findings: z.array(PersonaFindingSchema).max(20),
 });
-export type AccessibilityPersonaReview = z.infer<typeof AccessibilityPersonaReviewSchema>;
+export type PersonaFindings = z.infer<typeof PersonaFindingsSchema>;
 
-export const AccessibilityReviewReportSchema = z.object({
-  reviews: z.array(AccessibilityPersonaReviewSchema).min(1).max(8),
+export const PersonaReviewReportSchema = z.object({
+  reviews: z.array(PersonaFindingsSchema).min(1).max(8),
 });
-export type AccessibilityReviewReport = z.infer<typeof AccessibilityReviewReportSchema>;
+export type PersonaReviewReport = z.infer<typeof PersonaReviewReportSchema>;
 
-export const AccessibilityReviewSchema = z.discriminatedUnion("status", [
-  AccessibilityReviewReportSchema.extend({
+export const PersonaReviewSchema = z.discriminatedUnion("status", [
+  PersonaReviewReportSchema.extend({
     status: z.literal("completed"),
-    personas: AccessibilitySettingsSchema.shape.personas,
+    personas: PersonaReviewSettingsSchema.shape.personas,
     screenshotPath: z.string().min(1),
     model: z.string().min(1),
   }),
   z.object({
     status: z.literal("error"),
-    personas: AccessibilitySettingsSchema.shape.personas,
+    personas: PersonaReviewSettingsSchema.shape.personas,
     screenshotPath: z.string().min(1).nullable(),
     model: z.string().min(1),
     error: z.string().min(1),
   }),
 ]);
-export type AccessibilityReview = z.infer<typeof AccessibilityReviewSchema>;
+export type PersonaReview = z.infer<typeof PersonaReviewSchema>;
 
 export const StepSchema = z.object({
   runId: z.string(),
@@ -273,7 +295,11 @@ export const StepSchema = z.object({
   action: ActionSchema,
   uiText: z.string(),
   screenshotPath: z.string().nullable(),
-  accessibilityReview: AccessibilityReviewSchema.nullable().optional(),
+  /**
+   * Stored as `accessibilityReview` before the feature was renamed; the store
+   * reads either spelling and writes only this one.
+   */
+  personaReview: PersonaReviewSchema.nullable().optional(),
   note: z.string().nullable(),
   createdAt: z.string(),
 });
@@ -374,28 +400,75 @@ const LegacyAppTargetSchema = z.object({
 });
 
 /**
+ * Rewrites the legacy `accessibility:` key into `personaReview:`, on a
+ * scenario and on each case alike.
+ *
+ * The feature was first called visual accessibility review; it was renamed
+ * when personas stopped being only disabilities (a child who cannot read kanji
+ * yet has nothing to do with accessibility). Files written before that keep
+ * loading, and -- as with {@link normalizeTarget} -- nothing downstream of the
+ * parse ever sees the old spelling.
+ *
+ * Unlike `app:`/`target:`, giving both keys is an error rather than "the new
+ * one wins": the two are the same list of personas, so a file carrying both
+ * has one of them silently ignored, and there is no migration step that needs
+ * both at once -- the dashboard rewrites the key in place.
+ */
+function normalizePersonaReviewKey(input: unknown, ctx: z.RefinementCtx): unknown {
+  const isMapping = typeof input === "object" && input !== null && !Array.isArray(input);
+  if (!isMapping) {
+    return input;
+  }
+
+  const { accessibility, ...rest } = input as Record<string, unknown> & {
+    accessibility?: unknown;
+  };
+  const hasLegacy = accessibility !== undefined;
+  if (!hasLegacy) {
+    return rest;
+  }
+
+  const hasBoth = rest["personaReview"] !== undefined;
+  if (hasBoth) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["accessibility"],
+      message: "give personas under `personaReview:` only; `accessibility:` is its legacy name",
+    });
+    // The rest still goes through the schema so other mistakes in the same
+    // mapping are reported together with this one.
+    return rest;
+  }
+  return { ...rest, personaReview: accessibility };
+}
+
+/**
  * One assertion about the app, in natural language. A case is what actually
  * gets a verdict; the scenario around it only groups and orders them.
  */
-export const TestCaseSchema = z.object({
-  /** Slug: it addresses a Firestore document and appears in URLs and logs. */
-  id: z
-    .string()
-    .min(1)
-    .regex(/^[a-z0-9][a-z0-9-]*$/, "must be a lowercase slug (a-z, 0-9, hyphen)"),
-  title: z.string().min(1).optional(),
-  prompt: z.string().min(1),
-  /** Overrides the scenario's model for this case alone. */
-  model: z.string().min(1).optional(),
-  /** Overrides the scenario's screen format for this case alone. */
-  uiFormat: UiFormatSchema.optional(),
-  /** Overrides the scenario's target, so one file may mix platforms. */
-  target: TargetSchema.optional(),
-  accessibility: AccessibilitySettingsSchema.optional(),
-  // A wrong turn early can otherwise burn tokens indefinitely; every case is
-  // bounded even when the scenario file omits a budget.
-  maxSteps: z.number().int().positive().default(20),
-});
+export const TestCaseSchema = z.preprocess(
+  normalizePersonaReviewKey,
+  z.object({
+    /** Slug: it addresses a Firestore document and appears in URLs and logs. */
+    id: z
+      .string()
+      .min(1)
+      .regex(/^[a-z0-9][a-z0-9-]*$/, "must be a lowercase slug (a-z, 0-9, hyphen)"),
+    title: z.string().min(1).optional(),
+    prompt: z.string().min(1),
+    /** Overrides the scenario's model for this case alone. */
+    model: z.string().min(1).optional(),
+    /** Overrides the scenario's screen format for this case alone. */
+    uiFormat: UiFormatSchema.optional(),
+    /** Overrides the scenario's target, so one file may mix platforms. */
+    target: TargetSchema.optional(),
+    /** Overrides the scenario's personas; an empty list turns the review off. */
+    personaReview: PersonaReviewSettingsSchema.optional(),
+    // A wrong turn early can otherwise burn tokens indefinitely; every case is
+    // bounded even when the scenario file omits a budget.
+    maxSteps: z.number().int().positive().default(20),
+  }),
+);
 
 export type TestCase = z.infer<typeof TestCaseSchema>;
 
@@ -439,7 +512,7 @@ function normalizeTarget(input: unknown): unknown {
 }
 
 export const ScenarioSchema = z.preprocess(
-  normalizeTarget,
+  (input, ctx) => normalizePersonaReviewKey(normalizeTarget(input), ctx),
   z.object({
     id: z.string().min(1),
     title: z.string().min(1),
@@ -461,7 +534,8 @@ export const ScenarioSchema = z.preprocess(
     model: z.string().min(1).optional(),
     /** Default screen format for every case that does not name its own. */
     uiFormat: UiFormatSchema.optional(),
-    accessibility: AccessibilitySettingsSchema.optional(),
+    /** Default personas for every case that does not name its own. */
+    personaReview: PersonaReviewSettingsSchema.optional(),
     cases: z.array(TestCaseSchema).min(1, "a scenario needs at least one case"),
   }),
 );
@@ -470,11 +544,11 @@ export type Scenario = z.infer<typeof ScenarioSchema>;
 /** Pre-parse shape: `maxSteps` is optional on disk, defaulted after parsing. */
 export type ScenarioInput = z.input<typeof ScenarioSchema>;
 
-export function resolveAccessibility(
-  testCase: Pick<TestCase, "accessibility">,
-  scenario: Pick<Scenario, "accessibility">,
-): AccessibilitySettings | undefined {
-  return testCase.accessibility ?? scenario.accessibility;
+export function resolvePersonaReview(
+  testCase: Pick<TestCase, "personaReview">,
+  scenario: Pick<Scenario, "personaReview">,
+): PersonaReviewSettings | undefined {
+  return testCase.personaReview ?? scenario.personaReview;
 }
 
 /**

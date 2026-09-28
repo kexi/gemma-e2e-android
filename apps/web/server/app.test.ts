@@ -390,28 +390,57 @@ describe("PUT /api/scenarios/:id", () => {
   });
 
   test("round-trips visual personas and case disable through YAML edits", async () => {
-    const accessibility = {
+    const personaReview = {
       personas: [{ id: "near-text", label: "老眼", description: "小さい文字を見分けにくい" }],
     };
     const body = {
       ...EDITED_LOGIN,
-      accessibility,
-      cases: [{ id: "valid", prompt: "Log in", accessibility: { personas: [] } }],
+      personaReview,
+      cases: [{ id: "valid", prompt: "Log in", personaReview: { personas: [] } }],
     };
     expect((await put("login", body)).status).toBe(200);
     const listed = (await (await harness().request("/api/scenarios")).json()) as {
       scenarios: Scenario[];
     };
     const edited = listed.scenarios.find((one) => one.id === "login");
-    expect(edited?.accessibility).toEqual(accessibility);
-    expect(edited?.cases[0]?.accessibility).toEqual({ personas: [] });
-    expect((await put("login", { ...body, accessibility: { personas: [] } })).status).toBe(200);
+    expect(edited?.personaReview).toEqual(personaReview);
+    expect(edited?.cases[0]?.personaReview).toEqual({ personas: [] });
+    expect((await put("login", { ...body, personaReview: { personas: [] } })).status).toBe(200);
     const disabled = (await (await harness().request("/api/scenarios")).json()) as {
       scenarios: Scenario[];
     };
-    expect(disabled.scenarios.find((one) => one.id === "login")?.accessibility).toEqual({
+    expect(disabled.scenarios.find((one) => one.id === "login")?.personaReview).toEqual({
       personas: [],
     });
+  });
+
+  test("migrates a file still using the legacy accessibility key to personaReview on edit", async () => {
+    const legacyYaml = `title: Login
+# Who looks at every screen.
+accessibility:
+  personas:
+    - id: near-text
+      label: 老眼
+      description: 小さい文字を見分けにくい
+cases:
+  - id: valid
+    prompt: Check that a user can log in.
+    accessibility:
+      personas: []
+`;
+    await writeFile(join(scenariosDir, "login.yaml"), legacyYaml, "utf8");
+    const listed = (await (await harness().request("/api/scenarios")).json()) as {
+      scenarios: Scenario[];
+    };
+    const current = listed.scenarios.find((one) => one.id === "login");
+    expect(current?.personaReview?.personas.map((persona) => persona.id)).toEqual(["near-text"]);
+    expect(current?.cases[0]?.personaReview).toEqual({ personas: [] });
+
+    expect((await put("login", { ...current, title: "Login (revised)" })).status).toBe(200);
+    const written = await readFile(join(scenariosDir, "login.yaml"), "utf8");
+    expect(written).not.toContain("accessibility");
+    expect(written).toContain("# Who looks at every screen.\npersonaReview:");
+    expect(written).toContain("    personaReview:\n      personas: []");
   });
 
   test("keeps the tags a later edit does not mention out of the file", async () => {

@@ -21,7 +21,7 @@ import type { CaseRun, CaseStatus, Run, RunStatus, Step } from "@gemma-e2e/core/
 import { fetchRun, screenshotUrl, videoUrl } from "../api.ts";
 import { actionIcon, describeAction, StatusChip } from "../status.tsx";
 import { DeviceLiveView } from "../DeviceLiveView.tsx";
-import { AccessibilityReviewDetails } from "../AccessibilityReviewDetails.tsx";
+import { PersonaReviewDetails } from "../PersonaReviewDetails.tsx";
 import { formatDateTime, formatTime } from "../i18n.ts";
 import { useI18n } from "../I18nProvider.tsx";
 import { nextRunStatus, type StatusSignal } from "../runStatus.ts";
@@ -478,7 +478,7 @@ function CaseAccordion({ caseRun, deferred }: { caseRun: CaseRun; deferred: bool
                         <UiTreeDetails uiText={step.uiText} />
                       </Box>
                     )}
-                    <AccessibilityReviewDetails review={step.accessibilityReview} />
+                    <PersonaReviewDetails review={step.personaReview} />
                   </Box>
                   {step.screenshotPath !== null && (
                     <Link

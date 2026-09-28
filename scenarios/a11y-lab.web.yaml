@@ -1,12 +1,13 @@
-# Visual accessibility review against screens with known, planted problems:
-# ?lab=a11y in the example web app puts colour-only status, tiny pale text and
-# crowded icons between two clean screens. The operating prompt only pages
-# through them; the review of each screenshot is what this scenario exercises.
+# Persona review against screens with known, planted visual accessibility
+# problems: ?lab=a11y in the example web app puts colour-only status, tiny pale
+# text and crowded icons between two clean screens. The operating prompt only
+# pages through them; the review of each screenshot is what this scenario
+# exercises.
 #
-# One persona per case. Reviewing all four presets in one request made Gemma 4
-# 26B-A4B (thinking on) reason for up to a minute per screen, and on the crowded
-# screen it once looped until the deadline; a11y-lab-all.web.yaml keeps that
-# configuration for comparison. The model must accept images and comes from
+# One persona per case. Reviewing the four visual presets in one request made
+# Gemma 4 26B-A4B (thinking on) reason for up to a minute per screen, and on the
+# crowded screen it once looped until the deadline; a11y-lab-all.web.yaml keeps
+# that configuration for comparison. The model must accept images and comes from
 # LLM_MODEL, as for the other scenarios.
 #
 # Tagged a11y and lab but not web: every step adds an image review, so a run of
@@ -24,7 +25,7 @@ cases:
       "Next" button. When the screen titled "You're all set" is shown, finish
       with passed.
     maxSteps: 12
-    accessibility:
+    personaReview:
       personas:
         - id: red-green
           label: 赤・緑の見分けにくさ
@@ -33,7 +34,7 @@ cases:
     title: Blue-yellow review of the lab screens
     prompt: *prompt
     maxSteps: 12
-    accessibility:
+    personaReview:
       personas:
         - id: blue-yellow
           label: 青・黄の見分けにくさ
@@ -42,7 +43,7 @@ cases:
     title: Presbyopia review of the lab screens
     prompt: *prompt
     maxSteps: 12
-    accessibility:
+    personaReview:
       personas:
         - id: presbyopia
           label: 老眼・近くの文字の読みづらさ
@@ -51,7 +52,7 @@ cases:
     title: Low-vision review of the lab screens
     prompt: *prompt
     maxSteps: 12
-    accessibility:
+    personaReview:
       personas:
         - id: low-vision
           label: 弱視・細部の見えづらさ

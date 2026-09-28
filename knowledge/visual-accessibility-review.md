@@ -12,10 +12,11 @@ verified:
   - { by: process:just-test, at: 2026-09-27T05:00:00Z }
   - { by: claude-opus-5-5/1m, at: 2026-09-27T05:30:00Z }
   - { by: claude-opus-5-5/1m, at: 2026-09-28T04:45:00Z }
+  - { by: claude-opus-5-5/1m, at: 2026-09-28T07:30:00Z }
 stale_after: 2026-12-22T00:00:00Z
 sources:
   - id: transport
-    resource: ../packages/agent/src/accessibility.test.ts
+    resource: ../packages/agent/src/persona-review.test.ts
     title: 実 HTTP transport、出力検証、タイムアウトの自動テスト
   - id: runner
     resource: ../packages/agent/src/run.test.ts
@@ -160,10 +161,44 @@ Web の6画面と同じ問題を仕込んだ Android の画面（`scenarios/a11y
 
 指摘の中身（ヒット率・誤検出）は3通りで集計・比較していない。
 
+# 2026-09-28 ペルソナレビューへの改名
+
+2026-09-28、この機能を「ペルソナレビュー」（persona review）へ改名した。障害以外のペルソナ
+（漢字をまだ読めない子ども、アプリに不慣れな高齢者、日本語を母語としない人など）も扱うため、
+「アクセシビリティ」では名前が合わなくなった。上の記録は改名前の名前のまま残す。
+
+- YAML キー: `accessibility:` → `personaReview:`。旧キーは読み込み時に新キーへ正規化し、同じ場所に
+  両方あればエラー。ダッシュボードからの書き出しは新キーだけ。
+- 保存フィールド: ステップの `accessibilityReview` → `personaReview`。旧フィールドの run も表示できる。
+- ログ: `case.accessibility_reviewed` / `case.accessibility_review_failed` →
+  `case.persona_reviewed` / `case.persona_review_failed`。上の計測が参照したのは旧名。
+- 環境変数: `ACCESSIBILITY_REVIEW_TIMEOUT_MS` → `PERSONA_REVIEW_TIMEOUT_MS`（旧名も読む）。
+- コード: `packages/agent/src/accessibility.ts` → `persona-review.ts`（テストも同様。脚注の旧パスは
+  このファイル）。ツール名 `report_accessibility` → `report_persona_review`。
+- プロンプト: 指摘を色だけの区別・文字の読みやすさ・視覚的な混雑に限定するのをやめ、
+  ペルソナの説明が「このペルソナが画面を見て困ること」を決める形にした。画像に写る範囲だけを
+  根拠にすること、スクリーンリーダーなど画像で検証できない事項と WCAG 判定を対象外にすること、
+  指定ペルソナごとに 1 レポートは変えていない。
+- 指摘カテゴリに `language`（難しい漢字・語彙・表現、ふりがな無し）と `comprehension`
+  （手順や意味が分かりにくい）を追加。既存の値はそのまま有効。
+- プリセットに `kanji-reading`（漢字が読みにくい（低学年の子ども））を追加。
+
+改名後のプロンプトで、Web のラボ（`a11y-lab-all.web.yaml`、視覚の 4 ペルソナ）を各 1 回流した。[^rename-runs]
+
+| プロンプト | 仕込みなし 2 画面での指摘 | 仕込んだ問題 | レビュー完了 |
+|---|---|---|---|
+| 観点を広げただけ | 8 回中 3 回（計 7 件、「〜の可能性がある」程度の本文サイズ・枠線・写真の豆） | 在庫・配送・密集は狙ったペルソナが指摘 | 5/6（Brewing guide で赤・緑が 120 秒切れ） |
+| 根拠を示せない指摘を禁じた（採用） | **8 回中 0 回** | 同上 | 5/6（Brewing guide で老眼が 120 秒切れ） |
+
+採用したプロンプトには「画面上の具体的な要素と、それが問題になる理由を画像から示せるものだけ」
+「『〜の可能性がある』としか言えない指摘・一般的な改善提案・好みは報告しない」を加えた。
+`kanji-reading` は、題材に漢字の画面が無いため未検証である。
+
 [^planted]: kexi/gemma-meetup-2026 の bench/persona/results（run1〜run5）と knowledge/persona-review-planted-screens-2026-09.md。
 [^transport]: packages/agent/src/accessibility.test.ts。ローカル HTTP stub を使用し、本物のモデル精度は検証しない。
 [^runner]: packages/agent/src/run.test.ts。実 adapter + fake device/model。
 [^persistence]: packages/store/src/store.test.ts。`just test` による一時 Firestore エミュレーター。
 [^live]: 実モデルをローカルサーバー経由で呼出し。画像は `var/screenshots/3d606917-a302-4284-b8e6-645f42609dd5/valid-credentials/000.png`。
 [^android-lab]: ダッシュボードの run 詳細と `just launch-all` のサーバーログ（`case.accessibility_reviewed` / `case.accessibility_review_failed` の durationMs）。
+[^rename-runs]: ローカル Firestore の run feda2c1f（観点を広げただけ）と 463c1167（採用）。
 [^vision]: Google の Gemma 4 model card。

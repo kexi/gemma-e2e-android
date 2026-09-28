@@ -1,22 +1,18 @@
 import { useId } from "react";
-import {
-  ACCESSIBILITY_PERSONA_PRESETS,
-  type AccessibilityPersona,
-  type AccessibilitySettings,
-} from "@gemma-e2e/core/schema";
+import { PERSONA_PRESETS, type Persona, type PersonaReviewSettings } from "@gemma-e2e/core/schema";
 import { useI18n } from "./I18nProvider.tsx";
 
 /** The schema's cap, named once so the check and the sentence that states it agree. */
 const MAX_PERSONAS = 8;
 
 interface Props {
-  value: AccessibilitySettings | undefined;
-  onChange: (value: AccessibilitySettings | undefined) => void;
-  inherited?: AccessibilitySettings | undefined;
+  value: PersonaReviewSettings | undefined;
+  onChange: (value: PersonaReviewSettings | undefined) => void;
+  inherited?: PersonaReviewSettings | undefined;
   allowInherit?: boolean;
 }
 
-export function AccessibilitySettingsEditor({
+export function PersonaReviewSettingsEditor({
   value,
   onChange,
   inherited,
@@ -28,7 +24,7 @@ export function AccessibilitySettingsEditor({
   const personas = value?.personas ?? [];
   const isFull = personas.length >= MAX_PERSONAS;
 
-  function updatePersona(personaId: string, patch: Partial<AccessibilityPersona>) {
+  function updatePersona(personaId: string, patch: Partial<Persona>) {
     onChange({
       personas: personas.map((persona) =>
         persona.id === personaId ? { ...persona, ...patch } : persona,
@@ -71,7 +67,7 @@ export function AccessibilitySettingsEditor({
       ) : (
         <>
           <p className="builder-hint">{t.reviewSettings.chooseUpTo(MAX_PERSONAS)}</p>
-          {ACCESSIBILITY_PERSONA_PRESETS.map((preset) => {
+          {PERSONA_PRESETS.map((preset) => {
             const selected = personas.some((persona) => persona.id === preset.id);
             return (
               <label key={preset.id} className="builder-checkbox">
@@ -108,7 +104,7 @@ export function AccessibilitySettingsEditor({
               </div>
               <div className="builder-field">
                 <label htmlFor={`${id}-${persona.id}-description`}>
-                  {t.reviewSettings.viewingConditions}
+                  {t.reviewSettings.personaDescription}
                 </label>
                 <textarea
                   id={`${id}-${persona.id}-description`}

@@ -1,5 +1,5 @@
 import type {
-  AccessibilitySettings,
+  PersonaReviewSettings,
   CaseRun,
   Run,
   Scenario,
@@ -90,7 +90,7 @@ export function fetchScenarios(): Promise<{ scenarios: Scenario[] }> {
  * defaults it, so a case left blank still gets a step budget.
  */
 export interface CreateScenarioRequest {
-  accessibility?: AccessibilitySettings;
+  personaReview?: PersonaReviewSettings;
   id: string;
   title: string;
   /**
@@ -103,7 +103,7 @@ export interface CreateScenarioRequest {
   model?: string;
   uiFormat?: UiFormat;
   cases: {
-    accessibility?: AccessibilitySettings;
+    personaReview?: PersonaReviewSettings;
     id: string;
     title?: string;
     prompt: string;

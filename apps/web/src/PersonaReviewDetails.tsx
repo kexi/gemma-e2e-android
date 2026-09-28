@@ -1,4 +1,4 @@
-import type { AccessibilityReview } from "@gemma-e2e/core/schema";
+import type { PersonaReview } from "@gemma-e2e/core/schema";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Link from "@mui/material/Link";
@@ -7,11 +7,7 @@ import Typography from "@mui/material/Typography";
 import { screenshotUrl } from "./api.ts";
 import { useI18n } from "./I18nProvider.tsx";
 
-export function AccessibilityReviewDetails({
-  review,
-}: {
-  review: AccessibilityReview | null | undefined;
-}) {
+export function PersonaReviewDetails({ review }: { review: PersonaReview | null | undefined }) {
   const { t } = useI18n();
   const isUnreviewed = review === undefined || review === null;
   if (isUnreviewed) {

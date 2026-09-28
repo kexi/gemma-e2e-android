@@ -8,6 +8,7 @@ import {
   isScalar,
   isSeq as isSequence,
   type Node as YamlNode,
+  type Pair,
   parse as parseYaml,
   parseDocument,
   Scalar,
@@ -884,7 +885,7 @@ const SCENARIO_KEYS = [
   "target",
   "model",
   "uiFormat",
-  "accessibility",
+  "personaReview",
   "cases",
 ] as const;
 
@@ -920,7 +921,7 @@ function editScenarioYaml(current: string, scenario: Scenario): string {
   const { id: _id, ...rest } = scenario;
   const previous = new Map(root.items.map((pair) => [scalarKeyOf(pair), pair] as const));
   root.items = SCENARIO_KEYS.filter((key) => rest[key] !== undefined).map((key) => {
-    const existing = previous.get(key);
+    const existing = previous.get(key) ?? legacyPairFor(key, previous);
     const isNew = existing === undefined;
     if (isNew) {
       return doc.createPair(key, rest[key]);
@@ -1018,6 +1019,28 @@ function restoreHeadComment(root: YamlMap, head: string | null): void {
     return;
   }
   key.commentBefore = head + (key.commentBefore ?? "");
+}
+
+/**
+ * The pair a file still spells with the pre-rename `accessibility:` key, renamed
+ * in place to `personaReview` so a dashboard edit migrates the file.
+ *
+ * Why not let the old pair fall out and create a fresh one: the comment that
+ * documents the personas hangs off the old key, and a new pair would drop it.
+ * Only the scenario level needs this -- case fields are rebuilt wholesale by
+ * {@link mergeCases}, which already emits only the new key.
+ */
+function legacyPairFor(
+  key: (typeof SCENARIO_KEYS)[number],
+  previous: ReadonlyMap<string | null, Pair>,
+): Pair | undefined {
+  const isPersonaReview = key === "personaReview";
+  if (!isPersonaReview) return undefined;
+  const legacy = previous.get("accessibility");
+  const isRenamable = legacy !== undefined && isScalar(legacy.key);
+  if (!isRenamable) return undefined;
+  (legacy.key as Scalar).value = key;
+  return legacy;
 }
 
 function scalarKeyOf(pair: { key: unknown }): string | null {

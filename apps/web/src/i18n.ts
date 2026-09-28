@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { UiFormat } from "@gemma-e2e/core/schema";
+import type { PersonaFinding, UiFormat } from "@gemma-e2e/core/schema";
 
 /**
  * The dashboard's two languages and every string it renders in them.
@@ -128,8 +128,8 @@ const en = {
     summary: (lines: number) => `UI tree (${lines} lines)`,
   },
   review: {
-    notReviewed: "Visual accessibility: not reviewed.",
-    heading: "Visual accessibility",
+    notReviewed: "Persona review: not reviewed.",
+    heading: "Persona review",
     failed: "review error",
     completed: (issues: number, personas: number) =>
       `review completed · ${issues} potential issues · ${personas} personas`,
@@ -137,26 +137,29 @@ const en = {
       `Model: ${model}. Suggestions from a screenshot; no conformance guarantee. Screen reader behavior is not evaluated.`,
     openScreenshot: "Open reviewed screenshot (before action)",
     couldNotComplete: (error: string) => `Review could not be completed: ${error}`,
-    noIssues: "No potential issues identified. This does not establish accessibility.",
+    noIssues:
+      "No potential issues identified. This does not establish that the screen works for this persona.",
     suggestion: (text: string) => `Suggestion: ${text}`,
     category: {
       color_only: "Color alone",
       contrast: "Contrast",
       text_size: "Text legibility",
       visual_clutter: "Visual clutter",
+      language: "Wording and kanji",
+      comprehension: "Hard to understand",
       other: "Other",
-    },
+    } satisfies Record<PersonaFinding["category"], string>,
   },
   reviewSettings: {
-    legend: "Visual accessibility review",
+    legend: "Persona review",
     intro:
-      "Review screenshots for each persona. Findings are suggestions, not a conformance certification. Screen reader behavior is outside this review.",
+      "Review each screenshot through the eyes of each persona -- someone with a visual impairment, a child who cannot read kanji yet, anyone the description names. Findings are suggestions, not a conformance certification. Screen reader behavior is outside this review.",
     useScenarioPersonas: (count: number) => `Use scenario personas (${count})`,
     offInScenario: "Review is off in this scenario.",
     chooseUpTo: (max: number) => `Choose up to ${max} personas. No selection turns review off.`,
     customPersona: "Custom persona",
     personaName: "Persona name *",
-    viewingConditions: "Viewing conditions and concerns *",
+    personaDescription: "Who they are and what they would struggle with *",
     removePersonaLabel: (name: string) => `Remove persona ${name}`,
     removePersona: "Remove persona",
     addCustomPersona: "Add custom persona",
@@ -344,8 +347,8 @@ const ja: Messages = {
     summary: (lines) => `UI ツリー（${lines} 行）`,
   },
   review: {
-    notReviewed: "視覚的アクセシビリティ: 未レビュー",
-    heading: "視覚的アクセシビリティ",
+    notReviewed: "ペルソナレビュー: 未レビュー",
+    heading: "ペルソナレビュー",
     failed: "レビューエラー",
     completed: (issues, personas) =>
       `レビュー完了 · 問題の可能性 ${issues} 件 · ペルソナ ${personas} 人`,
@@ -354,27 +357,29 @@ const ja: Messages = {
     openScreenshot: "レビューしたスクリーンショットを開く（操作前）",
     couldNotComplete: (error) => `レビューを完了できませんでした: ${error}`,
     noIssues:
-      "問題の可能性は見つかりませんでした。アクセシビリティが確保されていることを示すものではありません。",
+      "問題の可能性は見つかりませんでした。このペルソナにとって問題が無いことを示すものではありません。",
     suggestion: (text) => `提案: ${text}`,
     category: {
       color_only: "色だけに頼った表現",
       contrast: "コントラスト",
       text_size: "文字の読みやすさ",
       visual_clutter: "視覚的な煩雑さ",
+      language: "言葉・漢字の難しさ",
+      comprehension: "分かりにくさ",
       other: "その他",
     },
   },
   reviewSettings: {
-    legend: "視覚的アクセシビリティのレビュー",
+    legend: "ペルソナレビュー",
     intro:
-      "ペルソナごとにスクリーンショットをレビューします。指摘は提案であり、適合を認証するものではありません。スクリーンリーダーの挙動はレビューの対象外です。",
+      "スクリーンショットをペルソナごとの立場でレビューします。視覚に障害のある人、漢字をまだ読めない子どもなど、説明に書いた人物が対象です。指摘は提案であり、適合を認証するものではありません。スクリーンリーダーの挙動はレビューの対象外です。",
     useScenarioPersonas: (count) => `シナリオのペルソナを使う（${count}）`,
     offInScenario: "このシナリオではレビューはオフです。",
     chooseUpTo: (max) =>
       `ペルソナは ${max} 人まで選べます。何も選ばなければレビューはオフになります。`,
     customPersona: "カスタムペルソナ",
     personaName: "ペルソナ名 *",
-    viewingConditions: "見え方の条件と懸念 *",
+    personaDescription: "どんな人で、何に困りそうか *",
     removePersonaLabel: (name) => `ペルソナ「${name}」を削除`,
     removePersona: "ペルソナを削除",
     addCustomPersona: "カスタムペルソナを追加",

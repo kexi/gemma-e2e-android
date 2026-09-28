@@ -23,7 +23,7 @@ cases:
       information screens. On each screen, press the "Next" button. When the
       screen titled "You're all set" is shown, finish with passed.
     maxSteps: 13
-    accessibility:
+    personaReview:
       personas:
         - id: red-green
           label: 赤・緑の見分けにくさ
@@ -32,7 +32,7 @@ cases:
     title: Blue-yellow review of the lab screens
     prompt: *prompt
     maxSteps: 13
-    accessibility:
+    personaReview:
       personas:
         - id: blue-yellow
           label: 青・黄の見分けにくさ
@@ -41,7 +41,7 @@ cases:
     title: Presbyopia review of the lab screens
     prompt: *prompt
     maxSteps: 13
-    accessibility:
+    personaReview:
       personas:
         - id: presbyopia
           label: 老眼・近くの文字の読みづらさ
@@ -50,7 +50,7 @@ cases:
     title: Low-vision review of the lab screens
     prompt: *prompt
     maxSteps: 13
-    accessibility:
+    personaReview:
       personas:
         - id: low-vision
           label: 弱視・細部の見えづらさ

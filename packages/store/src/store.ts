@@ -3,10 +3,11 @@ import { type Firestore, getFirestore } from "firebase-admin/firestore";
 import type { z } from "zod";
 import {
   type Action,
-  type AccessibilityReview,
   type CaseRun,
   CaseRunSchema,
   type CaseStatus,
+  type PersonaReview,
+  PersonaReviewSchema,
   type Run,
   RunSchema,
   type RunStatus,
@@ -29,7 +30,24 @@ export class StoreError extends Error {
  */
 const RunDocSchema = RunSchema.omit({ id: true, cases: true });
 const CaseDocSchema = CaseRunSchema.omit({ runId: true, caseId: true, steps: true });
-const StepDocSchema = StepSchema.omit({ runId: true, caseId: true, index: true });
+/**
+ * Steps written before the feature was renamed persona review carry the review
+ * as `accessibilityReview`. Reading accepts that spelling so old runs keep
+ * showing their findings; the transform drops it, so a step written back out
+ * (and every new step) stores only `personaReview`.
+ *
+ * Why not rewrite the stored documents instead: runs are an append-only
+ * record, and a migration would be one more thing to run against every
+ * emulator export and project before the dashboard could read them again.
+ * Exported for tests only.
+ */
+export const StepDocSchema = StepSchema.omit({ runId: true, caseId: true, index: true })
+  .extend({ accessibilityReview: PersonaReviewSchema.nullable().optional() })
+  .transform(({ accessibilityReview, ...doc }) => {
+    const hasOnlyLegacyReview =
+      doc.personaReview === undefined && accessibilityReview !== undefined;
+    return hasOnlyLegacyReview ? { ...doc, personaReview: accessibilityReview } : doc;
+  });
 
 const runConverter = zodConverter(RunDocSchema, "run");
 const caseConverter = zodConverter(CaseDocSchema, "case");
@@ -103,7 +121,7 @@ export interface AddStepInput {
   uiText: string;
   screenshotPath?: string | null | undefined;
   note?: string | null | undefined;
-  accessibilityReview?: AccessibilityReview | null | undefined;
+  personaReview?: PersonaReview | null | undefined;
 }
 
 export interface FinishInput {
@@ -348,9 +366,7 @@ export class Store {
       uiText: input.uiText,
       screenshotPath: input.screenshotPath ?? null,
       note: input.note ?? null,
-      ...(input.accessibilityReview === undefined
-        ? {}
-        : { accessibilityReview: input.accessibilityReview }),
+      ...(input.personaReview === undefined ? {} : { personaReview: input.personaReview }),
       createdAt: new Date().toISOString(),
     };
 
@@ -548,9 +564,7 @@ function toStepDoc(step: Step): StepDoc {
     uiText: step.uiText,
     screenshotPath: step.screenshotPath,
     note: step.note,
-    ...(step.accessibilityReview === undefined
-      ? {}
-      : { accessibilityReview: step.accessibilityReview }),
+    ...(step.personaReview === undefined ? {} : { personaReview: step.personaReview }),
     createdAt: step.createdAt,
   };
 }

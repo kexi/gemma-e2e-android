@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import type { Action } from "@gemma-e2e/core";
-import { nextAcceptedAt, Store, StoreError } from "./store.ts";
+import { nextAcceptedAt, StepDocSchema, Store, StoreError } from "./store.ts";
 
 /**
  * Every test here needs a live Firestore. `just run-tests` supplies one through
@@ -31,6 +31,48 @@ async function seedCase(caseId = "valid", order = 0) {
     model: "gemma-4-12b",
   });
 }
+
+/**
+ * Runs stored before the rename hold `accessibilityReview` on each step; they
+ * must keep showing their findings, and nothing new may be written that way.
+ */
+describe("StepDocSchema", () => {
+  const review = {
+    status: "error" as const,
+    personas: [{ id: "near-text", label: "老眼", description: "小さい文字が読みにくい" }],
+    model: "vision-model",
+    screenshotPath: null,
+    error: "timed out",
+  };
+  const doc = {
+    action: { type: "tap", ref: 2 },
+    uiText: "",
+    screenshotPath: null,
+    note: null,
+    createdAt: "2026-09-01T00:00:00.000Z",
+  };
+
+  test("reads a step stored with the legacy accessibilityReview field as personaReview", () => {
+    const parsed = StepDocSchema.parse({ ...doc, accessibilityReview: review });
+
+    expect(parsed.personaReview).toEqual(review);
+    expect("accessibilityReview" in parsed).toBe(false);
+  });
+
+  test("prefers personaReview when a step somehow carries both spellings", () => {
+    const parsed = StepDocSchema.parse({
+      ...doc,
+      personaReview: null,
+      accessibilityReview: review,
+    });
+
+    expect(parsed.personaReview).toBeNull();
+  });
+
+  test("leaves a step without any review without one", () => {
+    expect("personaReview" in StepDocSchema.parse(doc)).toBe(false);
+  });
+});
 
 /**
  * What keeps a batch in the order it was asked for. `listRuns` sorts by
@@ -227,7 +269,7 @@ describeWithFirestore("Store", () => {
     test("round-trips review evidence, persona snapshot and findings", async () => {
       await seedRun();
       await seedCase();
-      const accessibilityReview = {
+      const personaReview = {
         status: "completed" as const,
         model: "vision-model",
         screenshotPath: "run/valid/000-review.png",
@@ -252,11 +294,9 @@ describeWithFirestore("Store", () => {
         index: 0,
         action: TAP,
         uiText: "",
-        accessibilityReview,
+        personaReview,
       });
-      expect((await store.getRun(runId))?.cases[0]?.steps[0]?.accessibilityReview).toEqual(
-        accessibilityReview,
-      );
+      expect((await store.getRun(runId))?.cases[0]?.steps[0]?.personaReview).toEqual(personaReview);
     });
     test("round-trips an action through the Zod converter", async () => {
       await seedRun();

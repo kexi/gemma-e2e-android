@@ -2,7 +2,7 @@ import { join } from "node:path";
 import { mkdir } from "node:fs/promises";
 import type {
   Action,
-  AccessibilityReview,
+  PersonaReview,
   CaseRun,
   CaseStatus,
   Run,
@@ -14,7 +14,7 @@ import type {
 } from "@gemma-e2e/core";
 import {
   DEFAULT_UI_FORMAT,
-  resolveAccessibility,
+  resolvePersonaReview,
   resolveModel,
   resolveTarget,
   resolveUiFormat,
@@ -26,7 +26,7 @@ import { errorFields, type Logger, noopLogger } from "@gemma-e2e/logger";
 import type { Driver, DriverSession, OpenDriver } from "./driver.ts";
 import type { Clock, LlmFactory } from "./llm.ts";
 import { recordCase } from "./recorder.ts";
-import type { AccessibilityReviewer } from "./accessibility.ts";
+import type { PersonaReviewer } from "./persona-review.ts";
 
 export interface StoreLike {
   /**
@@ -58,7 +58,7 @@ export interface StoreLike {
     uiText: string;
     screenshotPath?: string | null | undefined;
     note?: string | null | undefined;
-    accessibilityReview?: AccessibilityReview | null | undefined;
+    personaReview?: PersonaReview | null | undefined;
   }): Promise<Step>;
   finishCase(
     runId: string,
@@ -128,7 +128,7 @@ export interface RunDeps {
   openDriver: OpenDriver;
   /** Built per case, so each case can run on its own model. */
   llm: LlmFactory;
-  reviewAccessibility?: AccessibilityReviewer | undefined;
+  reviewPersonas?: PersonaReviewer | undefined;
   store: StoreLike;
   screenshotDir: string;
   /** Last resort when neither the case nor the scenario names a model. */
@@ -327,7 +327,7 @@ async function runCase(ctx: CaseContext): Promise<CaseResult> {
 
   const model = resolveModel(testCase, scenario, deps.defaultModel);
   const uiFormat = resolveUiFormat(testCase, scenario, deps.defaultUiFormat ?? DEFAULT_UI_FORMAT);
-  const personas = resolveAccessibility(testCase, scenario)?.personas ?? [];
+  const personas = resolvePersonaReview(testCase, scenario)?.personas ?? [];
   const shouldReview = personas.length > 0;
   const title = testCase.title ?? testCase.id;
 
@@ -470,7 +470,7 @@ async function runCase(ctx: CaseContext): Promise<CaseResult> {
       const screenshotPath = await captureScreenshot(driver, caseScreenshotDir, index, log);
       // Reviewing before acting adds up to a minute of stale UI refs. Keep the
       // pre-action image, but inspect it only after the action and its evidence.
-      const accessibilityReview = await reviewScreen(reviewScreenshotPath);
+      const personaReview = await reviewScreen(reviewScreenshotPath);
 
       const description = describeAction(action);
       const repeats = loop.observe(uiText, description);
@@ -494,7 +494,7 @@ async function runCase(ctx: CaseContext): Promise<CaseResult> {
         uiText,
         screenshotPath,
         note: stepNote,
-        ...(accessibilityReview === undefined ? {} : { accessibilityReview }),
+        ...(personaReview === undefined ? {} : { personaReview }),
       });
       emit({ type: "step_recorded", runId, caseId, step });
 
@@ -526,9 +526,7 @@ async function runCase(ctx: CaseContext): Promise<CaseResult> {
     }
   }
 
-  async function reviewScreen(
-    screenshotPath: string | null,
-  ): Promise<AccessibilityReview | undefined> {
+  async function reviewScreen(screenshotPath: string | null): Promise<PersonaReview | undefined> {
     if (!shouldReview) {
       return undefined;
     }
@@ -538,13 +536,13 @@ async function runCase(ctx: CaseContext): Promise<CaseResult> {
       if (!hasScreenshot) {
         throw new Error("The review screenshot could not be captured.");
       }
-      const reviewer = deps.reviewAccessibility;
+      const reviewer = deps.reviewPersonas;
       const hasReviewer = reviewer !== undefined;
       if (!hasReviewer) {
-        throw new Error("Visual accessibility review is not configured.");
+        throw new Error("Persona review is not configured.");
       }
       const report = await reviewer({ model, screenshotPath, personas });
-      log.info("case.accessibility_reviewed", {
+      log.info("case.persona_reviewed", {
         index,
         model,
         durationMs: Math.round(now() - startedAt),
@@ -556,10 +554,10 @@ async function runCase(ctx: CaseContext): Promise<CaseResult> {
       // HTTP error bodies can exceed Firestore's document limit. A schema-only
       // limit would fail the whole case at persistence instead of isolating review errors.
       const detail = (error instanceof Error ? error.message : String(error)).trim();
-      const message = detail || "Visual accessibility review failed without an error message.";
+      const message = detail || "Persona review failed without an error message.";
       const isOversized = message.length > 4096;
       const savedError = isOversized ? `${message.slice(0, 4096)}… (truncated)` : message;
-      log.warn("case.accessibility_review_failed", {
+      log.warn("case.persona_review_failed", {
         index,
         model,
         durationMs: Math.round(now() - startedAt),

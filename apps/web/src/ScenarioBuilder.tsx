@@ -2,8 +2,8 @@ import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import EditIcon from "@mui/icons-material/Edit";
-import type { AccessibilitySettings, Platform, Target, UiFormat } from "@gemma-e2e/core/schema";
-import { AccessibilitySettingsEditor } from "./AccessibilitySettingsEditor.tsx";
+import type { PersonaReviewSettings, Platform, Target, UiFormat } from "@gemma-e2e/core/schema";
+import { PersonaReviewSettingsEditor } from "./PersonaReviewSettingsEditor.tsx";
 import {
   createScenario,
   type CreateScenarioRequest,
@@ -41,7 +41,7 @@ const SLUG_PATTERN = "[a-z0-9][a-z0-9-]*";
 let nextCaseKey = 0;
 
 interface CaseDraft {
-  accessibility?: AccessibilitySettings | undefined;
+  personaReview?: PersonaReviewSettings | undefined;
   /** Stable across reorders and removals, unlike an array index. */
   key: number;
   id: string;
@@ -81,7 +81,7 @@ function emptyCase(): CaseDraft {
  * otherwise lose what they had typed.
  */
 interface Draft {
-  accessibility?: AccessibilitySettings | undefined;
+  personaReview?: PersonaReviewSettings | undefined;
   id: string;
   title: string;
   /**
@@ -122,7 +122,7 @@ function emptyDraft(): Draft {
  */
 function draftOf(scenario: Scenario): Draft {
   return {
-    accessibility: scenario.accessibility,
+    personaReview: scenario.personaReview,
     id: scenario.id,
     title: scenario.title,
     tags: scenario.tags.join(", "),
@@ -135,7 +135,7 @@ function draftOf(scenario: Scenario): Draft {
     cases: scenario.cases.map((one) => {
       nextCaseKey += 1;
       return {
-        accessibility: one.accessibility,
+        personaReview: one.personaReview,
         key: nextCaseKey,
         id: one.id,
         title: one.title ?? "",
@@ -260,8 +260,8 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
   const [url, setUrl] = useState(() => initial().url);
   const [model, setModel] = useState(() => initial().model);
   const [uiFormat, setUiFormat] = useState(() => initial().uiFormat);
-  const [accessibility, setAccessibility] = useState<AccessibilitySettings | undefined>(
-    () => initial().accessibility,
+  const [personaReview, setPersonaReview] = useState<PersonaReviewSettings | undefined>(
+    () => initial().personaReview,
   );
   const [cases, setCases] = useState<CaseDraft[]>(() => initial().cases);
   const [saving, setSaving] = useState(false);
@@ -294,7 +294,7 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
     setUrl(start.url);
     setModel(start.model);
     setUiFormat(start.uiFormat);
-    setAccessibility(start.accessibility);
+    setPersonaReview(start.personaReview);
     setCases(start.cases);
     setError(null);
   }
@@ -338,7 +338,7 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
     const parsedTags = parseTags(tags);
 
     const body: CreateScenarioRequest = {
-      ...(accessibility === undefined ? {} : { accessibility }),
+      ...(personaReview === undefined ? {} : { personaReview }),
       id,
       title,
       // Always sent, even empty. Omitting it on an edit would leave the server
@@ -349,7 +349,7 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
       ...(model === SERVER_DEFAULT ? {} : { model }),
       ...uiFormatFieldOf(uiFormat),
       cases: cases.map((one) => ({
-        ...(one.accessibility === undefined ? {} : { accessibility: one.accessibility }),
+        ...(one.personaReview === undefined ? {} : { personaReview: one.personaReview }),
         id: one.id,
         ...(one.title.trim() === "" ? {} : { title: one.title.trim() }),
         prompt: one.prompt.trim(),
@@ -597,7 +597,7 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
             </div>
           </fieldset>
 
-          <AccessibilitySettingsEditor value={accessibility} onChange={setAccessibility} />
+          <PersonaReviewSettingsEditor value={personaReview} onChange={setPersonaReview} />
 
           {cases.map((one, index) => (
             <fieldset key={one.key} className="builder-fieldset">
@@ -660,10 +660,10 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
                 </p>
               </div>
 
-              <AccessibilitySettingsEditor
-                value={one.accessibility}
-                onChange={(value) => updateCase(one.key, { accessibility: value })}
-                inherited={accessibility}
+              <PersonaReviewSettingsEditor
+                value={one.personaReview}
+                onChange={(value) => updateCase(one.key, { personaReview: value })}
+                inherited={personaReview}
                 allowInherit
               />
 

@@ -30,67 +30,89 @@ Both platforms produce the same `UiNode` tree, so the serializer the model
 reads, the action vocabulary it answers in, and the prompt behind it are one
 implementation rather than two.
 
-## Visual accessibility review
+## Persona review
 
-In the scenario editor, use **Visual accessibility review** to select personas:
-red–green or blue–yellow color distinction, presbyopia (near-text legibility),
-and low vision. Edit their viewing conditions or add a custom persona. Each case
-inherits the scenario selection unless you choose its own personas. An empty
-selection turns review off; existing scenarios keep review off by default.
+Persona review looks at each step's screenshot through the eyes of the people
+you name, and reports what each of them would struggle with. A persona need
+not be a disability: a young child who cannot read kanji yet, an older user
+unfamiliar with apps or a non-native speaker are as valid as colour blindness.
 
-For YAML scenarios, describe the personas explicitly:
+In the scenario editor, use **Persona review** (「ペルソナレビュー」 in the
+Japanese UI) to select personas. The presets are red–green or blue–yellow
+colour distinction, presbyopia (near-text legibility), low vision, and a young
+child who cannot read many kanji yet. Edit their descriptions or add a custom
+persona. Each case inherits the scenario selection unless you choose its own
+personas. An empty selection turns review off; existing scenarios keep review
+off by default.
+
+For YAML scenarios, describe the personas explicitly under `personaReview:`:
 
 ```yaml
-title: Login with visual review
+title: Login with persona review
 target:
   platform: web
   url: http://localhost:5174
-accessibility:
+personaReview:
   personas:
     - id: presbyopia
       label: 老眼・近くの文字の読みづらさ
       description: 小さい文字や細い線、低コントラストによる読みにくさを確認する。
-    - id: red-green
-      label: 赤・緑の見分けにくさ
-      description: 状態や操作を色だけで区別せず、文字や形でも識別できるか確認する。
+    - id: kanji-reading
+      label: 漢字が読みにくい（低学年の子ども）
+      description: ふりがなの無い漢字や難しい言い回しで理解できない箇所がないか確認する。
 cases:
   - id: login
     prompt: Check that the user can log in.
   - id: functional-only
     prompt: Check that an incorrect password is rejected.
-    accessibility:
+    personaReview:
       personas: []
 ```
+
+The feature was first called visual accessibility review, and its key was
+`accessibility:`. Files that still use that key load unchanged, as if it were
+`personaReview:`; giving both keys in one place is an error. Saving from the
+dashboard rewrites the file with `personaReview:` only.
 
 Android uses the same setting with its Android `target`. The selected case model
 must support image input. Each step captures a separate **before-action** PNG,
 including the initial screen and the screen on which the agent finishes. Gemma
 reviews that saved image after the action, so image inference does not delay an
-action chosen from the current UI tree. All selected personas are evaluated
-together, with one retry for malformed output. The run timeline
-shows the location, reason and suggestion for each potential issue, with a link
-to the reviewed image. The existing step thumbnail remains the after-action
-image. Persona definitions and the model are saved with the review, so changing
-the scenario later does not change the meaning of past results.
+action chosen from the current UI tree. The selected personas are reviewed one
+after another, each in its own request, with one retry for malformed output.
+The persona's description decides what counts as a problem: colour-only
+distinctions, contrast, text size and clutter, but also hard kanji or wording
+(`language`) and steps or meanings that are hard to follow (`comprehension`).
+The run timeline shows the location, reason and suggestion for each potential
+issue, with a link to the reviewed image. The existing step thumbnail remains
+the after-action image. Persona definitions and the model are saved with the
+review (as `personaReview` on the step; runs stored before the rename, under
+`accessibilityReview`, still display), so changing the scenario later does not
+change the meaning of past results.
 
-Reviews add an image-model request per step, bounded by one deadline that
-covers the retry too: 120 seconds by default, `ACCESSIBILITY_REVIEW_TIMEOUT_MS`
-to change it. A report the model writes as a fenced JSON block instead of
-calling the tool is accepted after the same validation. Failures
+Reviews add an image-model request per persona per step, each bounded by one
+deadline that covers the retry too: 120 seconds by default,
+`PERSONA_REVIEW_TIMEOUT_MS` to change it (the old name,
+`ACCESSIBILITY_REVIEW_TIMEOUT_MS`, is still read when the new one is unset). A
+report the model writes as a fenced JSON block instead of calling the tool is
+accepted after the same validation. Each review is logged as
+`case.persona_reviewed`, or `case.persona_review_failed` when it fails. Failures
 are recorded as review errors and do not change the functional E2E verdict.
 Review covers only sampled visible screens, not every animation or transient
-state. Findings are qualitative suggestions, not a reproduction of someone's
-vision or a WCAG compliance result. No findings does not prove accessibility.
-Exact contrast ratios and physical text sizes are not measured. Screen-reader
-behavior, reading order and other nonvisual behavior are outside this feature.
+state. Findings are qualitative suggestions grounded in what the image shows,
+not a reproduction of someone's vision or understanding, and not a WCAG
+compliance result. No findings does not prove the screen works for a persona.
+Exact contrast ratios, physical text sizes, ages and reading ability are not
+measured. Screen-reader behavior, reading order and other nonvisual behavior are
+outside this feature.
 
 To check the review against a known answer, the example web app serves screens
 with deliberately planted problems (colour-only status, tiny pale text, crowded
 icons) between two clean ones at `http://localhost:5174/?lab=a11y`, and
 `scenarios/a11y-lab.web.yaml` reviews them one persona per case
-(`a11y-lab-all.web.yaml` uses all four at once). They are tagged `a11y` and
-`lab` rather than `web`, so runs selected by the `web` tag stay fast. The shop
-screens the other scenarios run against are unchanged.
+(`a11y-lab-all.web.yaml` uses the four visual presets at once). They are tagged
+`a11y` and `lab` rather than `web`, so runs selected by the `web` tag stay fast.
+The shop screens the other scenarios run against are unchanged.
 
 The example Android app carries the same screens. An app has no URL to hold a
 flag, so they open from the sign-in screen's "Store information" link, and

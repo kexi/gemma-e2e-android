@@ -5,7 +5,7 @@ import {
   CdpRecorder,
   createDriverResolver,
   createGenkitLlmFactory,
-  createAccessibilityReviewer,
+  createPersonaReviewer,
   DEFAULT_BASE_URL,
   DEFAULT_MODEL,
   runScenario,
@@ -107,10 +107,16 @@ const recorder = isRecording
 const llm = createGenkitLlmFactory({ baseURL: llmBaseURL, logger });
 // Unset keeps the reviewer's default. The value bounds how long one review may
 // hold a step, so a slower model or more personas per case may need it raised.
-const accessibilityTimeout = process.env["ACCESSIBILITY_REVIEW_TIMEOUT_MS"];
-const reviewAccessibility = createAccessibilityReviewer({
+//
+// ACCESSIBILITY_REVIEW_TIMEOUT_MS is the name from before the feature became
+// persona review. It is still read, behind the new name, so an existing .env
+// keeps its deadline instead of silently falling back to the default -- the
+// failure would only show up as reviews timing out on a slow model.
+const personaReviewTimeout =
+  process.env["PERSONA_REVIEW_TIMEOUT_MS"] ?? process.env["ACCESSIBILITY_REVIEW_TIMEOUT_MS"];
+const reviewPersonas = createPersonaReviewer({
   baseURL: llmBaseURL,
-  timeoutMs: accessibilityTimeout === undefined ? undefined : Number(accessibilityTimeout),
+  timeoutMs: personaReviewTimeout === undefined ? undefined : Number(personaReviewTimeout),
 });
 
 // Constructed unconditionally and connected lazily, like `adb` above: a
@@ -158,7 +164,7 @@ const queue = new RunQueue({
       await runScenario(scenario, {
         openDriver,
         llm,
-        reviewAccessibility,
+        reviewPersonas,
         store,
         screenshotDir: screenshotsDir,
         defaultModel,

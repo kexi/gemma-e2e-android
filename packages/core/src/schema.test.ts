@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
-  ACCESSIBILITY_PERSONA_PRESETS,
-  AccessibilityReviewSchema,
-  AccessibilitySettingsSchema,
+  PERSONA_PRESETS,
+  PersonaFindingSchema,
+  PersonaReviewSchema,
+  PersonaReviewSettingsSchema,
   ActionSchema,
   CaseRunSchema,
   CaseStatusSchema,
@@ -12,7 +13,7 @@ import {
   isUnsettledRun,
   parseUiFormat,
   resolveModel,
-  resolveAccessibility,
+  resolvePersonaReview,
   resolveTarget,
   resolveUiFormat,
   RunStatusSchema,
@@ -23,41 +24,99 @@ import {
   UNSETTLED_RUN_STATUSES,
 } from "./schema.ts";
 
-describe("accessibility review settings", () => {
-  const personas = [...ACCESSIBILITY_PERSONA_PRESETS];
+describe("persona review settings", () => {
+  const personas = [...PERSONA_PRESETS];
 
   test("preserves custom persona descriptions and uses a case's explicit empty list to disable inherited reviews", () => {
     const custom = { id: "custom-reader", label: "My reader", description: "Needs clear labels" };
     const scenario = ScenarioSchema.parse({
       id: "review",
       title: "Review",
-      accessibility: { personas: [...personas, custom] },
+      personaReview: { personas: [...personas, custom] },
       cases: [
         { id: "inherit", prompt: "Open home" },
-        { id: "disabled", prompt: "Open home", accessibility: { personas: [] } },
-        { id: "override", prompt: "Open home", accessibility: { personas: [custom] } },
+        { id: "disabled", prompt: "Open home", personaReview: { personas: [] } },
+        { id: "override", prompt: "Open home", personaReview: { personas: [custom] } },
       ],
     });
 
-    expect(resolveAccessibility(scenario.cases[0]!, scenario)?.personas).toEqual([
+    expect(resolvePersonaReview(scenario.cases[0]!, scenario)?.personas).toEqual([
       ...personas,
       custom,
     ]);
-    expect(resolveAccessibility(scenario.cases[1]!, scenario)?.personas).toEqual([]);
-    expect(resolveAccessibility(scenario.cases[2]!, scenario)?.personas).toEqual([custom]);
-    expect(resolveAccessibility({}, {})).toBeUndefined();
+    expect(resolvePersonaReview(scenario.cases[1]!, scenario)?.personas).toEqual([]);
+    expect(resolvePersonaReview(scenario.cases[2]!, scenario)?.personas).toEqual([custom]);
+    expect(resolvePersonaReview({}, {})).toBeUndefined();
+  });
+
+  test("reads the legacy accessibility key on a scenario and a case as personaReview", () => {
+    const custom = { id: "custom-reader", label: "My reader", description: "Needs clear labels" };
+    const scenario = ScenarioSchema.parse({
+      id: "review",
+      title: "Review",
+      accessibility: { personas: [custom] },
+      cases: [{ id: "disabled", prompt: "Open home", accessibility: { personas: [] } }],
+    });
+
+    expect(scenario.personaReview).toEqual({ personas: [custom] });
+    expect(scenario.cases[0]?.personaReview).toEqual({ personas: [] });
+    expect("accessibility" in scenario).toBe(false);
+    expect("accessibility" in scenario.cases[0]!).toBe(false);
+  });
+
+  test("rejects a scenario or a case that gives both the legacy and the new key", () => {
+    const settings = { personas: [] };
+    const bothOnScenario = ScenarioSchema.safeParse({
+      id: "review",
+      title: "Review",
+      accessibility: settings,
+      personaReview: settings,
+      cases: [{ id: "one", prompt: "Open home" }],
+    });
+    const bothOnCase = ScenarioSchema.safeParse({
+      id: "review",
+      title: "Review",
+      cases: [{ id: "one", prompt: "Open home", accessibility: settings, personaReview: settings }],
+    });
+
+    expect(bothOnScenario.success).toBe(false);
+    expect(bothOnScenario.error?.issues.map((issue) => issue.path)).toEqual([["accessibility"]]);
+    expect(bothOnCase.success).toBe(false);
+    expect(bothOnCase.error?.issues.map((issue) => issue.path)).toEqual([
+      ["cases", 0, "accessibility"],
+    ]);
+  });
+
+  test("offers a reading-comprehension preset beside the visual ones", () => {
+    expect(PERSONA_PRESETS.map((persona) => persona.id)).toContain("kanji-reading");
+    expect(PersonaReviewSettingsSchema.safeParse({ personas }).success).toBe(true);
+  });
+
+  test("accepts the reading categories and still accepts every category stored before them", () => {
+    const finding = { location: "Header", reason: "r", suggestion: "s" };
+    for (const category of [
+      "color_only",
+      "contrast",
+      "text_size",
+      "visual_clutter",
+      "language",
+      "comprehension",
+      "other",
+    ]) {
+      expect(PersonaFindingSchema.safeParse({ ...finding, category }).success).toBe(true);
+    }
   });
 
   test("rejects duplicate persona ids, empty descriptions, and more than eight personas", () => {
     const first = personas[0]!;
-    expect(AccessibilitySettingsSchema.safeParse({ personas }).success).toBe(true);
-    expect(AccessibilitySettingsSchema.safeParse({ personas: [first, first] }).success).toBe(false);
+    expect(PersonaReviewSettingsSchema.safeParse({ personas }).success).toBe(true);
+    expect(PersonaReviewSettingsSchema.safeParse({ personas: [first, first] }).success).toBe(false);
     expect(
-      AccessibilitySettingsSchema.safeParse({ personas: [{ ...first, description: "  " }] })
+      PersonaReviewSettingsSchema.safeParse({ personas: [{ ...first, description: "  " }] })
         .success,
     ).toBe(false);
     expect(
-      AccessibilitySettingsSchema.safeParse({
+      PersonaReviewSettingsSchema.safeParse({
         personas: Array.from({ length: 9 }, (_, index) => ({ ...first, id: `reader-${index}` })),
       }).success,
     ).toBe(false);
@@ -79,14 +138,14 @@ describe("accessibility review settings", () => {
       error: "Screenshot unavailable",
     };
 
-    expect(AccessibilityReviewSchema.parse(completed)).toEqual(completed);
-    expect(AccessibilityReviewSchema.parse(failure)).toEqual(failure);
-    expect(AccessibilityReviewSchema.safeParse({ ...completed, personas: undefined }).success).toBe(
+    expect(PersonaReviewSchema.parse(completed)).toEqual(completed);
+    expect(PersonaReviewSchema.parse(failure)).toEqual(failure);
+    expect(PersonaReviewSchema.safeParse({ ...completed, personas: undefined }).success).toBe(
       false,
     );
-    expect(
-      AccessibilityReviewSchema.safeParse({ ...completed, screenshotPath: null }).success,
-    ).toBe(false);
+    expect(PersonaReviewSchema.safeParse({ ...completed, screenshotPath: null }).success).toBe(
+      false,
+    );
   });
 });
 

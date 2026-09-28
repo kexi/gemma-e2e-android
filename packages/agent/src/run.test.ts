@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Action } from "@gemma-e2e/core";
-import { AccessibilityReviewSchema } from "@gemma-e2e/core";
+import { PersonaReviewSchema } from "@gemma-e2e/core";
 import { createLogger, type LogEvent } from "@gemma-e2e/logger";
 import { runScenario, type RunEvent } from "./run.ts";
 import type { Driver } from "./driver.ts";
@@ -39,7 +39,7 @@ const VISUAL_PERSONAS = [
   { id: "near-text", label: "近くの文字", description: "小さな文字が読みづらい" },
 ];
 
-describe("visual accessibility review", () => {
+describe("persona review", () => {
   test("a screen expiring during review cannot invalidate the action chosen for that screen", async () => {
     const h = harness([{ type: "tap", ref: 1 }, FINISH_PASSED]);
     let screenExpired = false;
@@ -49,9 +49,9 @@ describe("visual accessibility review", () => {
         throw new Error("the button moved while the screenshot was being reviewed");
       await tap(x, y);
     };
-    const result = await runScenario(scenario({ accessibility: { personas: VISUAL_PERSONAS } }), {
+    const result = await runScenario(scenario({ personaReview: { personas: VISUAL_PERSONAS } }), {
       ...h.deps,
-      reviewAccessibility: async () => {
+      reviewPersonas: async () => {
         screenExpired = true;
         return { reviews: [{ personaId: "near-text", findings: [] }] };
       },
@@ -67,7 +67,7 @@ describe("visual accessibility review", () => {
       const cdp = new FakeCdp();
       const calls = platform === "android" ? h.adb.calls : cdp.calls;
       const reviewedPaths: string[] = [];
-      const result = await runScenario(scenario({ accessibility: { personas: VISUAL_PERSONAS } }), {
+      const result = await runScenario(scenario({ personaReview: { personas: VISUAL_PERSONAS } }), {
         ...h.deps,
         openDriver:
           platform === "android"
@@ -82,7 +82,7 @@ describe("visual accessibility review", () => {
                   close: () => cdp.closeSession(session),
                 };
               },
-        reviewAccessibility: async ({ model, screenshotPath, personas }) => {
+        reviewPersonas: async ({ model, screenshotPath, personas }) => {
           expect(model).toBe(DEFAULT_MODEL);
           expect(personas).toEqual(VISUAL_PERSONAS);
           reviewedPaths.push(screenshotPath);
@@ -115,13 +115,13 @@ describe("visual accessibility review", () => {
       expect(reviewedPaths).toEqual(
         [0, 1].map((index) => join(screenshotDir, "run-1", "logs-in", `00${index}-review.png`)),
       );
-      expect(steps[0]?.accessibilityReview).toMatchObject({
+      expect(steps[0]?.personaReview).toMatchObject({
         status: "completed",
         personas: VISUAL_PERSONAS,
       });
       expect(steps[0]?.screenshotPath).toEndWith("000.png");
       expect(h.events.filter((event) => event.type === "step_recorded")[0]).toMatchObject({
-        step: { accessibilityReview: { status: "completed" } },
+        step: { personaReview: { status: "completed" } },
       });
     });
   }
@@ -130,30 +130,30 @@ describe("visual accessibility review", () => {
     const h = harness([FINISH_PASSED]);
     await runScenario(
       scenario({
-        accessibility: { personas: VISUAL_PERSONAS },
-        cases: [testCase({ accessibility: { personas: [] } })],
+        personaReview: { personas: VISUAL_PERSONAS },
+        cases: [testCase({ personaReview: { personas: [] } })],
       }),
       {
         ...h.deps,
-        reviewAccessibility: async () => {
+        reviewPersonas: async () => {
           throw new Error("must not run");
         },
       },
     );
     expect(h.adb.calls.filter((call) => call.method === "screencap")).toHaveLength(1);
-    expect(h.store.case("run-1", "logs-in")?.steps[0]?.accessibilityReview).toBeUndefined();
+    expect(h.store.case("run-1", "logs-in")?.steps[0]?.personaReview).toBeUndefined();
   });
 
   test("review errors are stored separately without changing the functional verdict", async () => {
     const h = harness([FINISH_PASSED]);
-    const result = await runScenario(scenario({ accessibility: { personas: VISUAL_PERSONAS } }), {
+    const result = await runScenario(scenario({ personaReview: { personas: VISUAL_PERSONAS } }), {
       ...h.deps,
-      reviewAccessibility: async () => {
+      reviewPersonas: async () => {
         throw new Error("model cannot accept images");
       },
     });
     expect(result.status).toBe("passed");
-    expect(h.store.case("run-1", "logs-in")?.steps[0]?.accessibilityReview).toMatchObject({
+    expect(h.store.case("run-1", "logs-in")?.steps[0]?.personaReview).toMatchObject({
       status: "error",
       error: "model cannot accept images",
       personas: VISUAL_PERSONAS,
@@ -164,15 +164,15 @@ describe("visual accessibility review", () => {
     "keeps review errors persistable even for oversized or empty model error messages",
     async (message) => {
       const h = harness([FINISH_PASSED]);
-      const result = await runScenario(scenario({ accessibility: { personas: VISUAL_PERSONAS } }), {
+      const result = await runScenario(scenario({ personaReview: { personas: VISUAL_PERSONAS } }), {
         ...h.deps,
-        reviewAccessibility: async () => {
+        reviewPersonas: async () => {
           throw new Error(message);
         },
       });
       expect(result.status).toBe("passed");
-      const review = h.store.case("run-1", "logs-in")?.steps[0]?.accessibilityReview;
-      expect(AccessibilityReviewSchema.safeParse(review).success).toBe(true);
+      const review = h.store.case("run-1", "logs-in")?.steps[0]?.personaReview;
+      expect(PersonaReviewSchema.safeParse(review).success).toBe(true);
       expect(Buffer.byteLength(JSON.stringify(review), "utf8")).toBeLessThan(16_000);
     },
   );
@@ -180,12 +180,12 @@ describe("visual accessibility review", () => {
   test("missing screenshot is an explicit review error, not an empty findings list", async () => {
     const h = harness([FINISH_PASSED]);
     const drivers = new FakeDriverFactory(new FakeAdb([LOGIN_XML], { screencap: true }));
-    const result = await runScenario(scenario({ accessibility: { personas: VISUAL_PERSONAS } }), {
+    const result = await runScenario(scenario({ personaReview: { personas: VISUAL_PERSONAS } }), {
       ...h.deps,
       openDriver: drivers.open,
     });
     expect(result.status).toBe("passed");
-    expect(h.store.case("run-1", "logs-in")?.steps[0]?.accessibilityReview).toMatchObject({
+    expect(h.store.case("run-1", "logs-in")?.steps[0]?.personaReview).toMatchObject({
       status: "error",
       screenshotPath: null,
     });

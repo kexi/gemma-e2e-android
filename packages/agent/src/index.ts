@@ -25,17 +25,17 @@ export type {
 
 export { RefResolutionError, runScenario } from "./run.ts";
 export {
-  ACCESSIBILITY_SYSTEM_PROMPT,
-  createAccessibilityReviewer,
-  DEFAULT_ACCESSIBILITY_TIMEOUT_MS,
-} from "./accessibility.ts";
+  PERSONA_REVIEW_SYSTEM_PROMPT,
+  createPersonaReviewer,
+  DEFAULT_PERSONA_REVIEW_TIMEOUT_MS,
+} from "./persona-review.ts";
 export type {
-  AccessibilityGenerateFn,
-  AccessibilityGenerateRequest,
-  AccessibilityReviewInput,
-  AccessibilityReviewer,
-  AccessibilityReviewerOptions,
-} from "./accessibility.ts";
+  PersonaReviewGenerateFn,
+  PersonaReviewGenerateRequest,
+  PersonaReviewInput,
+  PersonaReviewer,
+  PersonaReviewerOptions,
+} from "./persona-review.ts";
 export type { CaseResult, RunDeps, RunEvent, RunResult, StoreLike } from "./run.ts";
 
 export type { Driver, DriverSession, OpenDriver } from "./driver.ts";

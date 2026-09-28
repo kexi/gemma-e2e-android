@@ -1,6 +1,6 @@
-# The lab screens of a11y-lab.yaml, reviewed the way a scenario normally is:
-# all four preset personas in one request per step. The Android counterpart of
-# a11y-lab-all.web.yaml, kept for the same comparison. Same tags and model
+# The lab screens of a11y-lab.yaml, reviewed the way a scenario normally is: the
+# four visual preset personas in one request per step. The Android counterpart
+# of a11y-lab-all.web.yaml, kept for the same comparison. Same tags and model
 # source as a11y-lab.yaml.
 title: Accessibility lab, all personas at once (Android)
 tags: [a11y, lab]
@@ -8,7 +8,7 @@ target:
   platform: android
   package: dev.kexi.gemmae2e.example
   activity: .MainActivity
-accessibility:
+personaReview:
   personas:
     - id: red-green
       label: 赤・緑の見分けにくさ

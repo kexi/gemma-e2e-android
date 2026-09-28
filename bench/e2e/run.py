@@ -94,10 +94,12 @@ def validate_scenario(scenario: dict, model: str, platform: str | None) -> list[
         target_matches = effective_target == expected["target"]
         if not target_matches:
             errors.append(f"{case.get('id')}: target differs from fixture")
-        effective_review = case.get("accessibility", scenario.get("accessibility"))
+        # The API returns scenarios already parsed, so a file still using the
+        # legacy `accessibility:` key arrives here as `personaReview`.
+        effective_review = case.get("personaReview", scenario.get("personaReview"))
         has_review = bool((effective_review or {}).get("personas"))
         if has_review:
-            errors.append(f"{case.get('id')}: visual review is absent from fixture")
+            errors.append(f"{case.get('id')}: persona review is absent from fixture")
     return errors
 
 
