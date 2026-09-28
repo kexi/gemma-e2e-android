@@ -354,6 +354,86 @@ describe("accessibility image reviewer", () => {
     expect(signal?.aborted).toBe(true);
   });
 
+  describe("with several personas", () => {
+    const several = [
+      { id: "red-green", label: "赤・緑", description: "赤と緑を見分けにくい" },
+      { id: "low-vision", label: "低視力", description: "小さい文字を読みづらい" },
+      { id: "presbyopia", label: "老眼", description: "近くの文字を読みづらい" },
+    ];
+    const reportFor = (personaId: string) => ({ reviews: [{ personaId, findings: [] }] });
+    const personaOf = (request: { prompt: unknown }) =>
+      several.find(({ id }) => JSON.stringify(request.prompt).includes(`\\"id\\":\\"${id}\\"`))
+        ?.id ?? "none";
+
+    test("asks about one persona per request and joins the reports in the given order", async () => {
+      const asked: string[][] = [];
+      const review = createAccessibilityReviewer({
+        generate: async (request) => {
+          asked.push(several.filter(({ id }) => personaOf(request) === id).map(({ id }) => id));
+          return {
+            toolRequests: [{ name: "report_accessibility", input: reportFor(personaOf(request)) }],
+          };
+        },
+      });
+      const result = await review({ ...(await input()), personas: several });
+      expect(asked.every((ids) => ids.length === 1)).toBe(true);
+      expect(asked.flat().toSorted()).toEqual(["low-vision", "presbyopia", "red-green"]);
+      expect(result.reviews.map(({ personaId }) => personaId)).toEqual([
+        "red-green",
+        "low-vision",
+        "presbyopia",
+      ]);
+    });
+
+    test("reviews the personas one at a time, each within its own deadline", async () => {
+      let inFlight = 0;
+      let mostInFlight = 0;
+      const review = createAccessibilityReviewer({
+        timeoutMs: 150,
+        generate: async (request) => {
+          inFlight++;
+          mostInFlight = Math.max(mostInFlight, inFlight);
+          await Bun.sleep(100);
+          inFlight--;
+          return {
+            toolRequests: [{ name: "report_accessibility", input: reportFor(personaOf(request)) }],
+          };
+        },
+      });
+      // Three 100 ms reviews exceed 150 ms together but not one by one.
+      const result = await review({ ...(await input()), personas: several });
+      expect(mostInFlight).toBe(1);
+      expect(result.reviews).toHaveLength(3);
+    });
+
+    test("fails the whole review at the first failed persona, names it, and asks no further", async () => {
+      const asked: string[] = [];
+      const review = createAccessibilityReviewer({
+        generate: async (request) => {
+          const personaId = personaOf(request);
+          asked.push(personaId);
+          if (personaId === "low-vision") throw new Error("HTTP 503");
+          return { toolRequests: [{ name: "report_accessibility", input: reportFor(personaId) }] };
+        },
+      });
+      await expect(review({ ...(await input()), personas: several })).rejects.toThrow(
+        "low-vision: HTTP 503",
+      );
+      expect(asked).toEqual(["red-green", "low-vision"]);
+    });
+
+    test("rejects a persona's report that answers for a different persona", async () => {
+      const review = createAccessibilityReviewer({
+        generate: async () => ({
+          toolRequests: [{ name: "report_accessibility", input: reportFor("red-green") }],
+        }),
+      });
+      await expect(review({ ...(await input()), personas: several })).rejects.toThrow(
+        "persona IDs must match",
+      );
+    });
+  });
+
   test("cancels an in-flight HTTP request when the review deadline expires", async () => {
     let connected = false;
     let disconnected = false;

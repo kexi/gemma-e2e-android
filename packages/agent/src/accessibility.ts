@@ -31,8 +31,8 @@ export type AccessibilityGenerateFn = (
 ) => Promise<{ toolRequests: ToolRequest[]; text?: string | undefined }>;
 
 /**
- * One deadline covers the whole review, both format attempts included, so a
- * review never holds a step longer than this.
+ * The deadline for one persona's review, both format attempts included. The
+ * personas of a step are reviewed one after another, each with this deadline.
  *
  * 120 s rather than the earlier 60 s: with LM Studio's defaults for Gemma 4
  * 26B-A4B (thinking on), a review of the four preset personas at once spent 25
@@ -153,10 +153,15 @@ export function createAccessibilityReviewer(
   if (!isValidTimeout) throw new Error("accessibility timeoutMs must be positive and finite");
   const generate = options.generate ?? genkitGenerate(options);
 
-  return async (input) => {
-    const { personas } = AccessibilitySettingsSchema.parse({ personas: input.personas });
-    const hasPersonas = personas.length > 0;
-    if (!hasPersonas) throw new Error("accessibility review requires at least one persona");
+  /**
+   * One persona, one request, one deadline. Both format attempts share the
+   * deadline, so a persona never holds a step longer than `timeoutMs`.
+   */
+  const reviewPersona = async (
+    model: string,
+    image: Buffer,
+    persona: AccessibilityPersona,
+  ): Promise<AccessibilityReviewReport> => {
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     const deadline = new Promise<never>((_, reject) => {
@@ -167,14 +172,11 @@ export function createAccessibilityReviewer(
       }, timeoutMs);
     });
     const review = async (): Promise<AccessibilityReviewReport> => {
-      const image = await readFile(input.screenshotPath, { signal: controller.signal });
-      const isPng = image.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
-      if (!isPng) throw new Error("accessibility screenshot must be a PNG image");
       let lastFormatError: unknown;
       for (let attempt = 1; attempt <= 2; attempt++) {
         controller.signal.throwIfAborted();
         const response = await generate({
-          model: `accessibility/${input.model}`,
+          model: `accessibility/${model}`,
           system: ACCESSIBILITY_SYSTEM_PROMPT,
           prompt: [
             ...(attempt === 2
@@ -184,7 +186,7 @@ export function createAccessibilityReviewer(
                   },
                 ]
               : []),
-            { text: `評価するペルソナ: ${JSON.stringify(personas)}` },
+            { text: `評価するペルソナ: ${JSON.stringify([persona])}` },
             {
               media: {
                 url: `data:image/png;base64,${image.toString("base64")}`,
@@ -207,17 +209,9 @@ export function createAccessibilityReviewer(
           if (!isReport && !hasTextReport)
             throw new Error("expected exactly one report_accessibility tool call");
           const report = AccessibilityReviewReportSchema.parse(isReport ? tool.input : textReport);
-          // Individual string limits do not bound UTF-8 storage size for multi-persona reports.
-          const isOversized = Buffer.byteLength(JSON.stringify(report), "utf8") > 128 * 1024;
-          if (isOversized)
-            throw new Error("accessibility report exceeds the 128 KiB storage limit");
-          const expectedIds = new Set(personas.map(({ id }) => id));
-          const actualIds = new Set(report.reviews.map(({ personaId }) => personaId));
-          const hasExactPersonas =
-            report.reviews.length === expectedIds.size &&
-            actualIds.size === expectedIds.size &&
-            [...actualIds].every((id) => expectedIds.has(id));
-          if (!hasExactPersonas)
+          const hasExactPersona =
+            report.reviews.length === 1 && report.reviews[0]?.personaId === persona.id;
+          if (!hasExactPersona)
             throw new Error(
               "accessibility report persona IDs must match the requested personas exactly",
             );
@@ -233,5 +227,50 @@ export function createAccessibilityReviewer(
     } finally {
       clearTimeout(timer);
     }
+  };
+
+  /**
+   * Reviews every persona in a request of its own, one after another, and joins
+   * the reports in the order the personas were given.
+   *
+   * Why not all personas in one request: with Gemma 4 26B-A4B (thinking on),
+   * four personas at once reasoned for up to a minute per screen and, on the
+   * crowded Quick actions screen, looped over the icon grid until the deadline,
+   * while the same screen reviewed one persona per request finished in 20-32 s.
+   * Why not the four requests at once: LM Studio accepted them in parallel but
+   * did not finish them any sooner -- on the Android lab, steps took 48-120 s
+   * instead of 14-96 s, and two personas ran out of their own deadline because
+   * each request was slowed by the other three.
+   *
+   * The first failed persona fails the review, as a failed single request did,
+   * and the rest are not asked: a step's review is stored as completed or as an
+   * error, with no per-persona state to hold a partial report.
+   */
+  return async (input) => {
+    const { personas } = AccessibilitySettingsSchema.parse({ personas: input.personas });
+    const hasPersonas = personas.length > 0;
+    if (!hasPersonas) throw new Error("accessibility review requires at least one persona");
+    const image = await readFile(input.screenshotPath);
+    const isPng = image.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+    if (!isPng) throw new Error("accessibility screenshot must be a PNG image");
+
+    const hasSeveralPersonas = personas.length > 1;
+    const reports: AccessibilityReviewReport[] = [];
+    for (const persona of personas) {
+      try {
+        reports.push(await reviewPersona(input.model, image, persona));
+      } catch (error) {
+        // Named only when there are several, so a single-persona error reads as before.
+        const detail = error instanceof Error ? error.message : String(error);
+        throw hasSeveralPersonas ? new Error(`${persona.id}: ${detail}`) : error;
+      }
+    }
+    const report: AccessibilityReviewReport = {
+      reviews: reports.flatMap(({ reviews }) => reviews),
+    };
+    // Individual string limits do not bound UTF-8 storage size for multi-persona reports.
+    const isOversized = Buffer.byteLength(JSON.stringify(report), "utf8") > 128 * 1024;
+    if (isOversized) throw new Error("accessibility report exceeds the 128 KiB storage limit");
+    return report;
   };
 }

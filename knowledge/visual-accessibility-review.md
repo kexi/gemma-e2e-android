@@ -11,6 +11,7 @@ verified:
   - { by: process:just-check, at: 2026-09-22T07:16:37Z }
   - { by: process:just-test, at: 2026-09-27T05:00:00Z }
   - { by: claude-opus-5-5/1m, at: 2026-09-27T05:30:00Z }
+  - { by: claude-opus-5-5/1m, at: 2026-09-28T04:45:00Z }
 stale_after: 2026-12-22T00:00:00Z
 sources:
   - id: transport
@@ -28,6 +29,9 @@ sources:
   - id: planted
     resource: "kexi/gemma-meetup-2026 bench/persona（?lab=a11y の問題を仕込んだWeb 6画面、google/gemma-4-26b-a4b-qat MLX、思考あり）"
     title: 問題を仕込んだ画面での実モデル計測（2026-09-27）
+  - id: android-lab
+    resource: "2026-09-28、ローカル Firestore の run 27a4d7dc / b8187968 / 2e4dc2df（scenarios/a11y-lab-all.yaml、Android エミュレーター API 35、google/gemma-4-26b-a4b-qat MLX、思考あり）"
+    title: Android の問題を仕込んだ画面で、4ペルソナのレビュー方式を比較
   - id: vision
     resource: https://ai.google.dev/gemma/docs/core/model_card_4
     title: Gemma 4 model card
@@ -136,9 +140,30 @@ tool callが1つも無いときだけ、本文のJSONを同じスキーマ・サ
 変更後に残った1回は、密集したアイコン画面で思考が堂々巡りした（同じアイコン列の列挙を35回以上くり返し、
 思考4,538トークンで120秒に達した）。期限を延ばしても解消しない種類の失敗である。[^planted]
 
+# 2026-09-28 4ペルソナを1人ずつ順番にレビュー
+
+Web の6画面と同じ問題を仕込んだ Android の画面（`scenarios/a11y-lab-all.yaml`、サインイン画面の
+「Store information」から入る）で、4ペルソナのレビュー方式を3通り比べた。各1回の実行である。[^android-lab]
+
+| 方式 | レビュー完了 | 1ステップのレビュー時間 | run全体 |
+|---|---|---|---|
+| 4ペルソナを1リクエスト（変更前） | 7/8（Brewing guide で120秒切れ） | 14〜96秒 | 約9.5分 |
+| 1ペルソナ1リクエストを並列、各120秒 | 8/10（Quick actions で2回、各1ペルソナが120秒切れ） | 48〜120秒 | 約17分 |
+| 1ペルソナ1リクエストを順番に、各120秒（採用） | **10/10** | 64〜247秒（Quick actions が最長） | 約26分 |
+
+- 並列にしても LM Studio の処理は速くならなかった。4本が互いを遅くし、1本あたりの期限に届いた。
+- 順番にすると全ステップ完了したが、1ステップの待ちは4ペルソナ分の合計になる。
+- 採用後も、1人ずつの呼び出しに制限時間があるだけで、思考の堂々巡りそのものは抑えていない。
+  4人分の合計時間には上限を設けていない（最悪で4×120秒）。
+- ステップ数は8〜10で揺れた。Quick actions でアイコンを押す・スワイプする操作が挟まるためで、
+  レビュー方式とは関係しない操作判断の揺れである。
+
+指摘の中身（ヒット率・誤検出）は3通りで集計・比較していない。
+
 [^planted]: kexi/gemma-meetup-2026 の bench/persona/results（run1〜run5）と knowledge/persona-review-planted-screens-2026-09.md。
 [^transport]: packages/agent/src/accessibility.test.ts。ローカル HTTP stub を使用し、本物のモデル精度は検証しない。
 [^runner]: packages/agent/src/run.test.ts。実 adapter + fake device/model。
 [^persistence]: packages/store/src/store.test.ts。`just test` による一時 Firestore エミュレーター。
 [^live]: 実モデルをローカルサーバー経由で呼出し。画像は `var/screenshots/3d606917-a302-4284-b8e6-645f42609dd5/valid-credentials/000.png`。
+[^android-lab]: ダッシュボードの run 詳細と `just launch-all` のサーバーログ（`case.accessibility_reviewed` / `case.accessibility_review_failed` の durationMs）。
 [^vision]: Google の Gemma 4 model card。
