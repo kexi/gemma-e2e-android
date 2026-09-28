@@ -120,6 +120,9 @@ Android のログイン・ショップのシナリオが見る画面への変更
 
 ## クイックスタート
 
+クローンしてすぐ試したい場合は [QUICK-SETUP.md](QUICK-SETUP.md) を見てください。
+`git clone` からシナリオの実行まで、数個のコマンドで進められます。
+
 ```sh
 direnv allow             # devshell: すべての CLI ツール・Android SDK・エミュレータ
 just install-deps        # JavaScript の依存

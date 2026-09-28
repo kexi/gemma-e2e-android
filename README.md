@@ -121,6 +121,9 @@ sessions asserting what `gemma-e2e` prints and which exit code it returns.
 
 ## Quick start
 
+Just cloned it and want to try it? [QUICK-SETUP.md](QUICK-SETUP.md) goes from
+`git clone` to a running scenario in a few commands.
+
 ```sh
 direnv allow             # devshell: every CLI tool, the Android SDK, and the emulator
 just install-deps        # JavaScript dependencies
