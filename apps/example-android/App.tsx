@@ -18,6 +18,7 @@ import {
   SIGN_IN_ERROR,
   WRONG_CODE_ERROR,
 } from "@gemma-e2e/example-shared";
+import { A11yLab } from "./A11yLab";
 
 // The fake coffee store the E2E agent drives. Its data, its flow and every
 // string a scenario asserts on come from example-shared, which the web app
@@ -29,6 +30,9 @@ export default function App() {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [codeInput, setCodeInput] = useState("");
   const [codeError, setCodeError] = useState("");
+  // Local rather than a ScreenName: the lab is Android's counterpart to the
+  // web app's `?lab=a11y`, outside the shop flow the shared type describes.
+  const [isLabOpen, setIsLabOpen] = useState(false);
 
   const itemCount = itemCountOf(cart);
   const cartTotal = cartTotalOf(cart);
@@ -54,8 +58,17 @@ export default function App() {
     setScreen({ name: "orderComplete" });
   };
 
+  if (isLabOpen) {
+    return <A11yLab />;
+  }
+
   if (screen.name === "signIn") {
-    return <SignInScreen onSignedIn={() => setScreen({ name: "shop" })} />;
+    return (
+      <SignInScreen
+        onSignedIn={() => setScreen({ name: "shop" })}
+        onOpenStoreInfo={() => setIsLabOpen(true)}
+      />
+    );
   }
 
   if (screen.name === "shop") {
@@ -117,7 +130,7 @@ export default function App() {
   );
 }
 
-function SignInScreen(props: { onSignedIn: () => void }) {
+function SignInScreen(props: { onSignedIn: () => void; onOpenStoreInfo: () => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -171,6 +184,19 @@ function SignInScreen(props: { onSignedIn: () => void }) {
         testID="loginButton"
         onPress={signIn}
       />
+      {/* The way into the accessibility lab (A11yLab.tsx). A quiet link below
+          the form rather than a button beside it, so the sign-in the login and
+          shop scenarios drive stays the screen's obvious action. Named for what
+          the lab shows, not what it tests: the reviewer sees this screen too. */}
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel="Store information link"
+        testID="storeInfoLink"
+        style={styles.link}
+        onPress={props.onOpenStoreInfo}
+      >
+        <Text style={styles.linkLabel}>Store information</Text>
+      </Pressable>
     </Screen>
   );
 }
@@ -573,5 +599,14 @@ const styles = StyleSheet.create({
     color: "#4e342e",
     fontSize: 14,
     fontWeight: "600",
+  },
+  link: {
+    alignSelf: "center",
+    padding: 8,
+  },
+  linkLabel: {
+    color: "#6d4c41",
+    fontSize: 15,
+    textDecorationLine: "underline",
   },
 });

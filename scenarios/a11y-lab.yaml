@@ -1,0 +1,57 @@
+# The Android counterpart of a11y-lab.web.yaml: the same six screens with the
+# same planted problems (colour-only status, tiny pale text, crowded icons
+# between two clean screens), drawn by A11yLab.tsx in the example app. An app
+# has no URL to carry the web's ?lab=a11y, so the lab opens from the sign-in
+# screen's "Store information" link and the prompt starts there -- one step
+# more than the web's, hence maxSteps 13.
+#
+# One persona per case, for the reason given in a11y-lab.web.yaml. The model
+# must accept images and comes from LLM_MODEL. Tagged a11y and lab only, like
+# the web pair, so a run of everything tagged for the shop never adds an image
+# review to each step by accident.
+title: Accessibility lab (Android)
+tags: [a11y, lab]
+target:
+  platform: android
+  package: dev.kexi.gemmae2e.example
+  activity: .MainActivity
+cases:
+  - id: red-green
+    title: Red-green review of the lab screens
+    prompt: &prompt >-
+      On the sign-in screen, tap "Store information" to open the store's
+      information screens. On each screen, press the "Next" button. When the
+      screen titled "You're all set" is shown, finish with passed.
+    maxSteps: 13
+    accessibility:
+      personas:
+        - id: red-green
+          label: 赤・緑の見分けにくさ
+          description: 赤と緑の違いを識別しにくい利用者。状態・操作・グラフの区別が色だけに依存せず、文字・形・模様でも伝わるか確認する。
+  - id: blue-yellow
+    title: Blue-yellow review of the lab screens
+    prompt: *prompt
+    maxSteps: 13
+    accessibility:
+      personas:
+        - id: blue-yellow
+          label: 青・黄の見分けにくさ
+          description: 青と黄などの色の違いを識別しにくい利用者。情報の区別を色だけに依存させていないか確認する。
+  - id: presbyopia
+    title: Presbyopia review of the lab screens
+    prompt: *prompt
+    maxSteps: 13
+    accessibility:
+      personas:
+        - id: presbyopia
+          label: 老眼・近くの文字の読みづらさ
+          description: 近くの小さな文字に焦点を合わせにくい利用者。小さい文字、細い線、情報の詰め込み、低いコントラストによる読みにくさを確認する。画像から実際の文字サイズや視距離を断定しない。
+  - id: low-vision
+    title: Low-vision review of the lab screens
+    prompt: *prompt
+    maxSteps: 13
+    accessibility:
+      personas:
+        - id: low-vision
+          label: 弱視・細部の見えづらさ
+          description: 文字やアイコンの細部を認識しにくい利用者。文字・背景・操作部品の区別、視覚的な密集、重要情報の目立ちやすさを確認する。

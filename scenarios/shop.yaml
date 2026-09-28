@@ -2,7 +2,7 @@
 # login.yaml stops at one form, these cross four and six screens -- which is
 # what makes them worth running: the history window and the `remember` action
 # only matter once a case outgrows a single screen.
-title: Coffee shop
+title: Coffee shop (Android)
 tags: [regression, shop]
 target:
   platform: android
