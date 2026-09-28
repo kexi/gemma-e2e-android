@@ -6,6 +6,12 @@ const API_TARGET = process.env["API_URL"] ?? "http://localhost:5175";
 export default defineConfig({
   plugins: [react()],
   server: {
+    // Pinned, and strict: with 5173 taken (another project's Vite), the default
+    // fallback walks to 5174 -- the fixture app's port, which web scenarios
+    // point at -- and `just launch-example-web` then fails. Failing here names the
+    // real conflict instead.
+    port: 5173,
+    strictPort: true,
     // The SPA and the Hono server are separate processes in development, so
     // /api and /screenshots are proxied instead of served: that keeps the
     // browser on one origin and makes SSE work without any CORS handling.

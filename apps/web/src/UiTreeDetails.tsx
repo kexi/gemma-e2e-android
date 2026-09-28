@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useI18n } from "./I18nProvider.tsx";
 
 /** `hidden="until-found"` is the value; React types only accept `boolean`. */
 const UNTIL_FOUND = "until-found" as unknown as boolean;
@@ -21,6 +22,7 @@ export interface UiTreeDetailsProps {
  */
 export function UiTreeDetails({ uiText }: UiTreeDetailsProps) {
   const [open, setOpen] = useState(false);
+  const { t } = useI18n();
   const bodyRef = useRef<HTMLPreElement>(null);
 
   // Without `beforematch` support the body would stay hidden forever, so it is
@@ -48,7 +50,7 @@ export function UiTreeDetails({ uiText }: UiTreeDetailsProps) {
       open={open}
       onToggle={(event) => setOpen(event.currentTarget.open)}
     >
-      <summary>UI tree ({lineCount} lines)</summary>
+      <summary>{t.uiTree.summary(lineCount)}</summary>
       <pre className="ui-tree-body" ref={bodyRef} hidden={isHiddenUntilFound ? UNTIL_FOUND : false}>
         {uiText}
       </pre>

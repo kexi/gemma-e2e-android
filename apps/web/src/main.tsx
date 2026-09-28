@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
 import CssBaseline from "@mui/material/CssBaseline";
 import { App } from "./App.tsx";
+import { I18nProvider } from "./I18nProvider.tsx";
 import { IdlePage } from "./pages/IdlePage.tsx";
 import { RunPage } from "./pages/RunPage.tsx";
 import "./workbench.css";
@@ -31,6 +32,8 @@ if (container === null) {
 createRoot(container).render(
   <StrictMode>
     <CssBaseline />
-    <RouterProvider router={router} />
+    <I18nProvider>
+      <RouterProvider router={router} />
+    </I18nProvider>
   </StrictMode>,
 );

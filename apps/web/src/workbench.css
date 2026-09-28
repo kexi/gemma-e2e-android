@@ -73,6 +73,46 @@ html:active-view-transition-type(backward)::view-transition-new(workbench-main) 
 }
 
 /* ---------------------------------------------------------------------------
+ * Rail resize handle
+ *
+ * The rail's own border stays the visible line; the handle is a wider hit area
+ * beside it. It overlaps only the main pane's padding, never the rail, whose
+ * scrollbar runs down that same edge and would lose its grab area.
+ * ------------------------------------------------------------------------- */
+
+.rail-resizer {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  width: 8px;
+  margin-right: -8px;
+  cursor: col-resize;
+  /* No text selection and no touch panning start from the handle, so a drag
+     only ever moves the edge. */
+  user-select: none;
+  touch-action: none;
+}
+
+.rail-resizer::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: -2px;
+  width: 3px;
+  transition: background-color 0.15s ease;
+}
+
+/* The highlight doubles as the focus indicator: a full-height bar on the edge
+   the arrow keys move, which says more than a ring around an 8px strip. */
+.rail-resizer:is(:hover, :active, :focus-visible)::before {
+  background: var(--workbench-focus, #1976d2);
+}
+
+.rail-resizer:focus-visible {
+  outline: none;
+}
+
+/* ---------------------------------------------------------------------------
  * Deferred rendering
  *
  * Both lists grow without bound (a long run's steps, every run ever recorded)
@@ -189,6 +229,14 @@ html:active-view-transition-type(backward)::view-transition-new(workbench-main) 
   background: var(--workbench-paper, #fff);
   color: var(--workbench-text, rgb(0 0 0 / 87%));
   box-shadow: 0 8px 32px rgb(0 0 0 / 24%);
+}
+
+/* The scenario form, unlike the delete confirmation that shares the dialog
+   styles, holds a free-text prompt and a model id per case; at 560px those wrap
+   into a tall, cramped column. Why not wider still: the form stays one column,
+   and a prompt line much longer than this is hard to read back. */
+.builder-dialog-wide {
+  width: min(960px, calc(100vw - 2rem));
 }
 
 .builder-dialog::backdrop {

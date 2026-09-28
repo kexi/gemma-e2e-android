@@ -9,6 +9,7 @@ import Typography from "@mui/material/Typography";
 import RefreshIcon from "@mui/icons-material/Refresh";
 
 import { type DevicePlatform, failureLabelFor } from "./devicePlatform.ts";
+import { code, useI18n } from "./I18nProvider.tsx";
 
 export type { DevicePlatform };
 
@@ -16,13 +17,6 @@ export type ConnectionState = "connecting" | "live" | "disconnected" | "unavaila
 
 /** The gateway sends 1011 when the upstream source failed, not the browser. */
 const CLOSE_UPSTREAM_FAILED = 1011;
-
-const STATE_LABEL: Record<Exclude<ConnectionState, "unavailable">, string> = {
-  connecting: "Connecting",
-  live: "Live",
-  disconnected: "Disconnected",
-  paused: "Paused (off-screen)",
-};
 
 const STATE_COLOR: Record<ConnectionState, "default" | "success" | "warning" | "error"> = {
   connecting: "default",
@@ -73,6 +67,7 @@ export function DeviceLiveView({
   showHint = true,
 }: DeviceLiveViewProps) {
   const [state, setState] = useState<ConnectionState>("connecting");
+  const { t } = useI18n();
   const [frameUrl, setFrameUrl] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [rendered, setRendered] = useState(true);
@@ -176,7 +171,7 @@ export function DeviceLiveView({
   // acts on.
   const isUnreachable = state === "unavailable";
   const isAndroid = platform === "android";
-  const label = isUnreachable ? failureLabelFor(platform) : STATE_LABEL[state];
+  const label = isUnreachable ? failureLabelFor(platform, t) : t.liveView.state[state];
 
   return (
     <Stack className="device-live-view" ref={containerRef} spacing={1.5}>
@@ -185,25 +180,14 @@ export function DeviceLiveView({
         <Box sx={{ flexGrow: 1 }} />
         {isBroken && (
           <Button size="small" variant="outlined" startIcon={<RefreshIcon />} onClick={reconnect}>
-            Reconnect
+            {t.liveView.reconnect}
           </Button>
         )}
       </Stack>
 
       {isBroken && (
         <Alert severity={isUnreachable ? "error" : "warning"}>
-          {isAndroid ? (
-            <>
-              The live view needs the emulator running with its gRPC bridge: <code>just emu</code>{" "}
-              starts it with <code>-grpc 8554</code>. As a fallback, <code>just mirror</code> opens
-              the same screen in scrcpy.
-            </>
-          ) : (
-            <>
-              The live view needs Chrome running with its DevTools port: <code>just chrome</code>{" "}
-              opens one. Set <code>CHROME_ENDPOINT</code> to reach a browser started some other way.
-            </>
-          )}
+          {isAndroid ? t.liveView.androidHelp(code) : t.liveView.webHelp(code)}
         </Alert>
       )}
 
@@ -222,15 +206,15 @@ export function DeviceLiveView({
       >
         {frameUrl === null ? (
           <Typography variant="body2" color="text.secondary">
-            {state === "connecting" && "Waiting for the first frame…"}
-            {state === "paused" && "Streaming stops while the view is off-screen."}
-            {state !== "connecting" && state !== "paused" && "No frame"}
+            {state === "connecting" && t.liveView.waitingForFrame}
+            {state === "paused" && t.liveView.pausedOffscreen}
+            {state !== "connecting" && state !== "paused" && t.liveView.noFrame}
           </Typography>
         ) : (
           <Box
             component="img"
             src={frameUrl}
-            alt="Emulator screen"
+            alt={t.liveView.screenAlt}
             sx={{ maxWidth: "100%", maxHeight, objectFit: "contain", display: "block" }}
           />
         )}
@@ -238,8 +222,7 @@ export function DeviceLiveView({
 
       {showHint && (
         <Typography variant="body2" color="text.secondary">
-          Frames arrive only when the screen changes, so a still device shows a static image. The
-          view is read-only.
+          {t.liveView.hint}
         </Typography>
       )}
     </Stack>

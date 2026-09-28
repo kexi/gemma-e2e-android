@@ -3,6 +3,7 @@ import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { deleteScenario, type Scenario } from "./api.ts";
+import { code, useI18n } from "./I18nProvider.tsx";
 
 export interface ScenarioDeleteProps {
   scenario: Scenario;
@@ -21,6 +22,7 @@ export function ScenarioDelete({ scenario, onDeleted }: ScenarioDeleteProps) {
   const dialogId = useId();
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useI18n();
 
   // Same reasoning as the builder: invoker commands where they exist, a
   // showModal() call where they do not, rather than a polyfill.
@@ -51,10 +53,10 @@ export function ScenarioDelete({ scenario, onDeleted }: ScenarioDeleteProps) {
 
   return (
     <>
-      <Tooltip title={`Delete ${scenario.id}`}>
+      <Tooltip title={t.deleteScenario.tooltip(scenario.id)}>
         <IconButton
           size="small"
-          aria-label={`Delete ${scenario.title}`}
+          aria-label={t.deleteScenario.label(scenario.title)}
           {...(hasInvokerCommands ? { command: "show-modal", commandfor: dialogId } : {})}
           onClick={() => {
             setError(null);
@@ -76,13 +78,9 @@ export function ScenarioDelete({ scenario, onDeleted }: ScenarioDeleteProps) {
       >
         <div className="builder-form">
           <h2 id={`${dialogId}-heading`} className="builder-heading">
-            Delete “{scenario.title}”?
+            {t.deleteScenario.heading(scenario.title)}
           </h2>
-          <p className="builder-lede">
-            Deletes the file <code>scenarios/{scenario.id}.yaml</code>. It is git-managed, so{" "}
-            <code>git checkout scenarios/{scenario.id}.yaml</code> brings it back. Runs already
-            recorded for this scenario are kept.
-          </p>
+          <p className="builder-lede">{t.deleteScenario.lede(code, scenario.id)}</p>
 
           {error !== null && (
             <p className="builder-error" role="alert">
@@ -98,7 +96,7 @@ export function ScenarioDelete({ scenario, onDeleted }: ScenarioDeleteProps) {
               className="builder-cancel"
               onClick={() => dialogRef.current?.close()}
             >
-              Cancel
+              {t.common.cancel}
             </button>
             <button
               type="button"
@@ -106,7 +104,7 @@ export function ScenarioDelete({ scenario, onDeleted }: ScenarioDeleteProps) {
               disabled={deleting}
               onClick={() => void confirm()}
             >
-              {deleting ? "Deleting…" : "Delete scenario"}
+              {deleting ? t.deleteScenario.deleting : t.deleteScenario.confirm}
             </button>
           </div>
         </div>

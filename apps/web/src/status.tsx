@@ -9,6 +9,8 @@ import KeyboardIcon from "@mui/icons-material/Keyboard";
 import SwipeIcon from "@mui/icons-material/Swipe";
 import TouchAppIcon from "@mui/icons-material/TouchApp";
 import type { Action, RunStatus } from "@gemma-e2e/core/schema";
+import type { Messages } from "./i18n.ts";
+import { useI18n } from "./I18nProvider.tsx";
 
 type ChipColor = "default" | "success" | "error" | "info";
 
@@ -24,7 +26,8 @@ const STATUS_COLOR: Record<RunStatus, ChipColor> = {
 };
 
 export function StatusChip({ status }: { status: RunStatus }) {
-  return <Chip size="small" label={status} color={STATUS_COLOR[status]} />;
+  const { t } = useI18n();
+  return <Chip size="small" label={t.status[status]} color={STATUS_COLOR[status]} />;
 }
 
 export function actionIcon(action: Action): ReactElement {
@@ -46,21 +49,26 @@ export function actionIcon(action: Action): ReactElement {
   }
 }
 
-export function describeAction(action: Action): string {
+/**
+ * One line naming what a step did. The wording is the active language's; the
+ * refs, typed text and the model's reason stay as recorded, since they are what
+ * the reader compares against the UI tree and the logs.
+ */
+export function describeAction(action: Action, t: Messages): string {
   switch (action.type) {
     case "tap":
-      return `tap [${action.ref}]`;
+      return t.action.tap(action.ref);
     case "input_text":
-      return `type ${JSON.stringify(action.text)} into [${action.ref}]`;
+      return t.action.inputText(JSON.stringify(action.text), action.ref);
     case "swipe":
-      return `swipe ${action.direction}`;
+      return t.action.swipe(action.direction);
     case "key_event":
-      return `press ${action.key}`;
+      return t.action.keyEvent(action.key);
     case "wait":
-      return `wait ${action.ms}ms`;
+      return t.action.wait(action.ms);
     case "remember":
-      return `remember ${JSON.stringify(action.text)}`;
+      return t.action.remember(JSON.stringify(action.text));
     case "finish":
-      return `finish ${action.verdict}: ${action.reason}`;
+      return t.action.finish(t.status[action.verdict], action.reason);
   }
 }

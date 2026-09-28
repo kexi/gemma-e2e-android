@@ -22,6 +22,8 @@ import { fetchRun, screenshotUrl, videoUrl } from "../api.ts";
 import { actionIcon, describeAction, StatusChip } from "../status.tsx";
 import { DeviceLiveView } from "../DeviceLiveView.tsx";
 import { AccessibilityReviewDetails } from "../AccessibilityReviewDetails.tsx";
+import { formatDateTime, formatTime } from "../i18n.ts";
+import { useI18n } from "../I18nProvider.tsx";
 import { nextRunStatus, type StatusSignal } from "../runStatus.ts";
 import { useDevicePlatform } from "../useDevicePlatform.ts";
 import { UiTreeDetails } from "../UiTreeDetails.tsx";
@@ -183,6 +185,7 @@ export function RunPage() {
   const [error, setError] = useState<string | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const navigate = useDirectionalNavigate();
+  const { t, locale } = useI18n();
   // The same choice the Device page holds, so switching there is still in
   // effect when a run is opened. No picker here: beside a running case the
   // interesting screen is the one it is driving, and the Device page is one
@@ -310,7 +313,7 @@ export function RunPage() {
           onClick={() => navigate("/", "backward")}
           sx={{ mb: 1, ml: -1 }}
         >
-          Device
+          {t.run.back}
         </Button>
         <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap" }}>
           <Typography variant="h5" component="h1" ref={headingRef} tabIndex={-1}>
@@ -319,8 +322,8 @@ export function RunPage() {
           {status !== null && <StatusChip status={status} />}
         </Stack>
         <Typography variant="caption" color="text.secondary">
-          {run.scenarioId} · {ordered.length} case{ordered.length === 1 ? "" : "s"} · started{" "}
-          {new Date(run.startedAt).toLocaleString()}
+          {run.scenarioId} · {t.common.caseCount(ordered.length)} ·{" "}
+          {t.run.started(formatDateTime(run.startedAt, locale))}
         </Typography>
         {reason !== null && (
           <Alert severity={status === "passed" ? "success" : "warning"} sx={{ mt: 2 }}>
@@ -337,7 +340,7 @@ export function RunPage() {
           interrupting whatever is being read. */}
       {isQueued && (
         <Typography color="text.secondary" aria-live="polite">
-          Waiting for the device. This run starts when the one ahead of it finishes.
+          {t.run.waitingForDevice}
         </Typography>
       )}
 
@@ -355,7 +358,7 @@ export function RunPage() {
               has recorded nothing yet, and "No cases were recorded" reads as a
               finished run that produced nothing. */}
           {ordered.length === 0 && !isRunning && !isQueued && (
-            <Typography color="text.secondary">No cases were recorded.</Typography>
+            <Typography color="text.secondary">{t.run.noCases}</Typography>
           )}
           {/* The follow-tail sentinel. A plain div outside any `.deferred-case`,
               so its position is real geometry the observer can trust rather than
@@ -376,7 +379,7 @@ export function RunPage() {
             }}
           >
             <Typography variant="subtitle2" gutterBottom>
-              Live screen
+              {t.run.liveScreen}
             </Typography>
             <DeviceLiveView platform={livePlatform} maxHeight="60vh" showHint={false} />
           </Box>
@@ -390,6 +393,7 @@ function CaseAccordion({ caseRun, deferred }: { caseRun: CaseRun; deferred: bool
   // Open while it is the case being worked on, and after a failure, which are
   // the two moments the steps are worth reading.
   const startsOpen = caseRun.status !== "passed";
+  const { t, locale } = useI18n();
 
   return (
     <Accordion
@@ -408,7 +412,7 @@ function CaseAccordion({ caseRun, deferred }: { caseRun: CaseRun; deferred: bool
           <Typography variant="subtitle1">{caseRun.title}</Typography>
           {caseRun.model !== "" && <Chip size="small" variant="outlined" label={caseRun.model} />}
           <Typography variant="caption" color="text.secondary">
-            {caseRun.steps.length} step{caseRun.steps.length === 1 ? "" : "s"}
+            {t.run.stepCount(caseRun.steps.length)}
           </Typography>
         </Stack>
       </AccordionSummary>
@@ -427,7 +431,7 @@ function CaseAccordion({ caseRun, deferred }: { caseRun: CaseRun; deferred: bool
           {caseRun.videoPath !== null && caseRun.status !== "running" && (
             <Box>
               <Typography variant="subtitle2" gutterBottom>
-                Recording
+                {t.run.recording}
               </Typography>
               <Box
                 component="video"
@@ -454,10 +458,10 @@ function CaseAccordion({ caseRun, deferred }: { caseRun: CaseRun; deferred: bool
                   </Avatar>
                   <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                     <Typography variant="subtitle1">
-                      {step.index + 1}. {describeAction(step.action)}
+                      {step.index + 1}. {describeAction(step.action, t)}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {new Date(step.createdAt).toLocaleTimeString()}
+                      {formatTime(step.createdAt, locale)}
                     </Typography>
                     {step.note !== null && (
                       <Alert severity="warning" sx={{ mt: 1 }}>
@@ -480,7 +484,7 @@ function CaseAccordion({ caseRun, deferred }: { caseRun: CaseRun; deferred: bool
                       <Box
                         component="img"
                         src={screenshotUrl(step.screenshotPath)}
-                        alt={`Step ${step.index + 1}: after action`}
+                        alt={t.run.stepScreenshotAlt(step.index + 1)}
                         sx={{ width: 96, borderRadius: 1, display: "block" }}
                       />
                     </Link>
@@ -491,7 +495,7 @@ function CaseAccordion({ caseRun, deferred }: { caseRun: CaseRun; deferred: bool
           ))}
 
           {caseRun.steps.length === 0 && (
-            <Typography color="text.secondary">No steps yet.</Typography>
+            <Typography color="text.secondary">{t.run.noSteps}</Typography>
           )}
         </Stack>
       </AccordionDetails>

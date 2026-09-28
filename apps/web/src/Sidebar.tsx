@@ -36,6 +36,8 @@ import {
   toggleInList,
   toggleInSet,
 } from "./scenarioSelection.ts";
+import { formatDateTime } from "./i18n.ts";
+import { useI18n } from "./I18nProvider.tsx";
 import { ScenarioBuilder } from "./ScenarioBuilder.tsx";
 import { ScenarioDelete } from "./ScenarioDelete.tsx";
 import { StatusChip } from "./status.tsx";
@@ -62,6 +64,7 @@ export interface SidebarProps {
 export function Sidebar({ onNavigate }: SidebarProps) {
   const { id: selectedRunId } = useParams<{ id: string }>();
   const navigate = useDirectionalNavigate();
+  const { t, locale } = useI18n();
 
   const [scenarios, setScenarios] = useState<Scenario[] | null>(null);
   const [runs, setRuns] = useState<Run[] | null>(null);
@@ -273,12 +276,12 @@ export function Sidebar({ onNavigate }: SidebarProps) {
 
       <Box>
         <Typography variant="overline" color="text.secondary">
-          Scenarios
+          {t.sidebar.scenarios}
         </Typography>
         {scenarios === null && <CircularProgress size={20} sx={{ display: "block", mt: 1 }} />}
         {scenarios !== null && scenarios.length === 0 && (
           <Typography variant="body2" color="text.secondary">
-            No scenarios in scenarios/.
+            {t.sidebar.noScenarios}
           </Typography>
         )}
 
@@ -288,7 +291,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
             spacing={0.5}
             sx={{ mt: 1, flexWrap: "wrap", rowGap: 0.5 }}
             role="group"
-            aria-label="Filter scenarios by tag"
+            aria-label={t.sidebar.tagFilter}
           >
             {availableTags.map((tag) => {
               const isSelected = selectedTags.includes(tag);
@@ -317,10 +320,10 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                 there is nothing to run, this one says the filter is hiding it,
                 and only this one is undoable. */}
             <Typography variant="body2" color="text.secondary">
-              No scenarios match these tags.
+              {t.sidebar.noTagMatch}
             </Typography>
             <Button size="small" onClick={clearTags} sx={{ mt: 0.5, ml: -1 }}>
-              Clear tag filter
+              {t.sidebar.clearTagFilter}
             </Button>
           </Box>
         )}
@@ -348,7 +351,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                   slotProps={{
                     root: {
                       slotProps: {
-                        input: { "aria-label": `Select ${scenario.title} for a batch run` },
+                        input: { "aria-label": t.sidebar.selectForBatch(scenario.title) },
                       },
                     },
                   }}
@@ -358,7 +361,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                     {scenario.title}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" component="div">
-                    {scenario.cases.length} case{scenario.cases.length === 1 ? "" : "s"}
+                    {t.common.caseCount(scenario.cases.length)}
                     {scenario.target !== undefined && ` · ${describeTarget(scenario.target)}`}
                     {scenario.model !== undefined && ` · ${scenario.model}`}
                   </Typography>
@@ -376,13 +379,13 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                 </Box>
                 <ScenarioBuilder models={models} scenario={scenario} onSaved={reloadScenarios} />
                 <ScenarioDelete scenario={scenario} onDeleted={reloadScenarios} />
-                <Tooltip title={`Run ${scenario.id}`}>
+                <Tooltip title={t.sidebar.runTooltip(scenario.id)}>
                   <span>
                     <IconButton
                       size="small"
                       color="primary"
                       disabled={starting}
-                      aria-label={`Run ${scenario.title}`}
+                      aria-label={t.sidebar.runLabel(scenario.title)}
                       onClick={() => void start({ scenarioId: scenario.id })}
                     >
                       <PlayArrowIcon />
@@ -405,10 +408,10 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                     <Chip
                       size="small"
                       variant="outlined"
-                      label={testCase.model ?? scenario.model ?? "default model"}
+                      label={testCase.model ?? scenario.model ?? t.sidebar.defaultModel}
                     />
                     <Typography variant="caption" color="text.secondary">
-                      max {testCase.maxSteps}
+                      {t.sidebar.maxSteps(testCase.maxSteps)}
                     </Typography>
                   </Stack>
                 ))}
@@ -427,7 +430,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
             onClick={() => void startSelected()}
             sx={{ mt: 1.5 }}
           >
-            Run {selectedCount} selected
+            {t.sidebar.runSelected(selectedCount)}
           </Button>
         )}
 
@@ -440,26 +443,26 @@ export function Sidebar({ onNavigate }: SidebarProps) {
 
       <Box component="form" onSubmit={submitAdHoc}>
         <Typography variant="overline" color="text.secondary">
-          Ad-hoc run
+          {t.sidebar.adHoc}
         </Typography>
         <Stack spacing={1.5} sx={{ mt: 1 }}>
           <TextField
-            label="Title (optional)"
+            label={t.sidebar.titleOptional}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             size="small"
           />
           <TextField
             select
-            label="Model"
+            label={t.sidebar.model}
             value={model}
             onChange={(e) => setModel(e.target.value)}
             size="small"
             disabled={models.length === 0}
-            helperText={modelsError ?? "Leave on the server default to use LLM_MODEL."}
+            helperText={modelsError ?? t.sidebar.modelHint}
             error={modelsError !== null}
           >
-            <MenuItem value={SERVER_DEFAULT}>Server default</MenuItem>
+            <MenuItem value={SERVER_DEFAULT}>{t.common.serverDefault}</MenuItem>
             {models.map((info) => (
               <MenuItem key={info.id} value={info.id}>
                 {info.id}
@@ -467,13 +470,13 @@ export function Sidebar({ onNavigate }: SidebarProps) {
             ))}
           </TextField>
           <TextField
-            label="Prompt"
+            label={t.sidebar.prompt}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             size="small"
             multiline
             minRows={3}
-            placeholder="Check that the user can log in with demo@example.com …"
+            placeholder={t.sidebar.promptPlaceholder}
           />
           <Button
             type="submit"
@@ -481,7 +484,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
             startIcon={<PlayArrowIcon />}
             disabled={starting || prompt.trim() === ""}
           >
-            Run prompt
+            {t.sidebar.runPrompt}
           </Button>
         </Stack>
       </Box>
@@ -490,12 +493,12 @@ export function Sidebar({ onNavigate }: SidebarProps) {
 
       <Box>
         <Typography variant="overline" color="text.secondary">
-          Recent runs
+          {t.sidebar.recentRuns}
         </Typography>
         {runs === null && <CircularProgress size={20} sx={{ display: "block", mt: 1 }} />}
         {runs !== null && runs.length === 0 && (
           <Typography variant="body2" color="text.secondary">
-            No runs yet.
+            {t.sidebar.noRuns}
           </Typography>
         )}
         <List dense disablePadding sx={{ mt: 0.5 }}>
@@ -512,7 +515,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                   {run.title}
                 </Typography>
                 <Typography variant="caption" color="text.secondary" component="div" noWrap>
-                  {new Date(run.startedAt).toLocaleString()}
+                  {formatDateTime(run.startedAt, locale)}
                 </Typography>
               </Box>
               <StatusChip status={run.status} />

@@ -4,6 +4,7 @@ import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { DeviceLiveView } from "../DeviceLiveView.tsx";
 import { DevicePlatformPicker } from "../DevicePlatformPicker.tsx";
+import { useI18n } from "../I18nProvider.tsx";
 import { useDevicePlatform } from "../useDevicePlatform.ts";
 
 /**
@@ -14,6 +15,7 @@ import { useDevicePlatform } from "../useDevicePlatform.ts";
 export function IdlePage() {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [platform, setPlatform] = useDevicePlatform();
+  const { t } = useI18n();
 
   // The view transition morphs the pane but leaves focus wherever the click
   // left it, which for a rail button is an element the new pane never had.
@@ -25,14 +27,11 @@ export function IdlePage() {
     <Stack spacing={2} sx={{ maxWidth: 720 }}>
       <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
         <Typography variant="h5" component="h1" ref={headingRef} tabIndex={-1}>
-          Device
+          {t.idle.heading}
         </Typography>
         <DevicePlatformPicker value={platform} onChange={setPlatform} />
       </Stack>
-      <Alert severity="info">
-        Pick a run from the rail to watch it, or start one there — a scenario with the play button,
-        or a one-off prompt with the model you want.
-      </Alert>
+      <Alert severity="info">{t.idle.intro}</Alert>
       <DeviceLiveView platform={platform} />
     </Stack>
   );

@@ -4,6 +4,10 @@ import {
   type AccessibilityPersona,
   type AccessibilitySettings,
 } from "@gemma-e2e/core/schema";
+import { useI18n } from "./I18nProvider.tsx";
+
+/** The schema's cap, named once so the check and the sentence that states it agree. */
+const MAX_PERSONAS = 8;
 
 interface Props {
   value: AccessibilitySettings | undefined;
@@ -19,9 +23,10 @@ export function AccessibilitySettingsEditor({
   allowInherit = false,
 }: Props) {
   const id = useId();
+  const { t } = useI18n();
   const isInherited = allowInherit && value === undefined;
   const personas = value?.personas ?? [];
-  const isFull = personas.length >= 8;
+  const isFull = personas.length >= MAX_PERSONAS;
 
   function updatePersona(personaId: string, patch: Partial<AccessibilityPersona>) {
     onChange({
@@ -41,11 +46,8 @@ export function AccessibilitySettingsEditor({
 
   return (
     <fieldset className="builder-fieldset">
-      <legend>Visual accessibility review</legend>
-      <p className="builder-hint">
-        Review screenshots for each persona. Findings are suggestions, not a conformance
-        certification. Screen reader behavior is outside this review.
-      </p>
+      <legend>{t.reviewSettings.legend}</legend>
+      <p className="builder-hint">{t.reviewSettings.intro}</p>
       {allowInherit && (
         <label className="builder-checkbox">
           <input
@@ -58,17 +60,17 @@ export function AccessibilitySettingsEditor({
               )
             }
           />
-          Use scenario personas ({inherited?.personas.length ?? 0})
+          {t.reviewSettings.useScenarioPersonas(inherited?.personas.length ?? 0)}
         </label>
       )}
       {isInherited ? (
         <p className="builder-hint">
           {inherited?.personas.map((persona) => persona.label).join(" · ") ||
-            "Review is off in this scenario."}
+            t.reviewSettings.offInScenario}
         </p>
       ) : (
         <>
-          <p className="builder-hint">Choose up to 8 personas. No selection turns review off.</p>
+          <p className="builder-hint">{t.reviewSettings.chooseUpTo(MAX_PERSONAS)}</p>
           {ACCESSIBILITY_PERSONA_PRESETS.map((preset) => {
             const selected = personas.some((persona) => persona.id === preset.id);
             return (
@@ -92,9 +94,9 @@ export function AccessibilitySettingsEditor({
           })}
           {personas.map((persona) => (
             <fieldset key={persona.id} className="builder-fieldset">
-              <legend>{persona.label || "Custom persona"}</legend>
+              <legend>{persona.label || t.reviewSettings.customPersona}</legend>
               <div className="builder-field">
-                <label htmlFor={`${id}-${persona.id}-label`}>Persona name *</label>
+                <label htmlFor={`${id}-${persona.id}-label`}>{t.reviewSettings.personaName}</label>
                 <input
                   id={`${id}-${persona.id}-label`}
                   name={`${id}-${persona.id}-label`}
@@ -106,7 +108,7 @@ export function AccessibilitySettingsEditor({
               </div>
               <div className="builder-field">
                 <label htmlFor={`${id}-${persona.id}-description`}>
-                  Viewing conditions and concerns *
+                  {t.reviewSettings.viewingConditions}
                 </label>
                 <textarea
                   id={`${id}-${persona.id}-description`}
@@ -123,17 +125,17 @@ export function AccessibilitySettingsEditor({
               <button
                 type="button"
                 className="builder-remove"
-                aria-label={`Remove persona ${persona.label || persona.id}`}
+                aria-label={t.reviewSettings.removePersonaLabel(persona.label || persona.id)}
                 onClick={() =>
                   onChange({ personas: personas.filter((item) => item.id !== persona.id) })
                 }
               >
-                Remove persona
+                {t.reviewSettings.removePersona}
               </button>
             </fieldset>
           ))}
           <button type="button" className="builder-add" disabled={isFull} onClick={addCustom}>
-            Add custom persona
+            {t.reviewSettings.addCustomPersona}
           </button>
         </>
       )}

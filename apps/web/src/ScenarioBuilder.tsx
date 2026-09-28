@@ -11,6 +11,7 @@ import {
   type Scenario,
   updateScenario,
 } from "./api.ts";
+import { code, useI18n } from "./I18nProvider.tsx";
 
 /** Sentinel for "let the server decide", which is not a model id. */
 const SERVER_DEFAULT = "";
@@ -199,6 +200,7 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
   const dialogRef = useRef<HTMLDialogElement>(null);
   const dialogId = useId();
   const isEditing = scenario !== undefined;
+  const { t } = useI18n();
 
   // The list refetch can arrive after the dialog closes or reopens. Keep the
   // save response until its source prop is replaced so a quick second edit
@@ -361,40 +363,30 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
   return (
     <>
       {isEditing ? (
-        <Tooltip title={`Edit ${scenario.id}`}>
-          <IconButton size="small" aria-label={`Edit ${scenario.title}`} {...openProps}>
+        <Tooltip title={t.builder.editTooltip(scenario.id)}>
+          <IconButton size="small" aria-label={t.builder.editLabel(scenario.title)} {...openProps}>
             <EditIcon />
           </IconButton>
         </Tooltip>
       ) : (
         <button type="button" className="builder-open" {...openProps}>
-          New scenario
+          {t.builder.newScenario}
         </button>
       )}
 
       <dialog
         id={dialogId}
         ref={dialogRef}
-        className="builder-dialog"
+        className="builder-dialog builder-dialog-wide"
         aria-labelledby={`${dialogId}-heading`}
         {...(hasClosedBy ? { closedby: "any" } : {})}
       >
         <form className="builder-form" method="dialog" onSubmit={submit} noValidate={false}>
           <h2 id={`${dialogId}-heading`} className="builder-heading">
-            {isEditing ? "Edit scenario" : "New scenario"}
+            {isEditing ? t.builder.editHeading : t.builder.newScenario}
           </h2>
           <p className="builder-lede">
-            {isEditing ? (
-              <>
-                Rewrites <code>scenarios/{id}.yaml</code>, which is git-managed — commit the change
-                to keep it.
-              </>
-            ) : (
-              <>
-                Saved as <code>scenarios/&lt;id&gt;.yaml</code>, which is git-managed — commit it to
-                keep it. An existing file is never overwritten.
-              </>
-            )}
+            {isEditing ? t.builder.ledeEdit(code, id) : t.builder.ledeNew(code)}
           </p>
 
           {error !== null && (
@@ -404,10 +396,10 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
           )}
 
           <fieldset className="builder-fieldset">
-            <legend>Scenario</legend>
+            <legend>{t.builder.scenarioLegend}</legend>
 
             <div className="builder-field">
-              <label htmlFor={`${dialogId}-title`}>Title *</label>
+              <label htmlFor={`${dialogId}-title`}>{t.builder.title}</label>
               <input
                 id={`${dialogId}-title`}
                 name="title"
@@ -418,15 +410,14 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
                 enterKeyHint="next"
               />
               <p className="builder-error-msg">
-                <span aria-hidden="true">❌</span> A title is required.
+                <span aria-hidden="true">❌</span> {t.builder.titleRequired}
               </p>
             </div>
 
             <div className="builder-field">
-              <label htmlFor={`${dialogId}-tags`}>Tags</label>
+              <label htmlFor={`${dialogId}-tags`}>{t.builder.tags}</label>
               <span id={`${dialogId}-tags-hint`} className="builder-hint">
-                Comma-separated, lowercase letters, digits and hyphens. Used to filter the list and
-                to pick a batch to run.
+                {t.builder.tagsHint}
               </span>
               {/* No `pattern` here: the attribute matches the whole value, so it
                   would have to describe the comma-separated list rather than one
@@ -444,17 +435,17 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
                 aria-describedby={`${dialogId}-tags-hint`}
               />
               <p className="builder-error-msg">
-                <span aria-hidden="true">❌</span> Use lowercase letters, digits and hyphens,
-                separated by commas.
+                <span aria-hidden="true">❌</span> {t.builder.tagsInvalid}
               </p>
             </div>
 
             <div className="builder-field">
-              <label htmlFor={`${dialogId}-id`}>File name{isEditing ? "" : " *"}</label>
+              <label htmlFor={`${dialogId}-id`}>
+                {t.builder.fileName}
+                {isEditing ? "" : " *"}
+              </label>
               <span id={`${dialogId}-id-hint`} className="builder-hint">
-                {isEditing
-                  ? "The file name is the id, so it cannot be changed here."
-                  : "Lowercase letters, digits and hyphens. Becomes scenarios/<id>.yaml."}
+                {isEditing ? t.builder.fileNameFixed : t.builder.fileNameHint}
               </span>
               {/* readOnly, not disabled: the value stays selectable and
                   copyable, and a read-only field is still announced with its
@@ -474,13 +465,12 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
                 readOnly={isEditing}
               />
               <p className="builder-error-msg">
-                <span aria-hidden="true">❌</span> Use lowercase letters, digits and hyphens, e.g.
-                &ldquo;checkout-flow&rdquo;.
+                <span aria-hidden="true">❌</span> {t.builder.fileNameInvalid}
               </p>
             </div>
 
             <div className="builder-field">
-              <label htmlFor={`${dialogId}-platform`}>Platform</label>
+              <label htmlFor={`${dialogId}-platform`}>{t.builder.platform}</label>
               <select
                 id={`${dialogId}-platform`}
                 name="platform"
@@ -495,7 +485,7 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
             {platform === "android" ? (
               <div className="builder-row">
                 <div className="builder-field">
-                  <label htmlFor={`${dialogId}-package`}>App package</label>
+                  <label htmlFor={`${dialogId}-package`}>{t.builder.appPackage}</label>
                   <input
                     id={`${dialogId}-package`}
                     name="appPackage"
@@ -507,7 +497,7 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
                 </div>
 
                 <div className="builder-field">
-                  <label htmlFor={`${dialogId}-activity`}>Activity</label>
+                  <label htmlFor={`${dialogId}-activity`}>{t.builder.activity}</label>
                   <input
                     id={`${dialogId}-activity`}
                     name="appActivity"
@@ -522,7 +512,7 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
               </div>
             ) : (
               <div className="builder-field">
-                <label htmlFor={`${dialogId}-url`}>URL</label>
+                <label htmlFor={`${dialogId}-url`}>{t.builder.url}</label>
                 <input
                   id={`${dialogId}-url`}
                   name="url"
@@ -536,14 +526,14 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
             )}
 
             <div className="builder-field">
-              <label htmlFor={`${dialogId}-model`}>Default model</label>
+              <label htmlFor={`${dialogId}-model`}>{t.builder.defaultModel}</label>
               <select
                 id={`${dialogId}-model`}
                 name="model"
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
               >
-                <option value={SERVER_DEFAULT}>Server default</option>
+                <option value={SERVER_DEFAULT}>{t.common.serverDefault}</option>
                 {models.map((info) => (
                   <option key={info.id} value={info.id}>
                     {info.id}
@@ -558,20 +548,20 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
           {cases.map((one, index) => (
             <fieldset key={one.key} className="builder-fieldset">
               <legend>
-                Case {index + 1}
+                {t.builder.caseLegend(index + 1)}
                 {!onlyOneCase && (
                   <button
                     type="button"
                     className="builder-remove"
                     onClick={() => setCases((c) => c.filter((x) => x.key !== one.key))}
                   >
-                    Remove
+                    {t.builder.removeCase}
                   </button>
                 )}
               </legend>
 
               <div className="builder-field">
-                <label htmlFor={`${dialogId}-case-${one.key}-id`}>Case id *</label>
+                <label htmlFor={`${dialogId}-case-${one.key}-id`}>{t.builder.caseId}</label>
                 <input
                   id={`${dialogId}-case-${one.key}-id`}
                   name={`case-${index}-id`}
@@ -582,12 +572,12 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
                   autoComplete="off"
                 />
                 <p className="builder-error-msg">
-                  <span aria-hidden="true">❌</span> Use lowercase letters, digits and hyphens.
+                  <span aria-hidden="true">❌</span> {t.builder.caseIdInvalid}
                 </p>
               </div>
 
               <div className="builder-field">
-                <label htmlFor={`${dialogId}-case-${one.key}-title`}>Case title</label>
+                <label htmlFor={`${dialogId}-case-${one.key}-title`}>{t.builder.caseTitle}</label>
                 <input
                   id={`${dialogId}-case-${one.key}-title`}
                   name={`case-${index}-title`}
@@ -598,9 +588,9 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
               </div>
 
               <div className="builder-field">
-                <label htmlFor={`${dialogId}-case-${one.key}-prompt`}>Prompt *</label>
+                <label htmlFor={`${dialogId}-case-${one.key}-prompt`}>{t.builder.prompt}</label>
                 <span id={`${dialogId}-case-${one.key}-hint`} className="builder-hint">
-                  What the agent should check, in plain language.
+                  {t.builder.promptHint}
                 </span>
                 <textarea
                   id={`${dialogId}-case-${one.key}-prompt`}
@@ -612,7 +602,7 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
                   aria-describedby={`${dialogId}-case-${one.key}-hint`}
                 />
                 <p className="builder-error-msg">
-                  <span aria-hidden="true">❌</span> A prompt is required.
+                  <span aria-hidden="true">❌</span> {t.builder.promptRequired}
                 </p>
               </div>
 
@@ -625,14 +615,14 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
 
               <div className="builder-row">
                 <div className="builder-field">
-                  <label htmlFor={`${dialogId}-case-${one.key}-model`}>Model</label>
+                  <label htmlFor={`${dialogId}-case-${one.key}-model`}>{t.builder.model}</label>
                   <select
                     id={`${dialogId}-case-${one.key}-model`}
                     name={`case-${index}-model`}
                     value={one.model}
                     onChange={(e) => updateCase(one.key, { model: e.target.value })}
                   >
-                    <option value={SERVER_DEFAULT}>Scenario default</option>
+                    <option value={SERVER_DEFAULT}>{t.builder.scenarioDefault}</option>
                     {models.map((info) => (
                       <option key={info.id} value={info.id}>
                         {info.id}
@@ -642,7 +632,7 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
                 </div>
 
                 <div className="builder-field">
-                  <label htmlFor={`${dialogId}-case-${one.key}-steps`}>Max steps</label>
+                  <label htmlFor={`${dialogId}-case-${one.key}-steps`}>{t.builder.maxSteps}</label>
                   <input
                     id={`${dialogId}-case-${one.key}-steps`}
                     name={`case-${index}-maxSteps`}
@@ -663,7 +653,7 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
             className="builder-add"
             onClick={() => setCases((current) => [...current, emptyCase()])}
           >
-            Add case
+            {t.builder.addCase}
           </button>
 
           <div className="builder-actions">
@@ -677,12 +667,16 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
               className="builder-cancel"
               onClick={() => dialogRef.current?.close()}
             >
-              Cancel
+              {t.common.cancel}
             </button>
             {/* Left enabled while incomplete: the browser then reports the first
                 offending field and focuses it, which is better than a dead button. */}
             <button type="submit" className="builder-save" disabled={saving}>
-              {saving ? "Saving…" : isEditing ? "Save changes" : "Save scenario"}
+              {saving
+                ? t.builder.saving
+                : isEditing
+                  ? t.builder.saveChanges
+                  : t.builder.saveScenario}
             </button>
           </div>
         </form>

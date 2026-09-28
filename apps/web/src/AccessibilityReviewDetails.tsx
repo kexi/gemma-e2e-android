@@ -5,51 +5,47 @@ import Link from "@mui/material/Link";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { screenshotUrl } from "./api.ts";
-
-const categoryLabels = {
-  color_only: "Color alone",
-  contrast: "Contrast",
-  text_size: "Text legibility",
-  visual_clutter: "Visual clutter",
-  other: "Other",
-};
+import { useI18n } from "./I18nProvider.tsx";
 
 export function AccessibilityReviewDetails({
   review,
 }: {
   review: AccessibilityReview | null | undefined;
 }) {
+  const { t } = useI18n();
   const isUnreviewed = review === undefined || review === null;
   if (isUnreviewed) {
     return (
       <Typography component="p" variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-        Visual accessibility: not reviewed.
+        {t.review.notReviewed}
       </Typography>
     );
   }
 
   const summary =
     review.status === "error"
-      ? "review error"
-      : `review completed · ${review.reviews.reduce((total, result) => total + result.findings.length, 0)} potential issues · ${review.reviews.length} personas`;
+      ? t.review.failed
+      : t.review.completed(
+          review.reviews.reduce((total, result) => total + result.findings.length, 0),
+          review.reviews.length,
+        );
 
   return (
     <Box component="details" sx={{ mt: 1 }}>
       <Box component="summary" sx={{ cursor: "pointer" }}>
-        Visual accessibility · {summary}
+        {t.review.heading} · {summary}
       </Box>
       <Stack spacing={1} sx={{ mt: 1 }}>
         <Typography variant="caption" color="text.secondary">
-          Model: {review.model}. Suggestions from a screenshot; no conformance guarantee. Screen
-          reader behavior is not evaluated.
+          {t.review.disclaimer(review.model)}
         </Typography>
         {review.screenshotPath !== null && (
           <Link href={screenshotUrl(review.screenshotPath)} target="_blank" rel="noreferrer">
-            Open reviewed screenshot (before action)
+            {t.review.openScreenshot}
           </Link>
         )}
         {review.status === "error" ? (
-          <Alert severity="warning">Review could not be completed: {review.error}</Alert>
+          <Alert severity="warning">{t.review.couldNotComplete(review.error)}</Alert>
         ) : (
           review.reviews.map((result) => {
             const persona = review.personas.find((item) => item.id === result.personaId);
@@ -62,18 +58,18 @@ export function AccessibilityReviewDetails({
                   </Typography>
                 )}
                 {result.findings.length === 0 ? (
-                  <Typography variant="body2">
-                    No potential issues identified. This does not establish accessibility.
-                  </Typography>
+                  <Typography variant="body2">{t.review.noIssues}</Typography>
                 ) : (
                   <Box component="ul" sx={{ pl: 3, my: 1 }}>
                     {result.findings.map((finding, index) => (
                       <Box component="li" key={index} sx={{ mb: 1 }}>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {categoryLabels[finding.category]} · {finding.location}
+                          {t.review.category[finding.category]} · {finding.location}
                         </Typography>
                         <Typography variant="body2">{finding.reason}</Typography>
-                        <Typography variant="body2">Suggestion: {finding.suggestion}</Typography>
+                        <Typography variant="body2">
+                          {t.review.suggestion(finding.suggestion)}
+                        </Typography>
                       </Box>
                     ))}
                   </Box>

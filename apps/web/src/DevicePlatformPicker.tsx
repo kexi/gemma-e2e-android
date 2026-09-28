@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import type { DevicePlatform } from "./DeviceLiveView.tsx";
+import { useI18n } from "./I18nProvider.tsx";
 
+// Product names, the same in every language, so they stay out of the dictionary.
 const LABEL: Record<DevicePlatform, string> = {
   android: "Android",
   web: "Web",
@@ -62,6 +64,7 @@ export interface DevicePlatformPickerProps {
  */
 export function DevicePlatformPicker({ value, onChange }: DevicePlatformPickerProps) {
   const [available, setAvailable] = useState<DevicePlatform[]>([]);
+  const { t } = useI18n();
 
   useEffect(() => {
     let cancelled = false;
@@ -105,7 +108,7 @@ export function DevicePlatformPicker({ value, onChange }: DevicePlatformPickerPr
           onChange(next);
         }
       }}
-      aria-label="Live view platform"
+      aria-label={t.platformPicker.label}
     >
       {available.map((platform) => (
         <ToggleButton key={platform} value={platform}>
