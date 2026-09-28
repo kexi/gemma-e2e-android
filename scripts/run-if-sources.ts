@@ -6,7 +6,7 @@
  * oxlint ("No files found to lint"), oxfmt ("Expected at least one target
  * file"), and `bun run --filter` ("No packages matched the filter") all treat
  * an empty target set as an error. That is right once apps/ and packages/ are
- * populated, but during bootstrap it makes `just check` and CI fail on a repo
+ * populated, but during bootstrap it makes `just check-all` and CI fail on a repo
  * that is simply empty. Guarding here keeps the failure meaningful later
  * without special-casing each tool's exit codes.
  *

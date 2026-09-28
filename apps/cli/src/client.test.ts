@@ -83,7 +83,7 @@ describe("ApiClient", () => {
     );
   });
 
-  test("points at `just web` when the server is not listening", async () => {
+  test("points at `just launch-web` when the server is not listening", async () => {
     // Port 1 is privileged and unbound, so the connection is refused rather
     // than left hanging on a timeout.
     const client = new ApiClient("http://127.0.0.1:1");
@@ -91,7 +91,7 @@ describe("ApiClient", () => {
     const error = await rejection(client.listRuns());
 
     expect(error).toBeInstanceOf(ConnectionError);
-    expect(error.message).toContain("just web");
+    expect(error.message).toContain("just launch-web");
     expect(error.message).toContain("http://127.0.0.1:1");
   });
 
@@ -141,7 +141,7 @@ describe("resolveServer", () => {
     // The "is it running?" guidance would be wrong here: nothing was
     // contacted. Read off the thrown value rather than `not.toThrow`, which
     // would also pass if the call stopped throwing altogether.
-    expect(rejectionOf(resolve).message).not.toContain("just web");
+    expect(rejectionOf(resolve).message).not.toContain("just launch-web");
   });
 
   test("rejects an empty --server rather than reporting an empty address", () => {

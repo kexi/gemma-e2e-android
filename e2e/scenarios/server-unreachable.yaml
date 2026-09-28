@@ -14,7 +14,7 @@ steps:
       contains: "cannot reach the server at http://127.0.0.1:1"
       timeout: 15s
   - expect:
-      contains: "Start it with `just web`."
+      contains: "Start it with `just launch-web`."
       timeout: 15s
   - expect_exit:
       code: 2
@@ -50,7 +50,7 @@ steps:
       timeout: 15s
 
   # A --server that is not a URL is a typo, not a stopped dashboard: starting one
-  # would not fix it, so it must not be met with "Start it with `just web`".
+  # would not fix it, so it must not be met with "Start it with `just launch-web`".
   # Rejected before any request, which is why these need no server and no
   # connection timeout.
   - spawn: "${GEMMA_E2E_BIN} --server=not-a-url run list"

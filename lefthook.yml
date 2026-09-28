@@ -10,7 +10,7 @@ pre-commit:
       glob: ".github/workflows/*.{yml,yaml}"
       # -fix=false -no-api is pinact's offline form: it only checks that every
       # `uses:` is a 40-char SHA, with no GitHub API call, so the hook stays
-      # fast and works without network. Resolving new SHAs is `just pin`.
+      # fast and works without network. Resolving new SHAs is `just pin-actions`.
       run: pinact run -fix=false -no-api {staged_files}
 
     oxlint:
@@ -20,7 +20,7 @@ pre-commit:
     oxfmt:
       glob: "*.{js,jsx,ts,tsx}"
       # Check only. Rewriting files under the user's commit is surprising;
-      # `just fmt` is the explicit fix.
+      # `just format-code` is the explicit fix.
       run: bunx oxfmt --check {staged_files}
 
     knowledge:

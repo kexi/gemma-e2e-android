@@ -10,9 +10,9 @@
  * Opt-in and manual -- CI has no Chrome, and a unit suite that needed one
  * would stop being runnable on a laptop with nothing attached.
  *
- *   just example-web    # the app under test, on :5174
- *   just chrome         # Chrome with --remote-debugging-port=9222
- *   just cdp-check
+ *   just launch-example-web    # the app under test, on :5174
+ *   just launch-chrome         # Chrome with --remote-debugging-port=9222
+ *   just check-cdp
  */
 import { serializeForLlm } from "@gemma-e2e/core";
 import { createLogger, parseLogLevel } from "@gemma-e2e/logger";

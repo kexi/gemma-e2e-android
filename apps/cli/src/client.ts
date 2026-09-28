@@ -43,7 +43,7 @@ export class ConnectionError extends Error {
     options?: { cause?: unknown },
   ) {
     super(
-      `cannot reach the server at ${server}. Is it running? Start it with \`just web\`.`,
+      `cannot reach the server at ${server}. Is it running? Start it with \`just launch-web\`.`,
       options,
     );
   }

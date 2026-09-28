@@ -198,7 +198,7 @@ describe("--help and --version under an unusable server", () => {
         expect(session.err).toContain(
           `invalid --server value ${JSON.stringify(server)}: not a URL`,
         );
-        expect(session.err).not.toContain("just web");
+        expect(session.err).not.toContain("just launch-web");
         // --server is global, so a hint at the subcommand's help would misdirect.
         expect(session.err).not.toContain("--help");
       }
@@ -304,12 +304,12 @@ describe("usage errors", () => {
 });
 
 describe("connection failures", () => {
-  test("names the server and points at `just web`, exiting 2", async () => {
+  test("names the server and points at `just launch-web`, exiting 2", async () => {
     const session = await cli(["run", "list"]);
 
     expect(session.code).toBe(2);
     expect(session.err).toContain(`${PROGRAM}: cannot reach the server at http://127.0.0.1:1`);
-    expect(session.err).toContain("just web");
+    expect(session.err).toContain("just launch-web");
   });
 
   test("uses the --server flag over GEMMA_E2E_SERVER", async () => {

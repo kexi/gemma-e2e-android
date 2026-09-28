@@ -1,4 +1,4 @@
-# `models` against a live dashboard (`just web` on :5175) AND a running LM
+# `models` against a live dashboard (`just launch-web` on :5175) AND a running LM
 # Studio. Split out of read-only.yaml because it is the only read-only command
 # whose exit code depends on something behind the dashboard: /api/models proxies
 # LM Studio, so with LM Studio down the server answers 503 and the CLI correctly
@@ -8,7 +8,7 @@
 # takes exactly one code, so a scenario tolerant of both would have to drop the
 # exit check altogether -- and the exit code is most of what there is to test
 # about `models`. Keeping the strict assertion and naming the extra prerequisite
-# is the honest version; `just cli-e2e-server-models` says so in the justfile.
+# is the honest version; `just test-cli-models` says so in the justfile.
 name: server-models
 env:
   NO_COLOR: "1"

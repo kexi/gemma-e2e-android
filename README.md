@@ -1,5 +1,7 @@
 # gemma-e2e-android
 
+日本語版: [docs/ja/README.md](docs/ja/README.md)
+
 Run end-to-end tests from natural-language prompts, on an Android device or in
 Chrome. You write something like *"check that the user can log in"*; an agent
 driven by a local [Gemma](https://ai.google.dev/gemma) model reads the live UI
@@ -90,6 +92,11 @@ icons) between two clean ones at `http://localhost:5174/?lab=a11y`, and
 `lab` rather than `web`, so runs selected by the `web` tag stay fast. The shop
 screens the other scenarios run against are unchanged.
 
+The example Android app carries the same screens. An app has no URL to hold a
+flag, so they open from the sign-in screen's "Store information" link, and
+`scenarios/a11y-lab.yaml` / `a11y-lab-all.yaml` start their prompt there. That
+link is the one change to a screen the Android login and shop scenarios see.
+
 ## Repository layout
 
 | Path | What it is |
@@ -115,35 +122,40 @@ sessions asserting what `gemma-e2e` prints and which exit code it returns.
 ## Quick start
 
 ```sh
-direnv allow      # devshell: every CLI tool, the Android SDK, and the emulator
-just install      # JavaScript dependencies
-just llm          # start LM Studio's local API (manual app install required)
-just web          # dashboard → http://localhost:5173
+direnv allow             # devshell: every CLI tool, the Android SDK, and the emulator
+just install-deps        # JavaScript dependencies
+just launch-all          # everything below, in one terminal; skips whatever is already up
 ```
 
-Then bring up whichever platform a scenario targets:
+`launch-all` expects the one-time setup done: LM Studio installed with a model
+downloaded (`just get-model`) and the AVD created (`just create-avd`). One
+Ctrl-C stops what it started. To bring the pieces up one at a time instead:
 
 ```sh
+just launch-llm          # start LM Studio's local API (manual app install required)
+just launch-model        # load the model under the name LLM_MODEL gives it
+just launch-web          # dashboard → http://localhost:5173
+
 # Android (scenarios/login.yaml, shop.yaml)
-just emu          # boot the emulator          (first time: just avd-create)
-just android      # build & install the example app
+just launch-emu          # boot the emulator
+just launch-android      # build & install the example app
 
 # Web (scenarios/login.web.yaml, shop.web.yaml)
-just example-web  # the shop, in the browser → http://localhost:5174
-just chrome       # Chrome with the DevTools port the driver connects to
+just launch-example-web  # the shop, in the browser → http://localhost:5174
+just launch-chrome       # Chrome with the DevTools port the driver connects to
 ```
 
-`just --list` shows every task; `just check` runs the same gates as CI.
+`just --list` shows every task; `just check-all` runs the same gates as CI.
 Full onboarding, including Nix/direnv and LM Studio setup: [SETUP.md](SETUP.md).
 
 ## CLI
 
 `gemma-e2e` drives the same API the dashboard uses, so scenarios and runs can be
-managed from a terminal or a CI job. It needs the dashboard running (`just web`).
+managed from a terminal or a CI job. It needs the dashboard running (`just launch-web`).
 
 ```sh
-just cli          # compile ./apps/cli/dist/gemma-e2e for this machine
-just cli-dist     # cross-compile for macOS, Linux, and Windows
+just build-cli        # compile ./apps/cli/dist/gemma-e2e for this machine
+just build-cli-dist   # cross-compile for macOS, Linux, and Windows
 ```
 
 ```sh
@@ -189,26 +201,26 @@ and asserts its output, exit codes, and argument handling. It ships with the
 devshell, so no separate install is needed.
 
 ```sh
-just cli-e2e                # compiles the binary, then runs e2e/scenarios/
-just cli-e2e-server         # needs `just web` up
-just cli-e2e-server-models  # needs `just web` up *and* LM Studio serving
+just test-cli         # compiles the binary, then runs e2e/scenarios/
+just test-cli-server  # needs `just launch-web` up
+just test-cli-models  # needs `just launch-web` up *and* LM Studio serving
 ```
 
 `e2e/scenarios/` needs no server: it covers `--help` / `--version`, usage errors
 and their exit codes, the `--` option terminator, colour suppression, local
 scenario-file validation, and the guidance shown when the dashboard is
 unreachable. `e2e/scenarios/server/` is kept separate because it expects a live
-dashboard on `:5175`; `just cli-e2e` does not descend into it.
+dashboard on `:5175`; `just test-cli` does not descend into it.
 
 Within that directory `models.yaml` is split off again and run only by
-`just cli-e2e-server-models`, because `models` is the one read-only command that
+`just test-cli-models`, because `models` is the one read-only command that
 reaches past the dashboard: `/api/models` proxies LM Studio, and with LM Studio
-down the server answers 503 and the CLI exits 2. `just cli-e2e-server` names
-`read-only.yaml` explicitly so it stays green with only `just web` running.
+down the server answers 503 and the CLI exits 2. `just test-cli-server` names
+`read-only.yaml` explicitly so it stays green with only `just launch-web` running.
 
-`just check` deliberately leaves these out — pitty has to compile the binary
-first, which is far slower than the rest of the gates. Run `just cli-e2e`
-alongside `just check` when touching `apps/cli`.
+`just check-all` deliberately leaves these out — pitty has to compile the binary
+first, which is far slower than the rest of the gates. Run `just test-cli`
+alongside `just check-all` when touching `apps/cli`.
 
 ## Documentation
 

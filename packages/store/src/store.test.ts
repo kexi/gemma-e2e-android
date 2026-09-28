@@ -3,7 +3,7 @@ import type { Action } from "@gemma-e2e/core";
 import { nextAcceptedAt, Store, StoreError } from "./store.ts";
 
 /**
- * Every test here needs a live Firestore. `just test` supplies one through
+ * Every test here needs a live Firestore. `just run-tests` supplies one through
  * `firebase emulators:exec`, which exports FIRESTORE_EMULATOR_HOST; a bare
  * `bun test` has none, and these skip rather than fail so the rest of the suite
  * stays runnable without the emulator installed.

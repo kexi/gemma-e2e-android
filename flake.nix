@@ -99,7 +99,7 @@
               pkgs.gitleaks
               pkgs.pinact
               pkgs.bun
-              # PTY-based CLI test runner (`just cli-e2e`). Not in nixpkgs, so
+              # PTY-based CLI test runner (`just test-cli`). Not in nixpkgs, so
               # it comes from its own flake rather than a pinned release
               # tarball that would need hand-updating per platform.
               pittyPackage
@@ -117,7 +117,7 @@
               # Kept as a fallback: `#!/usr/bin/env node` shebang CLIs (Expo CLI)
               # resolve node, and Genkit is not officially supported on Bun yet.
               pkgs.nodejs_22
-              # Firestore emulator (`just db`, `just test`). The emulator is a
+              # Firestore emulator (`just launch-db`, `just run-tests`). The emulator is a
               # JAR firebase-tools downloads on first run, so it needs a JVM of
               # its own -- see zulu21 below.
               pkgs.firebase-tools
@@ -136,7 +136,7 @@
 
             shellHook = ''
               export JAVA_HOME="${pkgs.zulu17.home}"
-              # Consumed by the `db`, `web`, and `test` just recipes, which
+              # Consumed by the `launch-db`, `launch-web`, and `run-tests` just recipes, which
               # prepend its bin/ to PATH. firebase-tools resolves `java` from
               # PATH rather than JAVA_HOME, so overriding JAVA_HOME alone would
               # not reach it.

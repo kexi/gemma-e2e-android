@@ -62,7 +62,7 @@ The first build downloads the Android SDK, platform tools, and an emulator
 system image — **several GB, expect 10+ minutes** on a fresh machine. Later
 entries are instant.
 
-Without direnv, prefix commands with `nix develop -c`, e.g. `nix develop -c just check`.
+Without direnv, prefix commands with `nix develop -c`, e.g. `nix develop -c just check-all`.
 
 Entering the shell also runs `lefthook install`, so the pre-commit hooks
 (gitleaks, pinact, oxlint, oxfmt) are wired up automatically.
@@ -70,7 +70,7 @@ Entering the shell also runs `lefthook install`, so the pre-commit hooks
 ## 3. Install JavaScript dependencies
 
 ```sh
-just install    # = bun install
+just install-deps    # = bun install
 ```
 
 `bunfig.toml` sets `minimumReleaseAge = 86400`, so packages published within
@@ -84,15 +84,21 @@ LM Studio is a GUI app, so it is not managed by Nix.
 1. Install [LM Studio](https://lmstudio.ai/) and set up its `lms` CLI —
    see the [lms CLI guide](https://lmstudio.ai/docs/cli) (`~/.lmstudio/bin/lms
    bootstrap` adds it to your PATH).
-2. Download the `gemma-4-12b` model. If memory is tight, use the E4B variant
-   instead. Set `LLM_MODEL` in `.env` to whatever `lms ps` reports — that value
-   is the last fallback in the `case.model → scenario.model → LLM_MODEL` chain,
-   so a scenario that names no model runs on it.
-3. Start the OpenAI-compatible server:
+2. Start the OpenAI-compatible server, then download a model and load it under
+   the name in `.env`'s `LLM_MODEL`:
 
    ```sh
-   just llm    # = lms server start
+   just launch-llm     # = lms server start
+   just get-model      # Gemma 4 26B-A4B QAT (MLX), from LM Studio's catalog
+   just launch-model   # loads it as $LLM_MODEL
    ```
+
+   `LLM_MODEL` is the last fallback in the `case.model → scenario.model →
+   LLM_MODEL` chain, so a scenario that names no model runs on it. If memory is
+   tight, E4B QAT also passed every E2E case in the 2026-09 benchmarks; the MLX
+   builds of E4B and E2B did not. Fetch it by URL and load it the same way:
+   `just get-model https://huggingface.co/lmstudio-community/gemma-4-E4B-it-QAT-GGUF gguf`,
+   then `just launch-model <key from lms ls>`.
 
 The agent talks to `http://localhost:1234/v1`. Point it at mlx-lm or Ollama by
 changing the base URL.
@@ -100,9 +106,9 @@ changing the base URL.
 ## 5. Emulator or device
 
 ```sh
-just avd-create   # creates the gemma-e2e-api35 AVD (Android 35, arm64-v8a)
-just emu          # boots it headless
-adb devices       # should list the emulator
+just create-avd    # creates the gemma-e2e-api35 AVD (Android 35, arm64-v8a)
+just launch-emu    # boots it headless
+adb devices        # should list the emulator
 ```
 
 For a physical device instead: enable Developer options → USB debugging, plug
@@ -111,7 +117,7 @@ it in, and accept the RSA prompt; `adb devices` will show it.
 With a device or emulator online, build and install the example app:
 
 ```sh
-just android      # expo run:android — prebuilds (CNG) and installs "Kexi Coffee Shop"
+just launch-android  # expo run:android — prebuilds (CNG) and installs "Kexi Coffee Shop"
 ```
 
 The first run generates `android/` and downloads Gradle dependencies, so it
@@ -123,11 +129,11 @@ Scenarios naming a `web` target drive Chrome over the DevTools Protocol. Two
 processes: the app under test, and a browser with the debugging port open.
 
 ```sh
-just example-web  # the shop, in the browser → http://localhost:5174
-just chrome       # Chrome --remote-debugging-port=9222
+just launch-example-web  # the shop, in the browser → http://localhost:5174
+just launch-chrome       # Chrome --remote-debugging-port=9222
 ```
 
-`just chrome` uses a profile of its own under `$TMPDIR`, so an already-running
+`just launch-chrome` uses a profile of its own under `$TMPDIR`, so an already-running
 Chrome does not have to be closed first — a second instance sharing the default
 profile refuses to open the port. To drive a browser started some other way,
 point `CHROME_ENDPOINT` at it instead.
@@ -136,7 +142,7 @@ Nothing needs to be running for the dashboard to boot: the driver connects on
 first use, so a web case simply errors with the flag to start Chrome with. Only
 that case fails; the rest of the run continues.
 
-`just cdp-check` drives the example app through the real client and prints the
+`just check-cdp` drives the example app through the real client and prints the
 tree the model would read. It is the only thing that exercises the DOM
 collector, which runs inside the page and therefore has no unit tests, so it is
 worth running after touching `packages/cdp`.
@@ -149,16 +155,16 @@ project: the emulator runs locally under the project id `demo-gemma-e2e`, whose
 and no billing account.
 
 ```sh
-just db     # Firestore emulator on 127.0.0.1:8790
+just launch-db     # Firestore emulator on 127.0.0.1:8790
 ```
 
-`just web` starts this for you, so the standalone recipe is only needed when
+`just launch-web` starts this for you, so the standalone recipe is only needed when
 running the API server by hand. `firebase.json` holds the port; `.firebaserc`
 holds the project id. The emulator is a Java program that firebase-tools
-downloads on first run, and it stores nothing between restarts — every `just db`
+downloads on first run, and it stores nothing between restarts — every `just launch-db`
 starts from an empty database.
 
-Anything talking to it needs two variables, which `just web` and `just test`
+Anything talking to it needs two variables, which `just launch-web` and `just run-tests`
 export automatically:
 
 ```sh
@@ -174,7 +180,7 @@ instead of exposing run history.
 ## 7. Dashboard
 
 ```sh
-just web
+just launch-web
 ```
 
 This starts three processes — the Firestore emulator on `127.0.0.1:8790`, the
@@ -185,18 +191,23 @@ stream in live under each case, and browse the run history. **New scenario** in
 the rail opens a builder that writes `scenarios/<id>.yaml` — a git-managed file
 you still have to commit, and one it refuses to overwrite if it already exists.
 
+To bring up everything a run needs in one terminal instead — LM Studio with the
+model loaded, this dashboard, the emulator with the example app, the example
+web app, and Chrome — use `just launch-all`. It skips whatever is already
+listening, so it is safe to rerun, and one Ctrl-C stops what it started.
+
 ### Live device view
 
 The **Device** page shows the emulator screen live, and a run in progress
 embeds the same view next to its step timeline so you can watch the agent act.
 Frames come off the emulator's gRPC bridge, so the emulator has to be started
-with it — `just emu` passes `-grpc 8554` for exactly this reason. An emulator
+with it — `just launch-emu` passes `-grpc 8554` for exactly this reason. An emulator
 booted without that flag still serves adb and runs scenarios; only the live
 view goes dark, and the page says so.
 
 Frames are delivered only when the screen changes, so a still device shows a
 static image rather than a stalled one. The view is read-only. If it will not
-connect, `just mirror` opens the same screen in scrcpy independently of the
+connect, `just mirror-screen` opens the same screen in scrcpy independently of the
 dashboard. Point the server at a different bridge with `EMULATOR_GRPC=host:port`.
 
 The same page also shows Chrome, through the screencast the recorder already
@@ -240,24 +251,24 @@ bulkiest thing a run produces — delete `var/videos/` when disk space matters.
 ## 8. Verify
 
 ```sh
-just check
+just check-all
 ```
 
 This runs lint, format check, typecheck, the test suite, a full-history secret
 scan, and the Actions SHA-pin check. `just --list` shows every task.
 
-`just test` wraps `bun test` in `firebase emulators:exec`, so the Firestore
+`just run-tests` wraps `bun test` in `firebase emulators:exec`, so the Firestore
 tests get a throwaway emulator that starts and stops with them and never
-touches your `just db` data. A bare `bun test` has no emulator, so those tests
+touches your `just launch-db` data. A bare `bun test` has no emulator, so those tests
 skip themselves rather than fail — the run reports them as skipped.
 
 ### Troubleshooting
 
 - **`adb devices` shows nothing / `unauthorized`** — `adb kill-server && adb start-server`, then re-accept the RSA prompt on the device.
 - **Devshell looks stale after editing `flake.nix`** — `direnv reload`.
-- **Emulator will not boot** — confirm the AVD exists with `avdmanager list avd`; recreate it with `just avd-create` (it passes `--force`).
+- **Emulator will not boot** — confirm the AVD exists with `avdmanager list avd`; recreate it with `just create-avd` (it passes `--force`).
 - **Expo CLI on Bun** — use `bunx --bun expo …`. Without `--bun`, the `#!/usr/bin/env node` shebang wins and it runs under Node.
-- **Hooks not firing** — run `just setup` (`lefthook install`).
+- **Hooks not firing** — run `just install-hooks` (`lefthook install`).
 - **"firebase-tools no longer supports Java version before 21"** — the emulator recipes prepend `$FIREBASE_JAVA_HOME/bin` to `PATH` for exactly this reason (the devshell's default JDK is 17, which AGP needs). If you invoke `firebase` directly, do the same: `PATH="$FIREBASE_JAVA_HOME/bin:$PATH" firebase …`.
-- **Port 8790 already in use** — a previous `just db` is still running; stop it, or change the port in `firebase.json`.
-- **Firestore tests all skipped** — that is a bare `bun test`. Use `just test`, which supplies the emulator.
+- **Port 8790 already in use** — a previous `just launch-db` is still running; stop it, or change the port in `firebase.json`.
+- **Firestore tests all skipped** — that is a bare `bun test`. Use `just run-tests`, which supplies the emulator.
