@@ -10,6 +10,8 @@ sources:
     title: Implement core, adb, agent, and store packages
 ---
 
+English: [../../knowledge/lm-studio-genkit-zod.md](../../knowledge/lm-studio-genkit-zod.md)
+
 モデルはローカルの MLX エンジンで動かします(`gemma-4-12b`、メモリが厳しければ
 E4B)。Genkit の OpenAI 互換プラグインを `http://localhost:1234/v1` に向け、操作
 判断はすべて Zod で検証した構造化出力として受け取ります。

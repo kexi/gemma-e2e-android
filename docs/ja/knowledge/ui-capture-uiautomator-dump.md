@@ -10,6 +10,8 @@ sources:
     title: Implement core, adb, agent, and store packages
 ---
 
+English: [../../knowledge/ui-capture-uiautomator-dump.md](../../knowledge/ui-capture-uiautomator-dump.md)
+
 追加アプリも計装サーバも端末側コードも不要で、シェルコマンドから XML が得られます。
 
 *なぜ Appium UiAutomator2 や自作 Accessibility Service でないか:* 高速ですが、

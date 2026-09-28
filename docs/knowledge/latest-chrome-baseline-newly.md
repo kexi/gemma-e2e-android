@@ -6,6 +6,8 @@ status: stable
 tags: [dashboard, browser-support, css, progressive-enhancement]
 ---
 
+日本語版: [../ja/knowledge/latest-chrome-baseline-newly.md](../ja/knowledge/latest-chrome-baseline-newly.md)
+
 The dashboard is a local development tool: it runs on `localhost` next to an
 emulator, an LM Studio server and a Firestore emulator, and it is opened by the
 person who started those. That audience is one browser wide, so the target is

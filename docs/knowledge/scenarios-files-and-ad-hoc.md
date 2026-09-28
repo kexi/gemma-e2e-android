@@ -13,6 +13,8 @@ sources:
     title: Model scenarios as bundles of cases, and persist runs in Firestore
 ---
 
+日本語版: [../ja/knowledge/scenarios-files-and-ad-hoc.md](../ja/knowledge/scenarios-files-and-ad-hoc.md)
+
 Test scenarios live in the repo as YAML so they can be reviewed, versioned, and
 replayed in CI. The dashboard can also run one-off prompts that were never
 committed, optionally against a model picked from a dropdown that

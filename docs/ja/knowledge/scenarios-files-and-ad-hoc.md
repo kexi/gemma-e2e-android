@@ -13,6 +13,8 @@ sources:
     title: Model scenarios as bundles of cases, and persist runs in Firestore
 ---
 
+English: [../../knowledge/scenarios-files-and-ad-hoc.md](../../knowledge/scenarios-files-and-ad-hoc.md)
+
 テストシナリオは YAML としてリポジトリに置き、レビュー・バージョン管理・CI での
 再実行を可能にします。加えてダッシュボードからコミットされていない単発のプロンプトも
 実行でき、モデルはドロップダウンから選べます。中身は `GET /api/models` が LLM

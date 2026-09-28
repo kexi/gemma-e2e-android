@@ -10,6 +10,8 @@ sources:
     title: Show the emulator screen live while a run is in progress
 ---
 
+English: [../../knowledge/live-device-view.md](../../knowledge/live-device-view.md)
+
 ダッシュボードはエミュレータの画面をライブ表示します(専用の Device ページと、
 実行中の run のステップタイムライン横の両方)。Hono サーバがエミュレータの gRPC
 ブリッジ(`emulator -grpc 8554`)に接続し、`EmulatorController` サービスの

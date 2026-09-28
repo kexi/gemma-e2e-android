@@ -10,6 +10,8 @@ sources:
     title: Bootstrap reproducible dev environment and supply-chain guards
 ---
 
+English: [../../knowledge/typescript-strict-buildless.md](../../knowledge/typescript-strict-buildless.md)
+
 `tsconfig.base.json` で `strict` / `noUncheckedIndexedAccess` /
 `exactOptionalPropertyTypes` などを有効にし、全 app / package がこれを extends
 します。`packages/*` は TS ソースのまま workspace 内で参照されます。

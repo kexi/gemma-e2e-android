@@ -10,6 +10,8 @@ sources:
     title: Unify runtime output on Zod-validated NDJSON logs
 ---
 
+English: [../../knowledge/structured-logs-ndjson.md](../../knowledge/structured-logs-ndjson.md)
+
 実行時のログは 1 行 1 JSON として stderr に出力します。共通の骨格は固定で、
 `ts`(ISO 8601)・`level`(`debug`/`info`/`warn`/`error`)・`event`(`run.step`
 `adb.exec_failed` `http.request` のようなドット区切りの名前空間)を必ず持ち、

@@ -13,6 +13,8 @@ sources:
     title: Model scenarios as bundles of cases, and persist runs in Firestore
 ---
 
+日本語版: [../ja/knowledge/expo-prebuild-cng.md](../ja/knowledge/expo-prebuild-cng.md)
+
 Continuous Native Generation regenerates `android/` and `ios/` from app config,
 so the native projects stay disposable and are gitignored. This is what forces
 the Android SDK and Azul Zulu JDK 17 (the JDK Expo recommends) into the

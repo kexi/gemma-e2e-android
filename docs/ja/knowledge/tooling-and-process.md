@@ -13,6 +13,8 @@ sources:
     title: Route app install and dependency install through just
 ---
 
+English: [../../knowledge/tooling-and-process.md](../../knowledge/tooling-and-process.md)
+
 - **Nix flake + direnv** — SDK・Zulu JDK・Bun・各 CLI を `flake.lock` で固定するため、
   「自分の環境では動く」が「あなたの環境でも動く」になります。Android SDK は
   [android-nixpkgs](https://github.com/tadfisher/android-nixpkgs) から取得し

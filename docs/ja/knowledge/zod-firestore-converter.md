@@ -10,6 +10,8 @@ sources:
     title: Model scenarios as bundles of cases, and persist runs in Firestore
 ---
 
+English: [../../knowledge/zod-firestore-converter.md](../../knowledge/zod-firestore-converter.md)
+
 `packages/store` の `zodConverter(schema, label)` は任意の Zod スキーマを Firestore
 の `FirestoreDataConverter` に変換し、全コレクションがこれを通ります。重要なのは
 読み取りだけでなく**書き込み時にも** parse することです。

@@ -13,6 +13,8 @@ sources:
     title: Model scenarios as bundles of cases, and persist runs in Firestore
 ---
 
+日本語版: [../ja/knowledge/sse-over-firestore-listeners.md](../ja/knowledge/sse-over-firestore-listeners.md)
+
 The dashboard still follows a run over server-sent events published by the
 in-process `RunEventBus`, with Firestore used purely for persistence. Events now
 carry a `caseId` so the client can file each step under the right case.

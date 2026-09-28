@@ -62,8 +62,8 @@ English: [../ARCHITECTURE.md](../ARCHITECTURE.md)
    └──────────────┬───────────────┘                          │
                   │ {action: tap|type|swipe|back|assert, …}  │
                   ▼                                          │
-   ┌──────────────────────────────┐   adb input / shell      │
-   │ 操作実行                     │──────────────────────────┘
+   ┌──────────────────────────────┐   adb input | CDP input  │
+   │ 操作実行(Driver 経由)        │──────────────────────────┘
    └──────────────┬───────────────┘
                   │ ステップログ + スクショパス + 判定
                   ▼
@@ -75,6 +75,16 @@ English: [../ARCHITECTURE.md](../ARCHITECTURE.md)
                                          │ Web ダッシュボード │
                                          │ Vite + React + MUI │
                                          └────────────────────┘
+
+   ライブビュー(別経路・同じサーバ):
+
+   ┌──────────────────┐  gRPC streamScreenshot  ┌────────────────────┐
+   │ Emulator -grpc   │────────────────────────►│ Hono フレーム中継  │
+   └──────────────────┘        (PNG frames)     └─────────┬──────────┘
+                                                          │ WebSocket
+                                                ┌─────────▼──────────┐
+                                                │ ワークベンチ本体   │
+                                                └────────────────────┘
 ```
 
 ## リポジトリ構成
@@ -84,7 +94,7 @@ apps/example-shared    Kexi Coffee Shop のドメインデータ(両フィクス
 apps/example-android   Expo ビルド。adb で駆動
 apps/example-web       ブラウザビルド。CDP で駆動
 apps/web               Vite + React ダッシュボード
-packages/*             エージェント本体・adb / cdp クライアント・LLM クライアント
+packages/*             エージェント本体・adb / cdp クライアント・LLM クライアント(ビルドレス TS)
 ```
 
 ## 2 つのプラットフォームと 3 つの Adapter

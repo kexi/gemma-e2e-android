@@ -13,6 +13,8 @@ sources:
     title: Route app install and dependency install through just
 ---
 
+日本語版: [../ja/knowledge/tooling-and-process.md](../ja/knowledge/tooling-and-process.md)
+
 - **Nix flake + direnv** — the SDK, Zulu JDK, Bun, and every CLI are pinned by
   `flake.lock`, so "works on my machine" means "works on yours". Android SDK
   comes from [android-nixpkgs](https://github.com/tadfisher/android-nixpkgs),

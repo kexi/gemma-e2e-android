@@ -10,6 +10,8 @@ sources:
     title: Add the web dashboard so runs are driven and read from a browser
 ---
 
+English: [../../knowledge/web-dashboard-stack.md](../../knowledge/web-dashboard-stack.md)
+
 ランナーの操作は最初からブラウザで行います(プロンプト投入・ステップの逐次表示・
 スクリーンショット閲覧)。Hono はエージェントプロセスと同居し、SSE/WebSocket で
 進捗を配信します。MUI + MUI Icons でデータ密度の高い画面をデザイン自作なしに

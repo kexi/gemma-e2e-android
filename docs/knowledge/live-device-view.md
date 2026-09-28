@@ -10,6 +10,8 @@ sources:
     title: Show the emulator screen live while a run is in progress
 ---
 
+日本語版: [../ja/knowledge/live-device-view.md](../ja/knowledge/live-device-view.md)
+
 The dashboard shows the emulator screen live — on its own Device page, and
 beside the step timeline while a run is in progress. The Hono server dials the
 emulator's gRPC bridge (`emulator -grpc 8554`), calls the `EmulatorController`

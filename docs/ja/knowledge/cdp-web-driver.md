@@ -22,6 +22,8 @@ verified:
   at: 2026-08-02T21:40:00Z
 ---
 
+English: [../../knowledge/cdp-web-driver.md](../../knowledge/cdp-web-driver.md)
+
 ケースは `target` を宣言し、リゾルバがそれに応じたドライバを開く。Android は
 従来どおり `adb`、`web` は CDP で Chrome のページを開く。エージェントループ側
 は変わらない — `UiNode` ツリーを読み、モデルに次の 1 手を尋ね、実行する。
@@ -66,7 +68,7 @@ origin を列挙し損ねる余地が残り、前のケースのセッション�
 レイアウトエンジンがないので `getBoundingClientRect` が全部ゼロを返し、
 シリアライザがページ全体を画面外として捨ててしまう。rect をスタブしたテストは
 存在しないブラウザを固定することになるので、collector 側は実 Chrome に対する
-`just cdp-check` で担保する。
+`just check-cdp` で担保する。
 
 *静かに間違う箇所(いずれもテストで固定済み)*:
 

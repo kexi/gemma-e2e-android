@@ -16,6 +16,8 @@ verified:
   at: 2026-08-02T21:42:00Z
 ---
 
+English: [../../knowledge/cdp-screencast-recording.md](../../knowledge/cdp-screencast-recording.md)
+
 Web のケースも Android と同じように録画される — ケースごとに 1 ファイル、
 `var/videos/{runId}/{caseId}.mp4`、パスは `CaseRun` に載り、ダッシュボードで
 再生でき、`RECORD_RUNS=0` で無効化できる。違うのは手段だけで、CDP には動画

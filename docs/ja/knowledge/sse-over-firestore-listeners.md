@@ -13,6 +13,8 @@ sources:
     title: Model scenarios as bundles of cases, and persist runs in Firestore
 ---
 
+English: [../../knowledge/sse-over-firestore-listeners.md](../../knowledge/sse-over-firestore-listeners.md)
+
 ダッシュボードは引き続き、プロセス内の `RunEventBus` が発行する SSE で run を追跡し、
 Firestore は永続化専用です。イベントには `caseId` が付き、クライアントは各ステップを
 正しいケースに振り分けられます。

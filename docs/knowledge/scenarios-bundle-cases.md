@@ -10,6 +10,8 @@ sources:
     title: Model scenarios as bundles of cases, and persist runs in Firestore
 ---
 
+日本語版: [../ja/knowledge/scenarios-bundle-cases.md](../ja/knowledge/scenarios-bundle-cases.md)
+
 A **test case** is one natural-language goal that earns one verdict ("check that
 a wrong password shows an error"). A **scenario** is a bundle of cases that
 share an app and, usually, a model. Cases are what get verdicts; the scenario

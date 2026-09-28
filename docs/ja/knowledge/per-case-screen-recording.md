@@ -16,6 +16,8 @@ verified:
   at: 2026-08-01T15:12:00Z
 ---
 
+English: [../../knowledge/per-case-screen-recording.md](../../knowledge/per-case-screen-recording.md)
+
 各ケースは最初から最後まで録画されます。ランナーはアプリのリセット直前に
 ケースごとの scrcpy を起動し、判定が確定した時点で端末側のキャプチャを終了させて
 scrcpy に `var/videos/{runId}/{caseId}.mp4` を確定させ、自ら終了させます。パスは

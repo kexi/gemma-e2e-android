@@ -10,6 +10,8 @@ sources:
     title: Add the web dashboard so runs are driven and read from a browser
 ---
 
+日本語版: [../ja/knowledge/web-dashboard-stack.md](../ja/knowledge/web-dashboard-stack.md)
+
 The runner is operated from a browser from day one — submitting prompts,
 watching steps stream in, viewing screenshots. Hono co-locates with the agent
 process and pushes progress over SSE/WebSocket. MUI plus MUI Icons covers dense,

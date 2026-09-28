@@ -1,24 +1,30 @@
-# 実モデル E2E の証跡取得
+# Collecting evidence for real-model E2E runs
 
-`run.py` は起動済みダッシュボード API を通じて、既存シナリオを1件実行する。
-サーバー・モデル・端末の起動、ロード、終了は行わない。呼び出し元で逐次実行する。
+日本語版: [../../docs/ja/bench/e2e/README.md](../../docs/ja/bench/e2e/README.md)
 
-準備時に `scenarios/login[.web].yaml` と `shop[.web].yaml` の4ケースをまとめ、
-各ケースの `model` に実際のモデル識別子を明記したシナリオを
-`var/model-e2e-20260927/scenarios/` に配置する。API の `SCENARIOS_DIR` を
-そのディレクトリへ向け、Android または Web の対象アプリを準備する。
-ケースID・プロンプト・上限・対象は既存fixtureを保持する。
+`run.py` runs one existing scenario through the dashboard API, which must
+already be up. It does not start, load, or stop the server, the model, or the
+device. The caller runs it sequentially.
 
-`fixtures.json` は既存login/shopの入力を転記したもの。
-`matrix.py` はモデルを1つずつロードし、4ケースを実行してアンロードする。
-開始時に他のモデルがロードされていた場合や、API上のrunが終了していない場合は停止する。
+As preparation, bundle the four cases of `scenarios/login[.web].yaml` and
+`shop[.web].yaml` into a scenario whose every case names the actual model
+identifier in `model`, and place it in `var/model-e2e-20260927/scenarios/`.
+Point the API's `SCENARIOS_DIR` at that directory and prepare the Android or
+web app under test. Case IDs, prompts, step limits, and targets are kept as in
+the existing fixtures.
+
+`fixtures.json` transcribes the inputs of the existing login/shop scenarios.
+`matrix.py` loads one model at a time, runs the four cases, and unloads it. It
+stops if another model was already loaded at the start, or if a run on the API
+has not finished.
 
 ```sh
 python3 bench/e2e/matrix.py --platform web --only gemma-4-31B-it-MLX-4bit
 ```
 
-Androidは専用AVDと現在のソースからビルドしたAPKを使い、結果を別ディレクトリへ保存する。
-APIにも同じ `SCENARIOS_DIR` と対象端末の `ANDROID_SERIAL` を設定する。
+Android uses a dedicated AVD and an APK built from the current source, and
+saves its results to a separate directory. Set the same `SCENARIOS_DIR` on the
+API, together with `ANDROID_SERIAL` for the target device.
 
 ```sh
 python3 bench/e2e/matrix.py --platform android --results bench/e2e/android-results --scenario-dir var/model-e2e-android-20260927/scenarios --sample-memory
@@ -26,60 +32,81 @@ python3 bench/e2e/summarize.py --results bench/e2e/android-results --server-log 
 python3 bench/e2e/summarize_memory.py --results bench/e2e/android-results
 ```
 
-`--sample-memory` はロード後から4ケース終了まで、LM Studio配下のプロセスとその子孫を
-1秒間隔で採取する。macOS `proc_pid_rusage` のphysical footprintと `ps` のRSSを、
-プロセス別・合算で記録する。モデルロード中、Androidエミュレータ、APIサーバーは含まない。
-LM StudioのUI・helperは含み、モデル単体のMetal allocator使用量ではない。
-共有ページの重複計上や採取間隔より短いピークを考慮し、サンプル最大値として扱う。
-RSS採取失敗、不完全なsummary、または全標本のfootprint欠測があればmatrixを停止する。
-短命な子プロセスの終了などで一部のfootprintを取得できない標本は、合算をnullとして除外し、
-欠測数を報告する。残った完全標本の最大値であり、連続時間の真のピークではない。
+`--sample-memory` samples the processes under LM Studio and their descendants
+once a second, from after the load until the four cases finish. It records the
+physical footprint from macOS `proc_pid_rusage` and the RSS from `ps`, per
+process and summed. Model loading, the Android emulator, and the API server are
+not included. LM Studio's UI and helpers are, so this is not the Metal allocator
+usage of the model alone. Because shared pages can be counted twice and peaks
+shorter than the sampling interval are missed, the figure is treated as the
+maximum over samples. The matrix stops if RSS sampling fails, a summary is
+incomplete, or every sample is missing its footprint. A sample in which some
+footprint could not be read — for example because a short-lived child process
+exited — has its sum set to null and is excluded, and the number of missing
+samples is reported. The result is the maximum over the remaining complete
+samples, not the true peak over continuous time.
 
-今回のWeb試験は専用プロファイルのHeadless Chrome 153.0.8010.53を使用する。
-モデルは画面のDOMテキストを読み、実際のGenkit・CDP・画面遷移を通る。
-画像レビュー機能は無効、操作経路の生成設定と再試行はアプリの既定を保つ。
-各モデル4ケースを1回ずつ測るスモーク試験で、反復成功率やAndroid実機の保証ではない。
+The web runs this time used Headless Chrome 153.0.8010.53 with a dedicated
+profile. The model reads the screen's DOM text and goes through the real
+Genkit, CDP, and screen transitions. Image review is off, and the generation
+settings and retries of the action path are left at the app's defaults. This is
+a smoke test measuring each model's four cases once each; it guarantees neither
+a repeated success rate nor behaviour on a physical Android device.
 
 ```sh
 python3 bench/e2e/run.py --scenario <scenario-id> --model <loaded-model-id> --platform web
 ```
 
-既定のAPIは `http://localhost:5175`、全体期限は900秒。
-開始前にシナリオの4ケースと明示モデルを検査し、終了後にも実際のケースを検査する。
-開始前には `fixtures.json` の該当プラットフォームと対象・ケース順・ID・プロンプト・
-ステップ上限を照合する。ケース別targetの上書きも同じ対象であることを検査する。
-`--platform` を省略した場合はシナリオのtargetから選ぶ。タイトル等の測定用ラベルは照合対象外。
-`results/<scenario>-<UTC>/` にシナリオ、開始要求の設定・応答、
-最新の完全API応答・run JSON、時間・操作列・判定概要を保存する。
-期限切れでも取得済みの部分runを保存し、終了コード1を返す。
-サーバー上のrunはキャンセルしないため、次のモデルへ切り替える前に終了を確認する。
+The default API is `http://localhost:5175`, and the overall deadline is 900
+seconds. Before starting, it checks the scenario's four cases and explicit
+models, and after finishing it checks the cases that actually ran. Before
+starting, it also compares the target, case order, IDs, prompts, and step limits
+against the matching platform in `fixtures.json`, and checks that any per-case
+target override names the same target. When `--platform` is omitted, the
+platform is taken from the scenario's target. Measurement labels such as titles
+are not compared. It saves to `results/<scenario>-<UTC>/` the scenario, the
+settings and response of the start request, the latest full API response and run
+JSON, and a summary of timing, the action sequence, and verdicts. On a timeout
+it still saves the partial run it has fetched and exits with code 1. It does not
+cancel the run on the server, so confirm the run has finished before switching
+to the next model.
 
-モデルによる完走判定と、最後の `finish` ステップのUIテキストによる補助判定を分ける。
-UIテキストは操作前の画面なので、画面遷移しない `finish` の入力を使用する。
-`finish` がない場合は補助判定を `unavailable` とする。
-期待文字列は両プラットフォームのfixture実装に基づく。
-共通serializerの1行を解析し、安定IDを持つ要素の `text` を完全一致で比較する。
-全文検索・desc属性・入力欄の値は合格根拠にしない。同じIDが重複した場合も不合格とする。
+The model's own completion verdict is kept separate from a supplementary check
+on the UI text of the final `finish` step. The UI text is the screen before the
+action, and since `finish` causes no transition, its input is what is used.
+Without a `finish` step the supplementary check is `unavailable`. The expected
+strings are based on the fixture implementations for both platforms. Each line
+of the shared serializer is parsed, and the `text` of elements with a stable ID
+is compared for exact equality. Full-text search, desc attributes, and input
+field values are never grounds for a pass. A duplicated ID is also a failure.
 
-- 正常ログイン：`screenTitle` のショップ名、`signOutButton` 自身またはその子孫のSign out、
-  `beanRow-yirgacheffe` 自身またはその子孫のYirgacheffe
-- 誤パスワード：`errorMessage` のInvalid email or password
-- カート：`screenTitle` のYour cart、`cartLine-yirgacheffe` のQty 1 - $18.00、
-  `cartTotal` のTotal: $18.00
-- 注文：`screenTitle` のOrder placed!、`orderNumber` のOrder number: KCS-1001
+- Successful login: the shop name in `screenTitle`, Sign out on
+  `signOutButton` itself or a descendant, and Yirgacheffe on
+  `beanRow-yirgacheffe` itself or a descendant
+- Wrong password: Invalid email or password in `errorMessage`
+- Cart: Your cart in `screenTitle`, Qty 1 - $18.00 in `cartLine-yirgacheffe`,
+  and Total: $18.00 in `cartTotal`
+- Order: Order placed! in `screenTitle`, and Order number: KCS-1001 in
+  `orderNumber`
 
-この判定は文字列による補助であり、画面画像の独立した視覚確認は別途行う。
-モデル自己判定・ケース構成・補助判定がすべて通ったときだけ終了コード0を返す。
+This check is a string-based supplement; an independent visual check of the
+screen images is done separately. The exit code is 0 only when the model's own
+verdict, the case layout, and the supplementary check all pass.
 
-`python3 bench/e2e/summarize.py` は保存済みJSONとローカルサーバーログだけを読み、
-`results/aggregate.json` に再集計する。`completed` / `partial` / `timed_out` を区別し、
-モデル自己判定とUI補助判定の両方がpassedのケースを `verified_pass_count` に数える。
-画像・動画は存在だけを検査し、内容を視覚確認したとは扱わない。
-LLMログにはrunIdがないため、逐次実行時の `case.started` ～ `case.finished` とモデル名で
-対応付ける。対応が曖昧なイベントは帰属せず、ログがない場合は0回と断定しない。
-`recovered_attempts` は後続の `llm.decided` へ回復した失敗試行数、
-`recovered_decisions` はその回復が起きた判断の回数である。
+`python3 bench/e2e/summarize.py` reads only the saved JSON and the local server
+log, and re-aggregates them into `results/aggregate.json`. It distinguishes
+`completed` / `partial` / `timed_out`, and counts in `verified_pass_count` the
+cases where both the model's own verdict and the UI check passed. Images and
+videos are only checked for existence; their content is not treated as visually
+verified. The LLM log carries no runId, so events are matched by model name and
+by the `case.started` – `case.finished` span of a sequential run. Events whose
+match is ambiguous are not attributed, and a missing log is not taken to mean
+zero occurrences. `recovered_attempts` is the number of failed attempts that
+recovered into a later `llm.decided`, and `recovered_decisions` is the number
+of decisions in which such a recovery happened.
 
-`results/genkit-wire-probe.json` は実GenkitLlmのfetchを差し替えた送信形状の検査。
-既存compat-oai経路ではHTTP bodyにtool_choiceと各toolのdescriptionが無いことを確認した。
-モデル推論・E2E成功数には含めず、直接APIベンチとの条件差として扱う。
+`results/genkit-wire-probe.json` checks the shape of what is sent, by swapping
+out the fetch of the real GenkitLlm. It confirmed that on the existing
+compat-oai path the HTTP body has no tool_choice and no per-tool description.
+It is not counted in model inference or E2E success figures, and is treated as a
+difference in conditions from the direct API benchmark.

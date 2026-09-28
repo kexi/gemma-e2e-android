@@ -10,13 +10,15 @@ sources:
     title: Bootstrap reproducible dev environment and supply-chain guards
 ---
 
+日本語版: [../ja/knowledge/supply-chain-release-age.md](../ja/knowledge/supply-chain-release-age.md)
+
 Nothing published in the last 24 hours enters the tree, so a compromised
 release has a window to be caught and yanked before it reaches a lockfile.
 
 | Layer | Mechanism |
 | --- | --- |
 | npm packages | `bunfig.toml` → `minimumReleaseAge = 86400` (seconds) |
-| GitHub Actions | `just pin` → `pinact run --min-age 1` (days) |
+| GitHub Actions | `just pin-actions` → `pinact run --min-age 1` (days) |
 | Update PRs | `renovate.json` → `minimumReleaseAge: "1 day"` |
 
 Actions are additionally pinned to 40-char SHAs by pinact, with the tag kept as

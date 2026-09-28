@@ -10,6 +10,8 @@ sources:
     title: Implement core, adb, agent, and store packages
 ---
 
+日本語版: [../ja/knowledge/lm-studio-genkit-zod.md](../ja/knowledge/lm-studio-genkit-zod.md)
+
 The model runs locally on the MLX engine (`gemma-4-12b`, or E4B when memory is
 tight). Genkit's OpenAI-compatible plugin points at `http://localhost:1234/v1`,
 and every decision comes back as a Zod-validated structured output.

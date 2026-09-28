@@ -1,13 +1,21 @@
-# Gemma モデル比較の証跡
+# Evidence for the Gemma model comparison
 
-`tool-call/` は直接APIのTool Call比較、`e2e/` は既存アプリ経路のWeb・Android E2Eとメモリ計測。
-実行方法は各ディレクトリのREADME、条件と結論は `knowledge/gemma-*-2026-09.md` を参照する。
+日本語版: [../docs/ja/bench/README.md](../docs/ja/bench/README.md)
 
-Gitにはスクリプト・入力fixture・集計・監査記録を保存する。
-モデル出力、完全API応答、プロセス別メモリ標本、モデル一覧、ロードログ、ビルドログ、
-画像・動画などの端末依存の生証跡はローカルの `results/`、`android-results/`、`var/` に保持し、
-Git管理には含めない。これらを削除したわけではない。
+`tool-call/` compares tool calls against the API directly; `e2e/` covers web and
+Android E2E runs through the existing app path, plus memory measurements. See
+each directory's README for how to run them, and `knowledge/gemma-*-2026-09.md`
+for the conditions and conclusions.
 
-集計・監査内のパスとハッシュは測定時の原本を指す。cloneしただけではその原本は得られず、
-生証跡からの再集計には測定環境のファイルか新しい実行結果が必要。
-監査記録は測定時の照合結果であり、clone先で検査を実行した証明ではない。
+Git keeps the scripts, input fixtures, aggregates, and audit records. Raw,
+machine-dependent evidence — model output, full API responses, per-process
+memory samples, model listings, load logs, build logs, images and videos — is
+kept locally in `results/`, `android-results/`, and `var/`, outside Git. None of
+it has been deleted.
+
+Paths and hashes in the aggregates and audit records point at the originals as
+they were at measurement time. A clone does not include those originals, so
+re-aggregating from raw evidence needs the files from the measurement
+environment or the results of a new run. The audit records are the result of
+checks made at measurement time, not proof that the checks were run in the
+clone.

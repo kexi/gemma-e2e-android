@@ -10,6 +10,8 @@ sources:
     title: Model scenarios as bundles of cases, and persist runs in Firestore
 ---
 
+English: [../../knowledge/scenarios-bundle-cases.md](../../knowledge/scenarios-bundle-cases.md)
+
 **テストケース**は、1 つの判定を得る自然言語のゴールです(例:「間違った
 パスワードでエラーが出ることを確認」)。**シナリオ**は、対象アプリと(多くの場合)
 モデルを共有するケースの束です。判定を持つのはケースであり、シナリオはそれらを

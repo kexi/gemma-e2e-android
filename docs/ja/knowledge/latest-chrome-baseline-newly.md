@@ -6,6 +6,8 @@ status: stable
 tags: [dashboard, browser-support, css, progressive-enhancement]
 ---
 
+English: [../../knowledge/latest-chrome-baseline-newly.md](../../knowledge/latest-chrome-baseline-newly.md)
+
 このダッシュボードはローカル開発ツールです。エミュレータ・LM Studio サーバ・
 Firestore エミュレータと並んで `localhost` で動き、それらを起動した本人が開き
 ます。対象ブラウザは実質 1 つなので、**最新 Chrome** を前提とし、Baseline

@@ -63,7 +63,7 @@ direnv allow
 ため **数 GB・10 分以上かかります**。2 回目以降は一瞬です。
 
 direnv を使わない場合は `nix develop -c` を前置きしてください
-(例: `nix develop -c just check`)。
+(例: `nix develop -c just check-all`)。
 
 devshell に入ると `lefthook install` も実行されるので、pre-commit フック
 (gitleaks / pinact / oxlint / oxfmt)は自動で有効になります。
@@ -71,7 +71,7 @@ devshell に入ると `lefthook install` も実行されるので、pre-commit �
 ## 3. JavaScript の依存を入れる
 
 ```sh
-just install    # = bun install
+just install-deps    # = bun install
 ```
 
 `bunfig.toml` で `minimumReleaseAge = 86400` を設定しているため、公開から 1 日
@@ -85,15 +85,22 @@ LM Studio は GUI アプリのため Nix 管理外です。
 1. [LM Studio](https://lmstudio.ai/) をインストールし、`lms` CLI をセットアップ
    します — 手順は [lms CLI ガイド](https://lmstudio.ai/docs/cli) を参照
    (`~/.lmstudio/bin/lms bootstrap` で PATH に追加されます)。
-2. `gemma-4-12b` モデルをダウンロードします。メモリが厳しい場合は E4B を使います。
-   `.env` の `LLM_MODEL` には `lms ps` が表示する値を設定してください。これは
-   `case.model → scenario.model → LLM_MODEL` の最後のフォールバックで、モデルを
-   指定していないシナリオはこの値で動きます。
-3. OpenAI 互換サーバを起動します。
+2. OpenAI 互換サーバを起動し、モデルをダウンロードして `.env` の `LLM_MODEL` の
+   名前で読み込みます。
 
    ```sh
-   just llm    # = lms server start
+   just launch-llm     # = lms server start
+   just get-model      # Gemma 4 26B-A4B QAT(MLX)を LM Studio のカタログから取得
+   just launch-model   # $LLM_MODEL の名前で読み込む
    ```
+
+   `LLM_MODEL` は `case.model → scenario.model → LLM_MODEL` の最後の
+   フォールバックで、モデルを指定していないシナリオはこの値で動きます。メモリが
+   厳しい場合は E4B QAT を使えます。2026-09 のベンチマークで全 E2E ケースを通過
+   しました(E4B と E2B の MLX ビルドは通過しませんでした)。URL を指定して取得し、
+   同じ手順で読み込みます:
+   `just get-model https://huggingface.co/lmstudio-community/gemma-4-E4B-it-QAT-GGUF gguf`
+   のあと `just launch-model <key from lms ls>`。
 
 エージェントは `http://localhost:1234/v1` に接続します。base URL を変えれば
 mlx-lm や Ollama に差し替えられます。
@@ -101,9 +108,9 @@ mlx-lm や Ollama に差し替えられます。
 ## 5. エミュレータまたは実機
 
 ```sh
-just avd-create   # gemma-e2e-api35 AVD(Android 35 / arm64-v8a)を作成
-just emu          # ヘッドレス起動
-adb devices       # エミュレータが見えることを確認
+just create-avd    # gemma-e2e-api35 AVD(Android 35 / arm64-v8a)を作成
+just launch-emu    # ヘッドレス起動
+adb devices        # エミュレータが見えることを確認
 ```
 
 実機を使う場合は、開発者オプション → USB デバッグを有効にして接続し、RSA の
@@ -112,7 +119,7 @@ adb devices       # エミュレータが見えることを確認
 デバイスかエミュレータが見えたら、example アプリをビルドして導入します:
 
 ```sh
-just android      # = expo run:android(prebuild(CNG)→ ビルド → インストール)
+just launch-android  # = expo run:android(prebuild(CNG)→ ビルド → インストール)
 ```
 
 初回は `android/` の生成と Gradle 依存のダウンロードで時間がかかります。
@@ -124,11 +131,11 @@ just android      # = expo run:android(prebuild(CNG)→ ビルド → インス�
 必要なプロセスは 2 つ — テスト対象のアプリと、デバッグポートを開いたブラウザ。
 
 ```sh
-just example-web  # ブラウザ版の Coffee Shop → http://localhost:5174
-just chrome       # Chrome --remote-debugging-port=9222
+just launch-example-web  # ブラウザ版の Coffee Shop → http://localhost:5174
+just launch-chrome       # Chrome --remote-debugging-port=9222
 ```
 
-`just chrome` は `$TMPDIR` 以下に専用プロファイルを作るので、既に起動している
+`just launch-chrome` は `$TMPDIR` 以下に専用プロファイルを作るので、既に起動している
 Chrome を閉じる必要はありません — 既定プロファイルを共有する 2 つ目のインスタンス
 はポートを開いてくれないためです。別の方法で起動したブラウザを使う場合は
 `CHROME_ENDPOINT` をそちらに向けてください。
@@ -137,7 +144,7 @@ Chrome を閉じる必要はありません — 既定プロファイルを共�
 Chrome が無ければ Web のケースが「どのフラグで起動すればよいか」を含むメッセージ
 とともに失敗するだけです。失敗するのはそのケースだけで、run の残りは続行します。
 
-`just cdp-check` はサンプルアプリを実際のクライアントで駆動し、モデルが読む
+`just check-cdp` はサンプルアプリを実際のクライアントで駆動し、モデルが読む
 ツリーを表示します。ページ内で動くため単体テストが届かない DOM collector を
 検証できる唯一の手段なので、`packages/cdp` を触ったあとに実行する価値があります。
 
@@ -148,15 +155,15 @@ Chrome が無ければ Web のケースが「どのフラグで起動すれば�
 `demo-` 接頭辞のおかげで資格情報も課金アカウントも不要な完全オフライン動作になります。
 
 ```sh
-just db     # Firestore エミュレータを 127.0.0.1:8790 で起動
+just launch-db     # Firestore エミュレータを 127.0.0.1:8790 で起動
 ```
 
-`just web` がこれも起動するため、単体レシピが要るのは API サーバを手で動かすときだけ
+`just launch-web` がこれも起動するため、単体レシピが要るのは API サーバを手で動かすときだけ
 です。ポートは `firebase.json`、プロジェクト ID は `.firebaserc` にあります。
 エミュレータ本体は firebase-tools が初回に取得する Java プログラムで、再起動をまたいで
-データを保持しません(`just db` のたびに空の DB から始まります)。
+データを保持しません(`just launch-db` のたびに空の DB から始まります)。
 
-接続する側には次の 2 つの環境変数が必要です(`just web` と `just test` は自動で
+接続する側には次の 2 つの環境変数が必要です(`just launch-web` と `just run-tests` は自動で
 設定します)。
 
 ```sh
@@ -172,7 +179,7 @@ export GOOGLE_CLOUD_PROJECT=demo-gemma-e2e
 ## 7. ダッシュボード
 
 ```sh
-just web
+just launch-web
 ```
 
 3 つのプロセスが起動します — Firestore エミュレータ(`127.0.0.1:8790`)、Hono の
@@ -183,18 +190,23 @@ API(`http://localhost:5175`)、Vite の開発サーバ(`http://localhost:5173`)�
 `scenarios/<id>.yaml` を書き出します。git 管理下のファイルなのでコミットは別途
 必要で、同名のファイルが既にある場合は上書きせず拒否します。
 
+実行に必要なもの(モデルを読み込んだ LM Studio、このダッシュボード、サンプルアプリ入りの
+エミュレータ、ブラウザ版サンプルアプリ、Chrome)を 1 つのターミナルでまとめて起動するには
+`just launch-all` を使います。既に待ち受けているものは飛ばすので何度実行しても安全で、
+Ctrl-C 1 回で自分が起動したものだけを止めます。
+
 ### デバイスのライブビュー
 
 **Device** ページでエミュレータの画面をライブで確認できます。実行中の run では
 ステップのタイムライン横に同じビューが埋め込まれ、エージェントの操作をその場で
 見られます。フレームはエミュレータの gRPC ブリッジ経由で届くため、エミュレータ側
-でこれを有効にしておく必要があります(`just emu` が `-grpc 8554` を渡すのはこの
+でこれを有効にしておく必要があります(`just launch-emu` が `-grpc 8554` を渡すのはこの
 ためです)。このフラグなしで起動したエミュレータでも adb とシナリオ実行は動作し、
 ライブビューだけが表示されなくなります(画面上にその旨が出ます)。
 
 フレームは画面が変化したときだけ届くので、静止しているデバイスでは静止画のまま
 になります(停止ではありません)。ビューは表示専用です。接続できない場合は
-`just mirror` でダッシュボードとは独立に scrcpy で同じ画面を開けます。別の
+`just mirror-screen` でダッシュボードとは独立に scrcpy で同じ画面を開けます。別の
 ブリッジを見せたいときは `EMULATOR_GRPC=host:port` を指定します。
 
 同じページで Chrome も映せます(録画と同じ screencast を使用)。両プラットフォーム
@@ -237,14 +249,14 @@ Web のケースも録画されますが、経路は異なります。CDP には
 ## 8. 動作確認
 
 ```sh
-just check
+just check-all
 ```
 
 lint・フォーマットチェック・型チェック・テスト・履歴全体の秘密情報スキャン・
 Actions の SHA 固定チェックを実行します。タスク一覧は `just --list` で確認できます。
 
-`just test` は `bun test` を `firebase emulators:exec` で包むため、Firestore の
-テストにはテストと同時に起動・終了する使い捨てエミュレータが割り当てられ、`just db`
+`just run-tests` は `bun test` を `firebase emulators:exec` で包むため、Firestore の
+テストにはテストと同時に起動・終了する使い捨てエミュレータが割り当てられ、`just launch-db`
 のデータには一切触れません。素の `bun test` にはエミュレータが無いので、該当テストは
 失敗ではなく skip され、実行結果にスキップ数として出ます。
 
@@ -252,9 +264,9 @@ Actions の SHA 固定チェックを実行します。タスク一覧は `just 
 
 - **`adb devices` に何も出ない / `unauthorized`** — `adb kill-server && adb start-server` を実行し、端末側で RSA の確認をやり直します。
 - **`flake.nix` を編集しても devshell が古いまま** — `direnv reload`。
-- **エミュレータが起動しない** — `avdmanager list avd` で AVD の存在を確認し、`just avd-create`(`--force` 付き)で作り直します。
+- **エミュレータが起動しない** — `avdmanager list avd` で AVD の存在を確認し、`just create-avd`(`--force` 付き)で作り直します。
 - **Bun で Expo CLI を動かす** — `bunx --bun expo …` を使います。`--bun` がないと `#!/usr/bin/env node` シェバンに従って Node で動きます。
-- **フックが動かない** — `just setup`(= `lefthook install`)を実行します。
+- **フックが動かない** — `just install-hooks`(= `lefthook install`)を実行します。
 - **`firebase-tools no longer supports Java version before 21`** — エミュレータ用レシピが `$FIREBASE_JAVA_HOME/bin` を `PATH` に前置しているのはこのためです(devshell の既定 JDK は AGP が必要とする 17)。`firebase` を直接叩く場合も同様に `PATH="$FIREBASE_JAVA_HOME/bin:$PATH" firebase …` としてください。
-- **ポート 8790 が使用中** — 以前の `just db` が残っています。停止するか `firebase.json` のポートを変更します。
-- **Firestore のテストが全部 skip される** — 素の `bun test` を実行しています。エミュレータを用意する `just test` を使ってください。
+- **ポート 8790 が使用中** — 以前の `just launch-db` が残っています。停止するか `firebase.json` のポートを変更します。
+- **Firestore のテストが全部 skip される** — 素の `bun test` を実行しています。エミュレータを用意する `just run-tests` を使ってください。

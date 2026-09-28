@@ -10,6 +10,8 @@ sources:
     title: Implement core, adb, agent, and store packages
 ---
 
+日本語版: [../ja/knowledge/model-input-ui-tree-text.md](../ja/knowledge/model-input-ui-tree-text.md)
+
 Screenshots are captured, stored, and shown in the dashboard, but not sent to
 the model. Text-only prompts are smaller and faster, and the UI tree already
 carries the resource IDs and accessibility labels needed to act.

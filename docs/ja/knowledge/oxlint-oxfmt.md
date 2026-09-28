@@ -10,6 +10,8 @@ sources:
     title: Bootstrap reproducible dev environment and supply-chain guards
 ---
 
+English: [../../knowledge/oxlint-oxfmt.md](../../knowledge/oxlint-oxfmt.md)
+
 Rust 製で TS/TSX をネイティブに扱え、staged ファイルに対する pre-commit フックで
 実用的な速度が出ます。devshell ではなく `devDependencies` に置いているのは、
 JS ツールチェーンのバージョンを workspace 側で一体管理するほうが Expo

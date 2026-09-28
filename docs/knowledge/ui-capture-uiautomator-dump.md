@@ -10,6 +10,8 @@ sources:
     title: Implement core, adb, agent, and store packages
 ---
 
+日本語版: [../ja/knowledge/ui-capture-uiautomator-dump.md](../ja/knowledge/ui-capture-uiautomator-dump.md)
+
 No extra app, no instrumentation server, no code on the device — just XML from
 a shell command.
 

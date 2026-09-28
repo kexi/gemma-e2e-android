@@ -16,6 +16,8 @@ verified:
   at: 2026-08-01T15:12:00Z
 ---
 
+日本語版: [../ja/knowledge/per-case-screen-recording.md](../ja/knowledge/per-case-screen-recording.md)
+
 Every case is filmed end to end. The runner spawns one scrcpy per case just
 before the app reset and, once the verdict is in, ends the device-side capture
 so scrcpy finalises `var/videos/{runId}/{caseId}.mp4` and exits. The path lands

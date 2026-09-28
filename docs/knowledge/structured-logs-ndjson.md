@@ -10,6 +10,8 @@ sources:
     title: Unify runtime output on Zod-validated NDJSON logs
 ---
 
+日本語版: [../ja/knowledge/structured-logs-ndjson.md](../ja/knowledge/structured-logs-ndjson.md)
+
 Every runtime log line is one JSON object written to stderr. The spine is fixed
 — `ts` (ISO 8601), `level` (`debug`/`info`/`warn`/`error`), and `event`, a
 dot-separated namespace such as `run.step`, `adb.exec_failed`, or

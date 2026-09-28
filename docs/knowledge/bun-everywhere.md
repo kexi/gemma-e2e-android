@@ -10,6 +10,8 @@ sources:
     title: Bootstrap reproducible dev environment and supply-chain guards
 ---
 
+日本語版: [../ja/knowledge/bun-everywhere.md](../ja/knowledge/bun-everywhere.md)
+
 One tool for installs, TypeScript execution, and `bun test`. Bun runs TS
 natively, which is what makes the buildless `packages/*` layout viable.
 Workspaces come from Bun's `workspaces` field.

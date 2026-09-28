@@ -16,6 +16,8 @@ sources:
     title: Record each test case to video so failures can be replayed
 ---
 
+日本語版: [../ja/knowledge/run-history-firestore.md](../ja/knowledge/run-history-firestore.md)
+
 Step logs and verdicts go in Firestore, mirroring the domain as a document
 hierarchy — `runs/{runId}` → `cases/{caseId}` → `steps/{index}`. Screenshots and
 per-case screen recordings stay on disk with their paths stored in the

@@ -16,6 +16,8 @@ verified:
   at: 2026-08-02T21:42:00Z
 ---
 
+日本語版: [../ja/knowledge/cdp-screencast-recording.md](../ja/knowledge/cdp-screencast-recording.md)
+
 A web case is filmed the same way an Android one is: one file per case at
 `var/videos/{runId}/{caseId}.mp4`, the path on the `CaseRun`, played back in the
 dashboard, off under `RECORD_RUNS=0`. Only the mechanism differs, because CDP

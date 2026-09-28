@@ -13,6 +13,8 @@ sources:
     title: Model scenarios as bundles of cases, and persist runs in Firestore
 ---
 
+English: [../../knowledge/expo-prebuild-cng.md](../../knowledge/expo-prebuild-cng.md)
+
 CNG は app config から `android/` / `ios/` を再生成するため、ネイティブ
 プロジェクトは使い捨てにでき、gitignore しています。Android SDK と
 Azul Zulu JDK 17(Expo 推奨の JDK)を devshell に入れる根拠がこれです

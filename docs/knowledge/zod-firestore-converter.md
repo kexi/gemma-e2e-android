@@ -10,6 +10,8 @@ sources:
     title: Model scenarios as bundles of cases, and persist runs in Firestore
 ---
 
+日本語版: [../ja/knowledge/zod-firestore-converter.md](../ja/knowledge/zod-firestore-converter.md)
+
 `zodConverter(schema, label)` in `packages/store` turns any Zod schema into a
 Firestore `FirestoreDataConverter`, and every collection goes through one.
 Crucially it parses on **write** as well as on read.

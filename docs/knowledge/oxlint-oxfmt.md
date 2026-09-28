@@ -10,6 +10,8 @@ sources:
     title: Bootstrap reproducible dev environment and supply-chain guards
 ---
 
+日本語版: [../ja/knowledge/oxlint-oxfmt.md](../ja/knowledge/oxlint-oxfmt.md)
+
 Rust-based, natively aware of TS/TSX, and fast enough to run in a pre-commit
 hook on staged files. They live in `devDependencies` rather than the devshell so
 their versions are managed alongside the rest of the JS toolchain, which the

@@ -10,6 +10,8 @@ sources:
     title: Implement core, adb, agent, and store packages
 ---
 
+English: [../../knowledge/model-input-ui-tree-text.md](../../knowledge/model-input-ui-tree-text.md)
+
 スクリーンショットは取得・保存しダッシュボードに表示しますが、モデルには渡しません。
 テキストのみのプロンプトは小さく速く、UI ツリーには操作に必要な resource ID と
 アクセシビリティラベルが既に含まれています。

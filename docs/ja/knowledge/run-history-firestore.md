@@ -16,6 +16,8 @@ sources:
     title: Record each test case to video so failures can be replayed
 ---
 
+English: [../../knowledge/run-history-firestore.md](../../knowledge/run-history-firestore.md)
+
 ステップログと判定結果は Firestore に、ドメインをそのままドキュメント階層に写した
 形(`runs/{runId}` → `cases/{caseId}` → `steps/{index}`)で保存します。
 スクリーンショットとケース単位の画面録画はファイルのままで、パスをドキュメントに

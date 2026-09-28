@@ -22,6 +22,8 @@ verified:
   at: 2026-08-02T21:40:00Z
 ---
 
+日本語版: [../ja/knowledge/cdp-web-driver.md](../ja/knowledge/cdp-web-driver.md)
+
 A case names a `target`, and the resolver opens a driver for it. Android goes
 through `adb` as before; `web` opens a Chrome page over CDP. The agent loop is
 unchanged either way: it reads a `UiNode` tree, asks the model for one action,
@@ -71,7 +73,7 @@ reported, which is tested exhaustively. happy-dom cannot stand in for the other
 half -- it has no layout engine, so every `getBoundingClientRect` returns zeroes
 and the serializer would drop the whole page as off-screen. A test built on
 stubbed rects would assert a browser that does not exist, so the collector is
-covered by `just cdp-check` against a real Chrome instead.
+covered by `just check-cdp` against a real Chrome instead.
 
 *Things that fail silently, each now pinned by a test:*
 
