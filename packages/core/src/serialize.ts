@@ -1,6 +1,9 @@
-import type { Bounds, UiNode } from "./schema.ts";
+import type { Bounds, UiFormat, UiNode } from "./schema.ts";
 
-/** A numbered, actionable element the model may target by `ref`. */
+/**
+ * An element the model may target by `ref`: a numbered actionable element in
+ * the text format, any node at all in the XML one.
+ */
 export interface UiRef {
   ref: number;
   node: UiNode;
@@ -168,4 +171,139 @@ export function serializeForLlm(tree: UiNode): SerializedUi {
   walk(tree, 0);
 
   return { text: lines.join("\n"), refs };
+}
+
+/**
+ * Characters XML 1.0 cannot carry even as a character reference. Replaced
+ * rather than written as `&#x1;`: that spelling is only legal in XML 1.1, and a
+ * model that has seen mostly 1.0 would be shown a document it has never seen
+ * parse. The screen's text is evidence, not data we round-trip, so U+FFFD --
+ * "a character was here" -- keeps the rendering honest without breaking it.
+ */
+// oxlint-disable-next-line no-control-regex -- matching control characters is the point.
+const XML_ILLEGAL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g;
+
+const XML_ESCAPES: Record<string, string> = {
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': "&quot;",
+  // Whitespace other than a space is written as a reference because an XML
+  // parser normalises a literal tab or newline in an attribute to a space, so
+  // a multi-line label would otherwise read back as one line.
+  "\t": "&#9;",
+  "\n": "&#10;",
+  "\r": "&#13;",
+};
+
+function escapeXmlAttribute(value: string): string {
+  return value
+    .replace(XML_ILLEGAL_CHARS, "\uFFFD")
+    .replace(/[&<>"\t\n\r]/g, (char) => XML_ESCAPES[char] ?? char);
+}
+
+function formatBounds({ x1, y1, x2, y2 }: Bounds): string {
+  return `[${x1},${y1}][${x2},${y2}]`;
+}
+
+/**
+ * The node's attributes, named and ordered as uiautomator writes them, so on
+ * Android the rendering is the dump itself plus our `ref`, and a model that has
+ * seen dumps before recognises every attribute.
+ *
+ * `ref` stands where uiautomator writes `index`, and no `index` is written.
+ * Its `index` is the position among siblings -- on a real sign-in screen 9 of
+ * 14 nodes carried `index="0"` -- so it cannot name a node, and a DOM-walked
+ * page has none to report. Reusing the name would promise an identity it never
+ * carried.
+ *
+ * The optional fields are written only when the tree has them: an attribute
+ * the platform could not report is left out rather than written as `false`,
+ * which would claim a state nobody observed.
+ */
+function xmlAttributes(node: UiNode, ref: number): string {
+  const optionalBoolean = (value: boolean | undefined) =>
+    value === undefined ? undefined : String(value);
+
+  const attributes: [string, string | undefined][] = [
+    ["ref", String(ref)],
+    ["text", node.text],
+    ["resource-id", node.resourceId],
+    ["class", node.className],
+    ["package", node.package],
+    ["content-desc", node.contentDesc],
+    ["checkable", optionalBoolean(node.checkable)],
+    // uiautomator writes `checked` on every node; the parser keeps it only on
+    // checkable ones, where it is a state rather than a default.
+    ["checked", optionalBoolean(node.checked)],
+    ["clickable", String(node.clickable)],
+    ["enabled", String(node.enabled)],
+    ["focusable", optionalBoolean(node.focusable)],
+    ["focused", String(node.focused)],
+    ["scrollable", optionalBoolean(node.scrollable)],
+    ["long-clickable", optionalBoolean(node.longClickable)],
+    ["password", optionalBoolean(node.password)],
+    ["selected", optionalBoolean(node.selected)],
+    ["bounds", formatBounds(node.bounds)],
+  ];
+
+  return attributes
+    .filter((pair): pair is [string, string] => pair[1] !== undefined)
+    .map(([name, value]) => `${name}="${escapeXmlAttribute(value)}"`)
+    .join(" ");
+}
+
+/**
+ * Renders every node of the tree as nested XML and makes every node a ref.
+ *
+ * Deliberately none of {@link serializeForLlm}'s pruning -- no zero-area
+ * filter, no container collapsing -- because this format exists to measure
+ * what that pruning is worth, and a partly pruned tree would measure neither.
+ *
+ * A node's `ref` is its position in document (pre-order) order, so it is
+ * unique on the screen and reads top-to-bottom like the text format's
+ * numbering. All nodes are addressable because the model, not this function,
+ * is now the one deciding what is actionable.
+ */
+export function serializeAsXml(tree: UiNode): SerializedUi {
+  const refs = new Map<number, UiRef>();
+  const lines: string[] = [];
+  let nextRef = 0;
+
+  function walk(node: UiNode, depth: number): void {
+    const ref = nextRef++;
+    refs.set(ref, { ref, node, center: centerOf(node.bounds) });
+
+    const indent = INDENT.repeat(depth);
+    const attributes = xmlAttributes(node, ref);
+
+    const isLeaf = node.children.length === 0;
+    if (isLeaf) {
+      lines.push(`${indent}<node ${attributes} />`);
+      return;
+    }
+
+    lines.push(`${indent}<node ${attributes}>`);
+    for (const child of node.children) {
+      walk(child, depth + 1);
+    }
+    lines.push(`${indent}</node>`);
+  }
+
+  walk(tree, 0);
+
+  return { text: lines.join("\n"), refs };
+}
+
+/**
+ * The serializer a format names. One entry point, so every caller that acts on
+ * refs renders the screen the same way the model was shown it.
+ */
+export function serializeUi(tree: UiNode, format: UiFormat): SerializedUi {
+  switch (format) {
+    case "text":
+      return serializeForLlm(tree);
+    case "xml":
+      return serializeAsXml(tree);
+  }
 }

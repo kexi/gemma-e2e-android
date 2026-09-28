@@ -3,7 +3,7 @@
 // they actually pin down is that a real uiautomator dump renders the way the
 // model expects. The platform-neutral cases live in core's own suite.
 import { describe, expect, test } from "bun:test";
-import { serializeForLlm } from "@gemma-e2e/core";
+import { serializeAsXml, serializeForLlm, type UiNode } from "@gemma-e2e/core";
 import { parseUiDump } from "./parse.ts";
 import { LIST_SCREEN_XML, LOGIN_SCREEN_XML } from "./fixtures.ts";
 
@@ -119,5 +119,79 @@ describe("serializeForLlm: edge cases", () => {
     const { text } = serializeForLlm(tree);
     expect(text).toContain('text="OK"');
     expect(text).not.toContain("desc=");
+  });
+});
+
+/**
+ * The dump now carries attributes only the XML format shows. The text format
+ * was benchmarked before they existed, so its rendering of a real dump is
+ * pinned byte for byte here -- a new field leaking into it would move every
+ * recorded comparison without anyone having chosen to.
+ */
+describe("serializeForLlm: unchanged by the XML-only fields", () => {
+  const LOGIN_TEXT = [
+    "LinearLayout id=content",
+    '  TextView text="Welcome back" id=title',
+    '  [0] EditText desc="Email address" id=email focused editable',
+    '  [1] EditText desc="Password" id=password editable',
+    '  [2] CheckBox text="Remember me" id=remember checked=false',
+    '  Button text="Sign in" id=submit disabled',
+    '  [3] TextView text="Forgot password?" id=forgot',
+  ].join("\n");
+
+  const XML_ONLY_FIELDS = [
+    "package",
+    "checkable",
+    "focusable",
+    "scrollable",
+    "longClickable",
+    "password",
+    "selected",
+  ] as const;
+
+  function withoutXmlOnlyFields(node: UiNode): UiNode {
+    const copy: UiNode = { ...node, children: node.children.map(withoutXmlOnlyFields) };
+    for (const field of XML_ONLY_FIELDS) {
+      delete copy[field];
+    }
+    return copy;
+  }
+
+  test("renders the login dump exactly as it did before those fields were parsed", () => {
+    expect(serializeForLlm(parseUiDump(LOGIN_SCREEN_XML)).text).toBe(LOGIN_TEXT);
+  });
+
+  test("renders the same text whether or not a tree carries them", () => {
+    for (const xml of [LOGIN_SCREEN_XML, LIST_SCREEN_XML]) {
+      const tree = parseUiDump(xml);
+      expect(serializeForLlm(tree).text).toBe(serializeForLlm(withoutXmlOnlyFields(tree)).text);
+    }
+  });
+});
+
+describe("serializeAsXml: a real dump", () => {
+  const { text, refs } = serializeAsXml(parseUiDump(LOGIN_SCREEN_XML));
+  const lines = text.split("\n");
+
+  test("writes each node with uiautomator's attributes, a ref in place of its index", () => {
+    expect(lines).toContain(
+      '    <node ref="4" text="" resource-id="com.example.app:id/password" class="android.widget.EditText" package="com.example.app" content-desc="Password" checkable="false" clickable="true" enabled="true" focusable="true" focused="false" scrollable="false" long-clickable="true" password="true" selected="false" bounds="[60,700][1020,840]" />',
+    );
+    expect(text).not.toContain("index=");
+  });
+
+  test("keeps checked only where the dump says the node is checkable", () => {
+    const remember = lines.find((line) => line.includes("id/remember"));
+    const title = lines.find((line) => line.includes("id/title"));
+
+    expect(remember).toContain('checkable="true" checked="false"');
+    expect(title).not.toContain("checked=");
+  });
+
+  test("keeps the zero-area spacer and the layout wrappers the text format drops", () => {
+    // FrameLayout, LinearLayout, and the seven children beneath it.
+    expect(refs.size).toBe(9);
+    expect(refs.get(8)?.node.resourceId).toBe("com.example.app:id/spacer");
+    expect(lines[0]).toContain('class="android.widget.FrameLayout"');
   });
 });

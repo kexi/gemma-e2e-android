@@ -360,6 +360,35 @@ describe("PUT /api/scenarios/:id", () => {
     expect(listed.scenarios.find((one) => one.id === "login")?.tags).toEqual(["smoke", "auth"]);
   });
 
+  test("round-trips the screen format at both levels, and drops it when the edit clears it", async () => {
+    const body = {
+      ...EDITED_LOGIN,
+      uiFormat: "xml",
+      cases: [{ id: "valid", prompt: "Log in", uiFormat: "text" }],
+    };
+    expect((await put("login", body)).status).toBe(200);
+
+    const written = await readFile(join(scenariosDir, "login.yaml"), "utf8");
+    expect(written).toContain("uiFormat: xml");
+    const listed = (await (await harness().request("/api/scenarios")).json()) as {
+      scenarios: Scenario[];
+    };
+    const edited = listed.scenarios.find((one) => one.id === "login");
+    expect(edited?.uiFormat).toBe("xml");
+    expect(edited?.cases[0]?.uiFormat).toBe("text");
+
+    // Back to "server default" in the builder is an absent key, not a stale one.
+    expect((await put("login", EDITED_LOGIN)).status).toBe(200);
+    expect(await readFile(join(scenariosDir, "login.yaml"), "utf8")).not.toContain("uiFormat");
+  });
+
+  test("rejects a screen format the runner does not implement", async () => {
+    const res = await put("login", { ...EDITED_LOGIN, uiFormat: "json" });
+
+    expect(res.status).toBe(400);
+    expect(await readFile(join(scenariosDir, "login.yaml"), "utf8")).toBe(LOGIN_YAML);
+  });
+
   test("round-trips visual personas and case disable through YAML edits", async () => {
     const accessibility = {
       personas: [{ id: "near-text", label: "老眼", description: "小さい文字を見分けにくい" }],

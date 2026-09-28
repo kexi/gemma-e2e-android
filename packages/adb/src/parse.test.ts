@@ -57,6 +57,41 @@ describe("parseUiDump: login screen", () => {
     expect(fields[0]?.checked).toBeUndefined();
   });
 
+  test("keeps the attributes only the XML format shows, as the dump wrote them", () => {
+    const fields = tree.children[0]?.children ?? [];
+    const email = fields[1];
+    const password = fields[2];
+    const remember = fields[3];
+
+    expect(email).toMatchObject({
+      package: "com.example.app",
+      checkable: false,
+      focusable: true,
+      scrollable: false,
+      longClickable: true,
+      password: false,
+      selected: false,
+    });
+    expect(password?.password).toBe(true);
+    expect(remember?.checkable).toBe(true);
+  });
+
+  test("leaves an attribute the dump omits absent rather than false", () => {
+    const tree = parseUiDump('<hierarchy><node bounds="[0,0][100,100]" /></hierarchy>');
+
+    for (const field of [
+      "package",
+      "checkable",
+      "focusable",
+      "scrollable",
+      "longClickable",
+      "password",
+      "selected",
+    ]) {
+      expect(tree).not.toHaveProperty(field);
+    }
+  });
+
   test("retains zero-area nodes for the serializer to drop", () => {
     const fields = tree.children[0]?.children ?? [];
     expect(fields).toHaveLength(7);
@@ -72,6 +107,11 @@ describe("parseUiDump: list screen", () => {
     expect(list?.resourceId).toBe("com.example.app:id/list");
     expect(list?.children).toHaveLength(2);
     expect(list?.children[0]?.children).toHaveLength(3);
+  });
+
+  test("reads the list's scrollable flag", () => {
+    expect(tree.children[1]?.scrollable).toBe(true);
+    expect(tree.children[0]?.scrollable).toBe(false);
   });
 
   test("reads repeated rows independently", () => {

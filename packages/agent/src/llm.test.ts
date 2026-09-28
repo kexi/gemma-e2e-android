@@ -1,16 +1,20 @@
 import { describe, expect, test } from "bun:test";
+import { createHash } from "node:crypto";
+import type { z } from "zod";
 import { ActionSchema } from "@gemma-e2e/core";
 import { createLogger, type LogEvent } from "@gemma-e2e/logger";
 import {
   actionFromToolRequest,
   actionTools,
   buildDecisionPrompt,
+  createGenkitLlmFactory,
   DEFAULT_BASE_URL,
   DEFAULT_MODEL,
   GenkitLlm,
   LlmDecisionError,
   soleToolRequest,
   SYSTEM_PROMPT,
+  systemPromptFor,
 } from "./llm.ts";
 
 describe("buildDecisionPrompt", () => {
@@ -506,5 +510,107 @@ describe("ActionSchema behind the tools", () => {
     for (const example of examples) {
       expect(ActionSchema.safeParse(example).success).toBe(true);
     }
+  });
+});
+
+/**
+ * The text-format wording is what every recorded benchmark ran on. Pinned by
+ * hash rather than by a second copy of the prompt, so a deliberate change has
+ * to update this line -- and anyone doing so is told here why that matters.
+ * The hashes were taken from the prompt as it stood before the XML format
+ * existed.
+ */
+describe("text-format wording", () => {
+  const sha256 = (value: string) => createHash("sha256").update(value).digest("hex");
+  const toolLines = (tools: ReturnType<typeof actionTools>) =>
+    tools.map((tool) => `${tool.name}: ${tool.description}`).join("\n");
+
+  test("keeps the system prompt byte for byte what the benchmarks ran on", () => {
+    expect(sha256(systemPromptFor("text"))).toBe(
+      "fffd7ed9e7447ed01aca23c181e3f2bed6e570c800bf967f13687a330c998d51",
+    );
+    expect(SYSTEM_PROMPT).toBe(systemPromptFor("text"));
+  });
+
+  test("keeps the tool descriptions byte for byte what the benchmarks ran on", () => {
+    const expected = "d735924197b3165a0c39baf4934041537268998a1b1a3f3cc7c7409e0143dce3";
+    expect(sha256(toolLines(actionTools("text")))).toBe(expected);
+    expect(sha256(toolLines(actionTools()))).toBe(expected);
+  });
+});
+
+describe("xml-format wording", () => {
+  const prompt = systemPromptFor("xml");
+
+  test("tells the model the screen is XML and that an element is named by its ref attribute", () => {
+    expect(prompt).toContain("UI tree as XML");
+    expect(prompt).toContain('ref attribute, like ref="12"');
+    expect(prompt).toContain('pass the number in its ref attribute as "ref"');
+    expect(prompt).toContain("Never invent a ref that\nis not on the screen.");
+  });
+
+  test("drops the bracketed numbering the text format describes", () => {
+    expect(prompt).not.toContain("[0], [1]");
+    expect(prompt).not.toContain("text\nrendering");
+  });
+
+  test("differs from the text prompt only in how the screen and its refs are described", () => {
+    const text = SYSTEM_PROMPT;
+    const shared = "Actions:\n- tap: press the element with the given ref.";
+
+    expect(prompt.slice(prompt.indexOf(shared))).toBe(text.slice(text.indexOf(shared)));
+    expect(prompt.split("\n")[0]).toBe(text.split("\n")[0]);
+  });
+
+  test("describes the ref-taking tools in terms of the ref attribute, and the rest as before", () => {
+    const xml = new Map(actionTools("xml").map((tool) => [tool.name, tool.description]));
+    const text = new Map(actionTools("text").map((tool) => [tool.name, tool.description]));
+
+    expect(xml.get("tap")).toContain("ref attribute");
+    expect(xml.get("input_text")).toContain("ref attribute");
+    for (const name of ["swipe", "key_event", "wait", "remember", "finish"] as const) {
+      expect(xml.get(name)).toBe(text.get(name));
+    }
+  });
+
+  test("keeps the action arguments identical, so ref stays the one argument name", () => {
+    const shapes = (tools: ReturnType<typeof actionTools>) =>
+      tools.map((tool) => [tool.name, Object.keys((tool.inputSchema as z.AnyZodObject).shape)]);
+
+    expect(shapes(actionTools("xml"))).toEqual(shapes(actionTools("text")));
+  });
+
+  test("reaches generate from a client built for the xml format", async () => {
+    let seen: { system?: string; tools?: { name: string; description: string }[] } = {};
+    const build = createGenkitLlmFactory({
+      generate: async (request) => {
+        seen = request;
+        return { toolRequests: [{ name: "tap", input: { ref: 12 } }] };
+      },
+    });
+
+    const action = await build("gemma-4-e4b", "xml").decide({
+      scenarioPrompt: "log in",
+      historySummary: "",
+      uiText: '<node ref="12" text="Login" />',
+    });
+
+    expect(action).toEqual({ type: "tap", ref: 12 });
+    expect(seen.system).toBe(prompt);
+    expect(seen.tools?.find((tool) => tool.name === "tap")?.description).toContain("ref attribute");
+  });
+
+  test("defaults a client to the text format when none is named", async () => {
+    let seen: { system?: string } = {};
+    const build = createGenkitLlmFactory({
+      generate: async (request) => {
+        seen = request;
+        return { toolRequests: [{ name: "wait", input: { ms: 500 } }] };
+      },
+    });
+
+    await build("gemma-4-e4b").decide({ scenarioPrompt: "x", historySummary: "", uiText: "" });
+
+    expect(seen.system).toBe(SYSTEM_PROMPT);
   });
 });

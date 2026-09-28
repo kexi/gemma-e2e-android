@@ -1,6 +1,6 @@
 import { type Genkit, genkit, z } from "genkit";
 import { openAICompatible } from "@genkit-ai/compat-oai";
-import { type Action, ActionSchema } from "@gemma-e2e/core";
+import { type Action, ActionSchema, type UiFormat } from "@gemma-e2e/core";
 import { errorFields, type Logger, noopLogger } from "@gemma-e2e/logger";
 
 export interface DecideInput {
@@ -27,8 +27,12 @@ export type Clock = () => number;
  * Builds a client for one specific model. The loop takes a factory rather than
  * a client because the model is chosen per case, and a client fixed at
  * construction time could not vary within a single run.
+ *
+ * The screen format travels with the model for the same reason: it is chosen
+ * per case, and it changes what the client tells the model a `ref` is.
+ * Omitted, the client describes the text format.
  */
-export type LlmFactory = (model: string) => Llm;
+export type LlmFactory = (model: string, uiFormat?: UiFormat) => Llm;
 
 export const DEFAULT_BASE_URL = "http://localhost:1234/v1";
 /** Only a last resort: `.env` (LLM_MODEL) is where a machine states its model. */
@@ -36,14 +40,39 @@ export const DEFAULT_MODEL = "gemma-4-12b";
 const PLUGIN_NAME = "lmstudio";
 const MAX_ATTEMPTS = 3;
 
-export const SYSTEM_PROMPT = `You are an E2E test operator. The screen may be a
+/**
+ * The two paragraphs that differ by format: what the screen is, and how an
+ * element on it is named. Everything else in the prompt is shared, so a change
+ * to the operator's instructions reaches both formats at once.
+ *
+ * The text wording is frozen: benchmarks were recorded against it, and a test
+ * pins the whole text-mode prompt byte for byte.
+ */
+const SCREEN_WORDING: Record<UiFormat, { screen: string; refs: string }> = {
+  text: {
+    screen: `You are given a test goal, a summary of what you have already done, and a text
+rendering of the current screen's UI tree. Choose exactly ONE next action.`,
+    refs: `Interactive elements are numbered like [0], [1]. Use those numbers as "ref".
+Never invent a ref that is not on the screen.`,
+  },
+  xml: {
+    screen: `You are given a test goal, a summary of what you have already done, and the
+current screen's UI tree as XML. Choose exactly ONE next action.`,
+    refs: `Every element is a <node> with a ref attribute, like ref="12". To act on an
+element, pass the number in its ref attribute as "ref". Never invent a ref that
+is not on the screen.`,
+  },
+};
+
+/** The operator's instructions for one screen format. */
+export function systemPromptFor(uiFormat: UiFormat): string {
+  const wording = SCREEN_WORDING[uiFormat];
+  return `You are an E2E test operator. The screen may be a
 phone app or a web page; you drive both the same way.
 
-You are given a test goal, a summary of what you have already done, and a text
-rendering of the current screen's UI tree. Choose exactly ONE next action.
+${wording.screen}
 
-Interactive elements are numbered like [0], [1]. Use those numbers as "ref".
-Never invent a ref that is not on the screen.
+${wording.refs}
 
 Actions:
 - tap: press the element with the given ref.
@@ -68,6 +97,10 @@ Prefer finishing over repeating an action that changed nothing.
 Answer by calling exactly one tool. Do not describe what you would do, and do
 not call several tools at once: one turn is one action, and the screen you see
 next is the result of it.`;
+}
+
+/** The text-format prompt, which is what every run before the format switch used. */
+export const SYSTEM_PROMPT = systemPromptFor("text");
 
 /**
  * One action variant, described the way a tool-calling model takes it.
@@ -107,6 +140,24 @@ const ACTION_DESCRIPTIONS: Record<Action["type"], string> = {
 };
 
 /**
+ * Where the XML format needs other words. Only the two actions that take a
+ * `ref` differ: in the text format a ref is a bracketed number, in XML it is an
+ * attribute, and a description naming the wrong one sends the model looking
+ * for something the screen does not show.
+ */
+const XML_ACTION_DESCRIPTIONS: Partial<Record<Action["type"], string>> = {
+  tap: "Press the element whose ref attribute is the given ref.",
+  input_text:
+    "Type text into the element whose ref attribute is the given ref. Tap a field before typing into it if it is not already focused.",
+};
+
+function describeTool(name: Action["type"], uiFormat: UiFormat): string {
+  const isXml = uiFormat === "xml";
+  const override = isXml ? XML_ACTION_DESCRIPTIONS[name] : undefined;
+  return override ?? ACTION_DESCRIPTIONS[name];
+}
+
+/**
  * The action union, restated as one tool per variant.
  *
  * `type` is dropped from each input schema because the tool NAME already
@@ -114,7 +165,7 @@ const ACTION_DESCRIPTIONS: Record<Action["type"], string> = {
  * a model that fills it in inconsistently with the tool it called would give us
  * two answers and no way to pick.
  */
-export function actionTools(): ActionTool[] {
+export function actionTools(uiFormat: UiFormat = "text"): ActionTool[] {
   return ActionSchema.options.map((variant) => {
     const shape = variant.shape as Record<string, z.ZodTypeAny>;
     const { type: _type, ...rest } = shape;
@@ -122,7 +173,7 @@ export function actionTools(): ActionTool[] {
 
     return {
       name,
-      description: ACTION_DESCRIPTIONS[name],
+      description: describeTool(name, uiFormat),
       inputSchema: z.object(rest),
     };
   });
@@ -147,6 +198,8 @@ export type GenerateFn = (request: GenerateRequest) => Promise<{ toolRequests: T
 export interface GenkitLlmOptions {
   baseURL?: string | undefined;
   model?: string | undefined;
+  /** Which screen rendering the prompt describes; defaults to `text`. */
+  uiFormat?: UiFormat | undefined;
   apiKey?: string | undefined;
   maxAttempts?: number | undefined;
   generate?: GenerateFn | undefined;
@@ -251,9 +304,15 @@ function genkitGenerate(options: GenkitLlmOptions): GenerateFn {
     ],
   }) as Genkit;
 
-  // Registered once, not per request: `defineTool` names a tool on the Genkit
-  // instance, and redefining the same name on every decision would grow the
-  // registry for the length of a run.
+  // Dynamic rather than registered once with `defineTool`: the two screen
+  // formats describe `tap` differently, and a registry holds one tool per name.
+  // Genkit registers a dynamic tool into a registry scoped to the one generate
+  // call, so nothing accumulates across a run.
+  //
+  // Built per request rather than cached: a dynamic tool remembers the call
+  // that registered it, and handing the same object to a second call makes
+  // Genkit log "already registered" for every tool on every decision. Seven
+  // small objects per decision cost nothing next to the generation itself.
   //
   // The implementations are deliberately inert. Genkit's tool loop exists to
   // run a tool and feed its result back for another turn, but an action here is
@@ -261,19 +320,20 @@ function genkitGenerate(options: GenkitLlmOptions): GenerateFn {
   // screen -- which reaches the model as the next decision's prompt, not as a
   // tool response. `returnToolRequests` below stops that loop so the request
   // itself is the answer.
-  const tools = actionTools().map((tool) =>
-    ai.defineTool(
-      { name: tool.name, description: tool.description, inputSchema: tool.inputSchema },
-      async () => undefined,
-    ),
-  );
+  const toolsFor = (requested: readonly ActionTool[]) =>
+    requested.map((tool) =>
+      ai.dynamicTool(
+        { name: tool.name, description: tool.description, inputSchema: tool.inputSchema },
+        async () => undefined,
+      ),
+    );
 
   return async (request) => {
     const response = await ai.generate({
       model: request.model,
       system: request.system,
       prompt: request.prompt,
-      tools,
+      tools: toolsFor(request.tools),
       // The model is asked for an action, so prose is never an acceptable
       // answer; `required` turns "it replied with a paragraph" into a retry
       // rather than into a decision nobody can act on.
@@ -302,7 +362,7 @@ function genkitGenerate(options: GenkitLlmOptions): GenerateFn {
  */
 export function createGenkitLlmFactory(options: GenkitLlmOptions = {}): LlmFactory {
   const generate = options.generate ?? genkitGenerate(options);
-  return (model) => new GenkitLlm({ ...options, model, generate });
+  return (model, uiFormat) => new GenkitLlm({ ...options, model, uiFormat, generate });
 }
 
 /**
@@ -329,7 +389,8 @@ export function createGenkitLlmFactory(options: GenkitLlmOptions = {}): LlmFacto
 export class GenkitLlm implements Llm {
   readonly #model: string;
   readonly #maxAttempts: number;
-  readonly #tools: ActionTool[] = actionTools();
+  readonly #system: string;
+  readonly #tools: ActionTool[];
   readonly #generate: GenerateFn;
   readonly #log: Logger;
   readonly #now: Clock;
@@ -337,6 +398,9 @@ export class GenkitLlm implements Llm {
   constructor(options: GenkitLlmOptions = {}) {
     this.#model = options.model ?? process.env["LLM_MODEL"] ?? DEFAULT_MODEL;
     this.#maxAttempts = options.maxAttempts ?? MAX_ATTEMPTS;
+    const uiFormat = options.uiFormat ?? "text";
+    this.#system = systemPromptFor(uiFormat);
+    this.#tools = actionTools(uiFormat);
     this.#generate = options.generate ?? genkitGenerate(options);
     this.#log = options.logger ?? noopLogger;
     this.#now = options.clock ?? (() => performance.now());
@@ -355,7 +419,7 @@ export class GenkitLlm implements Llm {
       try {
         const response = await this.#generate({
           model: `${PLUGIN_NAME}/${this.#model}`,
-          system: SYSTEM_PROMPT,
+          system: this.#system,
           prompt,
           tools: this.#tools,
         });

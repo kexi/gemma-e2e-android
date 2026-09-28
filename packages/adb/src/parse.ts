@@ -49,6 +49,34 @@ function boolAttr(raw: RawNode, name: string): boolean {
 }
 
 /**
+ * The same reading as {@link boolAttr}, but absent stays absent. Used for the
+ * attributes only the XML format shows: a dump from an older uiautomator that
+ * omits one must not render it as `false`, a state the device never reported.
+ */
+function optionalBoolAttr(raw: RawNode, name: string): boolean | undefined {
+  const value = attr(raw, name);
+  return value === undefined ? undefined : value === "true";
+}
+
+/**
+ * The attributes the text format has no use for, kept so the XML format can
+ * show the dump as the device wrote it. Spread in only when present, so a node
+ * built from a sparse dump has no keys holding `undefined`.
+ */
+function passthroughFields(raw: RawNode): Partial<UiNode> {
+  const fields: Partial<UiNode> = {
+    package: attr(raw, "package"),
+    checkable: optionalBoolAttr(raw, "checkable"),
+    focusable: optionalBoolAttr(raw, "focusable"),
+    scrollable: optionalBoolAttr(raw, "scrollable"),
+    longClickable: optionalBoolAttr(raw, "long-clickable"),
+    password: optionalBoolAttr(raw, "password"),
+    selected: optionalBoolAttr(raw, "selected"),
+  };
+  return Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined));
+}
+
+/**
  * uiautomator writes `checked="false"` on every node, checkable or not, so the
  * raw attribute cannot distinguish "unchecked checkbox" from "not a checkbox".
  * `checkable` is the flag that makes it meaningful; without it `checked` stays
@@ -82,6 +110,7 @@ function toUiNode(raw: RawNode): UiNode {
     enabled: boolAttr(raw, "enabled"),
     focused: boolAttr(raw, "focused"),
     ...(checked === undefined ? {} : { checked }),
+    ...passthroughFields(raw),
     children,
   };
 }

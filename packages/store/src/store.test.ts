@@ -187,6 +187,24 @@ describeWithFirestore("Store", () => {
       expect(caseRun?.status).toBe("running");
     });
 
+    test("records the resolved screen format next to the model, and omits it when none was given", async () => {
+      await seedRun();
+      await store.createCase({
+        runId,
+        caseId: "xml",
+        order: 0,
+        title: "Logs in",
+        prompt: "check that the user can log in",
+        model: "gemma-4-12b",
+        uiFormat: "xml",
+      });
+      await seedCase("legacy", 1);
+
+      const cases = (await store.getRun(runId))?.cases ?? [];
+      expect(cases[0]?.uiFormat).toBe("xml");
+      expect(cases[1]?.uiFormat).toBeUndefined();
+    });
+
     test("rejects a duplicate case id within one run", async () => {
       await seedRun();
       await seedCase();

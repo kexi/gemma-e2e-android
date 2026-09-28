@@ -10,12 +10,16 @@ import type {
   Scenario,
   Step,
   TestCase,
+  UiFormat,
 } from "@gemma-e2e/core";
 import {
+  DEFAULT_UI_FORMAT,
   resolveAccessibility,
   resolveModel,
   resolveTarget,
+  resolveUiFormat,
   serializeForLlm,
+  serializeUi,
   type UiRef,
 } from "@gemma-e2e/core";
 import { errorFields, type Logger, noopLogger } from "@gemma-e2e/logger";
@@ -44,6 +48,7 @@ export interface StoreLike {
     title: string;
     prompt: string;
     model: string;
+    uiFormat?: UiFormat | undefined;
   }): Promise<CaseRun>;
   addStep(input: {
     runId: string;
@@ -128,6 +133,12 @@ export interface RunDeps {
   screenshotDir: string;
   /** Last resort when neither the case nor the scenario names a model. */
   defaultModel: string;
+  /**
+   * Last resort when neither the case nor the scenario names a screen format.
+   * Optional, unlike the model, because `text` is a real answer: it is what
+   * every run before the switch used.
+   */
+  defaultUiFormat?: UiFormat | undefined;
   onEvent?: ((event: RunEvent) => void) | undefined;
   /** Defaults to a no-op; the caller decides whether a run writes NDJSON. */
   logger?: Logger | undefined;
@@ -315,6 +326,7 @@ async function runCase(ctx: CaseContext): Promise<CaseResult> {
   const log = ctx.log.child({ caseId });
 
   const model = resolveModel(testCase, scenario, deps.defaultModel);
+  const uiFormat = resolveUiFormat(testCase, scenario, deps.defaultUiFormat ?? DEFAULT_UI_FORMAT);
   const personas = resolveAccessibility(testCase, scenario)?.personas ?? [];
   const shouldReview = personas.length > 0;
   const title = testCase.title ?? testCase.id;
@@ -326,11 +338,12 @@ async function runCase(ctx: CaseContext): Promise<CaseResult> {
     title,
     prompt: testCase.prompt,
     model,
+    uiFormat,
   });
   emit({ type: "case_started", runId, caseId, caseRun });
-  log.info("case.started", { title, model, maxSteps: testCase.maxSteps });
+  log.info("case.started", { title, model, uiFormat, maxSteps: testCase.maxSteps });
 
-  const llm = deps.llm(model);
+  const llm = deps.llm(model, uiFormat);
   const caseScreenshotDir = join(screenshotDir, runId, caseId);
   const history: string[] = [];
   // Never windowed, unlike `history`: a fact is recorded precisely because it
@@ -393,7 +406,10 @@ async function runCase(ctx: CaseContext): Promise<CaseResult> {
       log.debug("case.step", { index });
 
       const tree = await driver.dumpUi();
-      const { text: uiText, refs } = serializeForLlm(tree);
+      // The same serializer for what the model reads and what the executor
+      // resolves against: a ref only means something in the rendering it was
+      // read from, and the two formats number different nodes.
+      const { text: uiText, refs } = serializeUi(tree, uiFormat);
       emit({ type: "ui_captured", runId, caseId, index, uiText });
 
       // Read before the action, so the label names the screen the decision was
@@ -625,7 +641,15 @@ async function waitForFirstScreen(
   ctx.log.warn("case.launch_wait_timeout", { attempts: LAUNCH_POLL_ATTEMPTS });
 }
 
-/** Interactive elements on screen right now, or 0 when the tree cannot be read. */
+/**
+ * Interactive elements on screen right now, or 0 when the tree cannot be read.
+ *
+ * Always counted with the text serializer, whatever format the case shows the
+ * model. The question is "has the app drawn something actionable yet", which is
+ * exactly what the text format's numbering answers. The XML format numbers
+ * every node, so it would count a bare launch window as ready and skip the
+ * wait entirely; nothing here acts on these refs, so no mismatch can follow.
+ */
 async function countRefs(driver: Driver): Promise<number> {
   try {
     const { refs } = serializeForLlm(await driver.dumpUi());

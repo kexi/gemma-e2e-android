@@ -20,6 +20,20 @@ export interface UiNode {
   enabled: boolean;
   focused: boolean;
   checked?: boolean | undefined;
+  /*
+   * The rest of what uiautomator reports, carried so the XML format can show
+   * the model the dump rather than our reading of it. Optional because a web
+   * page has no faithful equivalent for several of them, and a guessed value
+   * would be worse than an absent one; the text format ignores them all, so
+   * its output -- and the benchmarks recorded against it -- does not move.
+   */
+  package?: string | undefined;
+  checkable?: boolean | undefined;
+  focusable?: boolean | undefined;
+  scrollable?: boolean | undefined;
+  longClickable?: boolean | undefined;
+  password?: boolean | undefined;
+  selected?: boolean | undefined;
   children: UiNode[];
 }
 
@@ -38,6 +52,13 @@ export const UiNodeSchema: z.ZodType<UiNode> = z.lazy(() =>
     enabled: z.boolean(),
     focused: z.boolean(),
     checked: z.boolean().optional(),
+    package: z.string().optional(),
+    checkable: z.boolean().optional(),
+    focusable: z.boolean().optional(),
+    scrollable: z.boolean().optional(),
+    longClickable: z.boolean().optional(),
+    password: z.boolean().optional(),
+    selected: z.boolean().optional(),
     children: z.array(UiNodeSchema),
   }),
 );
@@ -50,6 +71,18 @@ export type KeyName = z.infer<typeof KeyNameSchema>;
 
 export const VerdictSchema = z.enum(["passed", "failed"]);
 export type Verdict = z.infer<typeof VerdictSchema>;
+
+/**
+ * How the screen is handed to the model: `text` is the compact, numbered
+ * rendering the agent was built around; `xml` is every node of the parsed tree,
+ * unpruned. The second exists to measure what the compaction costs or gains,
+ * so both must stay selectable per case rather than being a build-time choice.
+ */
+export const UiFormatSchema = z.enum(["text", "xml"]);
+export type UiFormat = z.infer<typeof UiFormatSchema>;
+
+/** What a case runs with when nothing -- case, scenario, or env -- says otherwise. */
+export const DEFAULT_UI_FORMAT: UiFormat = "text";
 
 /**
  * The model's move. `ref` is the bracketed index the UI serializer assigned to
@@ -257,6 +290,12 @@ export const CaseRunSchema = z.object({
   prompt: z.string(),
   /** The model actually used, after `case.model ?? scenario.model ?? env`. */
   model: z.string(),
+  /**
+   * The screen format actually used, resolved like `model`. Optional rather
+   * than defaulted: a case stored before the switch existed ran on `text`, but
+   * the record should say "not recorded" rather than claim a choice nobody made.
+   */
+  uiFormat: UiFormatSchema.optional(),
   status: CaseStatusSchema,
   verdictReason: z.string().nullable(),
   startedAt: z.string(),
@@ -348,6 +387,8 @@ export const TestCaseSchema = z.object({
   prompt: z.string().min(1),
   /** Overrides the scenario's model for this case alone. */
   model: z.string().min(1).optional(),
+  /** Overrides the scenario's screen format for this case alone. */
+  uiFormat: UiFormatSchema.optional(),
   /** Overrides the scenario's target, so one file may mix platforms. */
   target: TargetSchema.optional(),
   accessibility: AccessibilitySettingsSchema.optional(),
@@ -418,6 +459,8 @@ export const ScenarioSchema = z.preprocess(
     target: TargetSchema.optional(),
     /** Default model for every case that does not name its own. */
     model: z.string().min(1).optional(),
+    /** Default screen format for every case that does not name its own. */
+    uiFormat: UiFormatSchema.optional(),
     accessibility: AccessibilitySettingsSchema.optional(),
     cases: z.array(TestCaseSchema).min(1, "a scenario needs at least one case"),
   }),
@@ -445,6 +488,29 @@ export function resolveModel(
   fallback: string,
 ): string {
   return testCase.model ?? scenario.model ?? fallback;
+}
+
+/**
+ * Picks the screen format for a case on the same chain as {@link resolveModel},
+ * so an A/B of the two formats can be one scenario with a per-case override.
+ */
+export function resolveUiFormat(
+  testCase: Pick<TestCase, "uiFormat">,
+  scenario: Pick<Scenario, "uiFormat">,
+  fallback: UiFormat,
+): UiFormat {
+  return testCase.uiFormat ?? scenario.uiFormat ?? fallback;
+}
+
+/**
+ * Reads a process-wide default such as `UI_FORMAT`. Anything unrecognised
+ * falls back to {@link DEFAULT_UI_FORMAT} rather than failing startup: the
+ * dashboard has to boot to show what is wrong, and `text` is what every run
+ * before this switch used.
+ */
+export function parseUiFormat(raw: string | undefined): UiFormat {
+  const parsed = UiFormatSchema.safeParse(raw?.trim().toLowerCase());
+  return parsed.success ? parsed.data : DEFAULT_UI_FORMAT;
 }
 
 /**

@@ -10,9 +10,11 @@ import {
   describeTarget,
   filterByTags,
   isUnsettledRun,
+  parseUiFormat,
   resolveModel,
   resolveAccessibility,
   resolveTarget,
+  resolveUiFormat,
   RunStatusSchema,
   type Scenario,
   ScenarioSchema,
@@ -524,5 +526,81 @@ describe("resolveModel", () => {
 
   test("falls back to the process default when neither names one", () => {
     expect(resolveModel({}, {}, fallback)).toBe(fallback);
+  });
+});
+
+describe("uiFormat on scenarios and cases", () => {
+  const oneCase = { id: "logs-in", prompt: "log in" };
+
+  test("accepts text and xml at both levels", () => {
+    const parsed = ScenarioSchema.parse({
+      id: "login",
+      title: "Login",
+      uiFormat: "xml",
+      cases: [{ ...oneCase, uiFormat: "text" }],
+    });
+
+    expect(parsed.uiFormat).toBe("xml");
+    expect(parsed.cases[0]?.uiFormat).toBe("text");
+  });
+
+  test("rejects a format neither serializer implements", () => {
+    expect(TestCaseSchema.safeParse({ ...oneCase, uiFormat: "json" }).success).toBe(false);
+    expect(
+      ScenarioSchema.safeParse({ id: "s", title: "S", uiFormat: "XML", cases: [oneCase] }).success,
+    ).toBe(false);
+  });
+
+  test("leaves the field absent when a file never mentions it, so old scenarios load unchanged", () => {
+    const parsed = ScenarioSchema.parse({ id: "login", title: "Login", cases: [oneCase] });
+
+    expect(parsed.uiFormat).toBeUndefined();
+    expect(parsed.cases[0]?.uiFormat).toBeUndefined();
+  });
+
+  test("parses a stored case run with or without the recorded format", () => {
+    const stored = {
+      runId: "run-1",
+      caseId: "logs-in",
+      order: 0,
+      title: "Logs in",
+      prompt: "log in",
+      model: "gemma-4-e4b",
+      status: "passed",
+      verdictReason: null,
+      startedAt: "2026-01-01T00:00:00.000Z",
+      finishedAt: null,
+    };
+
+    expect(CaseRunSchema.parse(stored).uiFormat).toBeUndefined();
+    expect(CaseRunSchema.parse({ ...stored, uiFormat: "xml" }).uiFormat).toBe("xml");
+  });
+});
+
+describe("resolveUiFormat", () => {
+  test("prefers the case's format over the scenario's", () => {
+    expect(resolveUiFormat({ uiFormat: "text" }, { uiFormat: "xml" }, "xml")).toBe("text");
+  });
+
+  test("falls back to the scenario's format when the case has none", () => {
+    expect(resolveUiFormat({}, { uiFormat: "xml" }, "text")).toBe("xml");
+  });
+
+  test("falls back to the process default when neither names one", () => {
+    expect(resolveUiFormat({}, {}, "xml")).toBe("xml");
+  });
+});
+
+describe("parseUiFormat", () => {
+  test("reads the two formats, forgiving case and surrounding space", () => {
+    expect(parseUiFormat("xml")).toBe("xml");
+    expect(parseUiFormat(" XML ")).toBe("xml");
+    expect(parseUiFormat("text")).toBe("text");
+  });
+
+  test("falls back to text when the variable is unset or unrecognised", () => {
+    expect(parseUiFormat(undefined)).toBe("text");
+    expect(parseUiFormat("")).toBe("text");
+    expect(parseUiFormat("json")).toBe("text");
   });
 });

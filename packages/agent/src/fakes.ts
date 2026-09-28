@@ -11,6 +11,7 @@ import type {
   SwipeDirection,
   Target,
   TestCase,
+  UiFormat,
   UiNode,
 } from "@gemma-e2e/core";
 import { parseUiDump } from "@gemma-e2e/adb";
@@ -273,14 +274,17 @@ export class ScriptedLlm implements Llm {
 export class ScriptedLlmFactory {
   /** Models requested, in the order cases reached them. */
   readonly models: string[] = [];
+  /** Screen formats requested, alongside {@link models}. */
+  readonly uiFormats: (UiFormat | undefined)[] = [];
   readonly clients: ScriptedLlm[] = [];
   #index = 0;
 
   /** One script per case, in declaration order; the last one repeats. */
   constructor(private readonly scripts: (Action | Error)[][]) {}
 
-  build = (model: string): ScriptedLlm => {
+  build = (model: string, uiFormat?: UiFormat): ScriptedLlm => {
     this.models.push(model);
+    this.uiFormats.push(uiFormat);
     const index = Math.min(this.#index++, this.scripts.length - 1);
     const client = new ScriptedLlm(this.scripts[index] as (Action | Error)[]);
     this.clients.push(client);
@@ -343,6 +347,7 @@ export class FakeStore implements StoreLike {
     title: string;
     prompt: string;
     model: string;
+    uiFormat?: UiFormat | undefined;
   }): Promise<CaseRun> {
     const run = this.#requireRun(input.runId);
     const caseRun: CaseRun = {

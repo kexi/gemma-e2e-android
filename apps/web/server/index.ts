@@ -11,6 +11,7 @@ import {
   runScenario,
   ScrcpyRecorder,
 } from "@gemma-e2e/agent";
+import { parseUiFormat } from "@gemma-e2e/core";
 import { createLogger, errorFields, parseLogLevel } from "@gemma-e2e/logger";
 import { Store } from "@gemma-e2e/store";
 import { createApp, type StartRunInput, websocket } from "./app.ts";
@@ -33,6 +34,10 @@ const chromePort = Number(process.env["CHROME_PORT"] ?? DEFAULT_DEBUGGING_PORT);
 // Last resort in the case → scenario → env chain; a scenario that names no
 // model anywhere still has to run on something.
 const defaultModel = process.env["LLM_MODEL"] ?? DEFAULT_MODEL;
+// Same chain, same last-resort role. Unset or unrecognised means `text`, the
+// format every run used before the switch existed.
+const uiFormatSetting = process.env["UI_FORMAT"];
+const defaultUiFormat = parseUiFormat(uiFormatSetting);
 
 // The one place a logger is actually wired to stderr: every package defaults to
 // a no-op, so the process entrypoint decides that this run writes NDJSON.
@@ -40,6 +45,17 @@ const logger = createLogger({
   level: parseLogLevel(process.env["LOG_LEVEL"]),
   bindings: { service: "web" },
 });
+
+// Warned rather than fatal, like the other env reads: a typo must not keep the
+// dashboard from booting, but a silent fallback would leave someone comparing
+// two runs that both used `text` without knowing it.
+const isUnrecognisedUiFormat =
+  uiFormatSetting !== undefined &&
+  uiFormatSetting.trim() !== "" &&
+  uiFormatSetting.trim().toLowerCase() !== defaultUiFormat;
+if (isUnrecognisedUiFormat) {
+  logger.warn("server.ui_format_unrecognised", { value: uiFormatSetting, using: defaultUiFormat });
+}
 
 const store = Store.open();
 
@@ -146,6 +162,7 @@ const queue = new RunQueue({
         store,
         screenshotDir: screenshotsDir,
         defaultModel,
+        defaultUiFormat,
         runId,
         onEvent,
         logger,
@@ -229,6 +246,7 @@ logger.info("server.started", {
   chromePort,
   liveViewUrl: process.env["LIVE_VIEW_URL"] ?? null,
   defaultModel,
+  defaultUiFormat,
   recording: isRecording,
   firestoreEmulator: process.env["FIRESTORE_EMULATOR_HOST"] ?? null,
   mode: isProduction ? "prod" : "dev",

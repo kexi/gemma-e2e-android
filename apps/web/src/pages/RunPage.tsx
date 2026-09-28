@@ -411,6 +411,11 @@ function CaseAccordion({ caseRun, deferred }: { caseRun: CaseRun; deferred: bool
           <StatusChip status={caseRun.status} />
           <Typography variant="subtitle1">{caseRun.title}</Typography>
           {caseRun.model !== "" && <Chip size="small" variant="outlined" label={caseRun.model} />}
+          {/* Absent on runs recorded before the switch, which all ran on text;
+              labelling them would claim a choice nobody made. */}
+          {caseRun.uiFormat !== undefined && (
+            <Chip size="small" variant="outlined" label={t.run.uiFormat[caseRun.uiFormat]} />
+          )}
           <Typography variant="caption" color="text.secondary">
             {t.run.stepCount(caseRun.steps.length)}
           </Typography>

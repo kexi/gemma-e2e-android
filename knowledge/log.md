@@ -1,6 +1,7 @@
 # Directory Update Log
 
 ## 2026-09-28
+* **Creation**: [画面をXMLで渡すとテキストより操作精度が落ちた](ui-tree-xml-vs-text-2026-09.md) に、全シナリオのXML実行とAndroidラボのテキスト比較を記録。
 * **Update**: [視覚アクセシビリティレビュー](visual-accessibility-review.md) に、複数ペルソナを1人ずつ順番にレビューする変更と、Android の問題を仕込んだ画面での3方式（一括・並列・順番）の比較を記録。
 
 ## 2026-09-27

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { UiFormat } from "@gemma-e2e/core/schema";
 
 /**
  * The dashboard's two languages and every string it renders in them.
@@ -121,6 +122,7 @@ const en = {
     recording: "Recording",
     stepScreenshotAlt: (number: number) => `Step ${number}: after action`,
     noSteps: "No steps yet.",
+    uiFormat: { text: "Screen: text", xml: "Screen: XML" } satisfies Record<UiFormat, string>,
   },
   uiTree: {
     summary: (lines: number) => `UI tree (${lines} lines)`,
@@ -214,6 +216,11 @@ const en = {
     promptRequired: "A prompt is required.",
     model: "Model",
     scenarioDefault: "Scenario default",
+    uiFormat: "Screen input",
+    uiFormatHint:
+      "How the screen reaches the model. XML shows every node of the tree, to compare against the compact text. Server default follows UI_FORMAT.",
+    uiFormatText: "Text (compact)",
+    uiFormatXml: "XML (full tree)",
     maxSteps: "Max steps",
     addCase: "Add case",
     saving: "Saving…",
@@ -331,6 +338,7 @@ const ja: Messages = {
     recording: "録画",
     stepScreenshotAlt: (number) => `ステップ ${number}: 操作後`,
     noSteps: "まだステップはありません。",
+    uiFormat: { text: "画面: テキスト", xml: "画面: XML" },
   },
   uiTree: {
     summary: (lines) => `UI ツリー（${lines} 行）`,
@@ -424,6 +432,11 @@ const ja: Messages = {
     promptRequired: "プロンプトを入力してください。",
     model: "モデル",
     scenarioDefault: "シナリオの既定",
+    uiFormat: "画面の渡し方",
+    uiFormatHint:
+      "画面をモデルにどう渡すかを選びます。XML はツリーの全ノードを渡すので、簡約したテキストとの比較に使えます。サーバーの既定は UI_FORMAT に従います。",
+    uiFormatText: "テキスト（簡約）",
+    uiFormatXml: "XML（全ノード）",
     maxSteps: "最大ステップ数",
     addCase: "ケースを追加",
     saving: "保存中…",

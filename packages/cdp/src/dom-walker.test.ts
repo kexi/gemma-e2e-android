@@ -55,6 +55,31 @@ describe("toUiNode", () => {
     expect(toUiNode(tree([raw()])).checked).toBeUndefined();
   });
 
+  test("marks an element checkable exactly when it reported a checked state", () => {
+    expect(toUiNode(tree([raw({ checked: false })])).checkable).toBe(true);
+    expect(toUiNode(tree([raw()]))).not.toHaveProperty("checkable");
+  });
+
+  test("carries password, selected and scrollable only when the page reported them", () => {
+    const reported = toUiNode(
+      tree([raw({ tag: "input", password: true, selected: false, scrollable: true })]),
+    );
+    const silent = toUiNode(tree([raw()]));
+
+    expect(reported).toMatchObject({ password: true, selected: false, scrollable: true });
+    for (const field of ["password", "selected", "scrollable"]) {
+      expect(silent).not.toHaveProperty(field);
+    }
+  });
+
+  test("never claims the attributes a page can only guess at", () => {
+    const node = toUiNode(tree([raw({ tag: "button", clickable: true, checked: true })]));
+
+    for (const field of ["package", "focusable", "longClickable"]) {
+      expect(node).not.toHaveProperty(field);
+    }
+  });
+
   test("drops a label that merely repeats the text", () => {
     const repeated = toUiNode(tree([raw({ text: "OK", label: "OK" })]));
     const distinct = toUiNode(tree([raw({ text: "OK", label: "Confirm" })]));

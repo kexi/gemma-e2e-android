@@ -23,6 +23,12 @@ export interface RawElement {
   focused: boolean;
   /** Absent unless the element is a checkbox, a radio, or aria-checked. */
   checked?: boolean | undefined;
+  /** Present on every `<input>`: whether it is `type=password`. */
+  password?: boolean | undefined;
+  /** Absent unless the element is an `<option>` or carries aria-selected. */
+  selected?: boolean | undefined;
+  /** Whether its own overflow scrolls and there is content to scroll to. */
+  scrollable?: boolean | undefined;
   children: number[];
 }
 
@@ -77,6 +83,7 @@ export function toUiNode(raw: RawTree): UiNode {
       enabled: !element.disabled,
       focused: element.focused,
       ...(element.checked === undefined ? {} : { checked: element.checked }),
+      ...xmlOnlyFields(element),
       children: element.children.map(nodeAt),
     };
   };
@@ -99,6 +106,26 @@ export function toUiNode(raw: RawTree): UiNode {
     enabled: true,
     focused: false,
     children: raw.roots.map(nodeAt),
+  };
+}
+
+/**
+ * The uiautomator attributes a page can report faithfully, for the XML format.
+ *
+ * `checkable` is derived rather than collected: an element has a checked state
+ * exactly when it can be checked. The rest are left out on purpose, because a
+ * page offers only guesses at them -- `focusable` (tabIndex misses script-set
+ * focus and counts elements nobody focuses), `long-clickable` (no DOM notion of
+ * a long press), and `package` (an origin is not an app) -- and a guess shown
+ * to the model as a device fact is worse than an attribute it does not see.
+ */
+function xmlOnlyFields(element: RawElement): Partial<UiNode> {
+  const hasCheckedState = element.checked !== undefined;
+  return {
+    ...(hasCheckedState ? { checkable: true } : {}),
+    ...(element.password === undefined ? {} : { password: element.password }),
+    ...(element.selected === undefined ? {} : { selected: element.selected }),
+    ...(element.scrollable === undefined ? {} : { scrollable: element.scrollable }),
   };
 }
 

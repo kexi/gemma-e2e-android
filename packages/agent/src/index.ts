@@ -9,6 +9,7 @@ export {
   LlmDecisionError,
   soleToolRequest,
   SYSTEM_PROMPT,
+  systemPromptFor,
 } from "./llm.ts";
 export type {
   ActionTool,

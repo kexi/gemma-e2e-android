@@ -12,6 +12,7 @@ import {
   type RunStatus,
   type Step,
   StepSchema,
+  type UiFormat,
   UNSETTLED_RUN_STATUSES,
 } from "@gemma-e2e/core";
 import { zodConverter } from "./converter.ts";
@@ -91,6 +92,7 @@ export interface CreateCaseInput {
   title: string;
   prompt: string;
   model: string;
+  uiFormat?: UiFormat | undefined;
 }
 
 export interface AddStepInput {
@@ -322,6 +324,9 @@ export class Store {
       title: input.title,
       prompt: input.prompt,
       model: input.model,
+      // Spread rather than assigned: Firestore rejects an `undefined` field, and
+      // a caller that resolved no format has nothing to record.
+      ...(input.uiFormat === undefined ? {} : { uiFormat: input.uiFormat }),
       status: "running",
       verdictReason: null,
       startedAt,
@@ -524,6 +529,7 @@ function toCaseDoc(caseRun: CaseRun): CaseDoc {
     title: caseRun.title,
     prompt: caseRun.prompt,
     model: caseRun.model,
+    ...(caseRun.uiFormat === undefined ? {} : { uiFormat: caseRun.uiFormat }),
     status: caseRun.status,
     verdictReason: caseRun.verdictReason,
     startedAt: caseRun.startedAt,

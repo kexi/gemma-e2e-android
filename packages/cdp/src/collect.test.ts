@@ -47,6 +47,9 @@ describe("COLLECT_JS", () => {
       "editable",
       "disabled",
       "focused",
+      "password",
+      "selected",
+      "scrollable",
       "children",
     ]) {
       expect(COLLECT_JS).toContain(field);

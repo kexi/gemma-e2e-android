@@ -6,9 +6,10 @@ import type {
   Step,
   Target,
   TestCase,
+  UiFormat,
 } from "@gemma-e2e/core/schema";
 
-export type { CaseRun, Run, Scenario, Step, Target, TestCase };
+export type { CaseRun, Run, Scenario, Step, Target, TestCase, UiFormat };
 
 export interface ModelInfo {
   id: string;
@@ -100,12 +101,14 @@ export interface CreateScenarioRequest {
   tags?: string[];
   target?: Target;
   model?: string;
+  uiFormat?: UiFormat;
   cases: {
     accessibility?: AccessibilitySettings;
     id: string;
     title?: string;
     prompt: string;
     model?: string;
+    uiFormat?: UiFormat;
     target?: Target;
     maxSteps?: number;
   }[];

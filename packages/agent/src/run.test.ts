@@ -403,6 +403,81 @@ describe("model resolution", () => {
   });
 });
 
+describe("screen format resolution", () => {
+  test("shows the compact text and records text when nothing names a format", async () => {
+    const h = harness([FINISH_PASSED], [LOGIN_XML]);
+
+    await runScenario(scenario(), h.deps);
+
+    expect(h.llm.uiFormats).toEqual(["text"]);
+    expect(h.store.case("run-1", "logs-in")?.uiFormat).toBe("text");
+    expect(h.llm.clients[0]?.inputs[0]?.uiText).toContain("[0]");
+  });
+
+  test("falls back to the server default, then lets the scenario and the case override it", async () => {
+    const h = harness([[FINISH_PASSED], [FINISH_PASSED], [FINISH_PASSED]], [LOGIN_XML]);
+
+    await runScenario(
+      scenario({
+        uiFormat: "xml",
+        cases: [
+          testCase({ id: "a", uiFormat: "text" }),
+          testCase({ id: "b" }),
+          testCase({ id: "c", uiFormat: "xml" }),
+        ],
+      }),
+      { ...h.deps, defaultUiFormat: "text" },
+    );
+
+    expect(h.llm.uiFormats).toEqual(["text", "xml", "xml"]);
+    expect(h.store.run("run-1")?.cases.map((one) => one.uiFormat)).toEqual(["text", "xml", "xml"]);
+  });
+
+  test("uses the server default when neither the case nor the scenario names one", async () => {
+    const h = harness([FINISH_PASSED], [LOGIN_XML]);
+
+    await runScenario(scenario(), { ...h.deps, defaultUiFormat: "xml" });
+
+    expect(h.llm.uiFormats).toEqual(["xml"]);
+    expect(h.store.case("run-1", "logs-in")?.uiFormat).toBe("xml");
+  });
+
+  test("shows the model XML and stores that same XML as the step's screen", async () => {
+    const h = harness([FINISH_PASSED], [LOGIN_XML]);
+
+    await runScenario(scenario({ uiFormat: "xml" }), h.deps);
+
+    const shown = h.llm.clients[0]?.inputs[0]?.uiText ?? "";
+    expect(shown).toStartWith('<node ref="0"');
+    expect(shown).toContain('resource-id="com.example.app:id/submit"');
+    expect(h.store.case("run-1", "logs-in")?.steps[0]?.uiText).toBe(shown);
+  });
+
+  test("resolves an XML ref against the node the XML numbered, not the text numbering", async () => {
+    // In the XML the root layout is ref 0, so the Sign in button is ref 2 --
+    // in the text format ref 2 does not exist at all.
+    const h = harness([{ type: "tap", ref: 2 }, FINISH_PASSED], [LOGIN_XML]);
+
+    await runScenario(scenario({ uiFormat: "xml" }), h.deps);
+
+    const tap = h.adb.calls.find((c) => c.method === "tap");
+    // The Sign in button spans [60,1060][1020,1200].
+    expect(tap?.args).toEqual([540, 1130]);
+    expect(h.store.case("run-1", "logs-in")?.steps[0]?.note).toBeNull();
+  });
+
+  test("can act on a node the text format would not number", async () => {
+    // Ref 0 is the inert root layout: invisible to the text format, but every
+    // node is addressable in XML.
+    const h = harness([{ type: "tap", ref: 0 }, FINISH_PASSED], [LOGIN_XML]);
+
+    await runScenario(scenario({ uiFormat: "xml" }), h.deps);
+
+    const tap = h.adb.calls.find((c) => c.method === "tap");
+    expect(tap?.args).toEqual([540, 1200]);
+  });
+});
+
 describe("ref resolution", () => {
   test("translates a tap ref into the element's centre coordinates", async () => {
     const h = harness([{ type: "tap", ref: 1 }, FINISH_PASSED]);

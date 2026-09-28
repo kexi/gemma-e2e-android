@@ -106,6 +106,24 @@ export const COLLECT_JS = String.raw`(() => {
     return type === "checkbox" || type === "radio" ? el.checked : undefined;
   };
 
+  const selectedOf = (el, tag) => {
+    const aria = el.getAttribute("aria-selected");
+    if (aria === "true") return true;
+    if (aria === "false") return false;
+    return tag === "option" ? el.selected : undefined;
+  };
+
+  // Only the element's own overflow counts, and only with somewhere to go: a
+  // box styled overflow:auto that fits its content cannot be scrolled, and
+  // reporting it would send the model swiping at nothing. The page itself
+  // scrolls on the root, which this walk never reports.
+  const SCROLLING_OVERFLOW = new Set(["auto", "scroll", "overlay"]);
+  const isScrollable = (el, style) => {
+    const scrollsY = SCROLLING_OVERFLOW.has(style.overflowY) && el.scrollHeight > el.clientHeight;
+    const scrollsX = SCROLLING_OVERFLOW.has(style.overflowX) && el.scrollWidth > el.clientWidth;
+    return scrollsY || scrollsX;
+  };
+
   /**
    * Reports the element and returns its index, or -1 when it is not worth
    * reporting. Children are walked even when the parent is skipped, so a
@@ -160,6 +178,10 @@ export const COLLECT_JS = String.raw`(() => {
       };
       const checked = checkedOf(el, tag);
       if (checked !== undefined) entry.checked = checked;
+      const selected = selectedOf(el, tag);
+      if (selected !== undefined) entry.selected = selected;
+      if (tag === "input") entry.password = (el.getAttribute("type") || "").toLowerCase() === "password";
+      entry.scrollable = isScrollable(el, style);
       elements.push(entry);
       into.push(index);
       childrenInto = entry.children;

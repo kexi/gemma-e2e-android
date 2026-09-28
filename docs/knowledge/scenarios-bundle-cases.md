@@ -19,22 +19,24 @@ only groups and orders them.
 
 ```
    Scenario (scenarios/login.yaml)
-   ├─ id, title, app?, model?
+   ├─ id, title, app?, model?, uiFormat?
    └─ cases: TestCase[]            (at least one, run in order)
-      ├─ TestCase { id (slug), title?, prompt, model?, maxSteps=20 }
+      ├─ TestCase { id (slug), title?, prompt, model?, uiFormat?, maxSteps=20 }
       └─ TestCase { … }
 
    One execution of a scenario:
 
    Run  { id, scenarioId, title, status, verdictReason, startedAt, finishedAt }
-   └─ CaseRun { caseId, order, title, prompt, model, status, verdictReason,
+   └─ CaseRun { caseId, order, title, prompt, model, uiFormat?, status, verdictReason,
       │          videoPath, … }
       └─ Step { index, action, uiText, screenshotPath, note, createdAt }
 ```
 
 **Model resolution** is `case.model ?? scenario.model ?? LLM_MODEL`, computed by
 `resolveModel` in `packages/core` and stored on the `CaseRun`, so history records
-the model that actually ran rather than the one configured later.
+the model that actually ran rather than the one configured later. The screen
+format (`uiFormat`, falling back to `UI_FORMAT`) resolves on the same chain via
+`resolveUiFormat`; see [model-input-ui-tree-text.md](model-input-ui-tree-text.md).
 
 *Why per-case models:* a cheap model is enough to drive an obvious happy path,
 while a harder assertion may need a larger one. Fixing the model per run would

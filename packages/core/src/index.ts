@@ -16,13 +16,16 @@ export {
   CaseRunSchema,
   CaseStatusSchema,
   collectTags,
+  DEFAULT_UI_FORMAT,
   describeTarget,
   filterByTags,
   isUnsettledRun,
   KeyNameSchema,
+  parseUiFormat,
   resolveModel,
   resolveAccessibility,
   resolveTarget,
+  resolveUiFormat,
   RunSchema,
   RunStatusSchema,
   ScenarioSchema,
@@ -30,6 +33,7 @@ export {
   SwipeDirectionSchema,
   TargetSchema,
   TestCaseSchema,
+  UiFormatSchema,
   UiNodeSchema,
   UNSETTLED_RUN_STATUSES,
   VerdictSchema,
@@ -58,12 +62,13 @@ export type {
   SwipeDirection,
   Target,
   TestCase,
+  UiFormat,
   UiNode,
   Verdict,
   WebTarget,
 } from "./schema.ts";
 
-export { centerOf, serializeForLlm } from "./serialize.ts";
+export { centerOf, serializeAsXml, serializeForLlm, serializeUi } from "./serialize.ts";
 export type { SerializedUi, UiRef } from "./serialize.ts";
 
 export { loadScenario, loadScenariosDir, ScenarioLoadError } from "./scenario.ts";

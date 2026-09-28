@@ -19,22 +19,24 @@ English: [../../knowledge/scenarios-bundle-cases.md](../../knowledge/scenarios-b
 
 ```
    Scenario (scenarios/login.yaml)
-   ├─ id, title, app?, model?
+   ├─ id, title, app?, model?, uiFormat?
    └─ cases: TestCase[]            (1 つ以上・宣言順に実行)
-      ├─ TestCase { id (slug), title?, prompt, model?, maxSteps=20 }
+      ├─ TestCase { id (slug), title?, prompt, model?, uiFormat?, maxSteps=20 }
       └─ TestCase { … }
 
    シナリオ 1 回の実行:
 
    Run  { id, scenarioId, title, status, verdictReason, startedAt, finishedAt }
-   └─ CaseRun { caseId, order, title, prompt, model, status, verdictReason,
+   └─ CaseRun { caseId, order, title, prompt, model, uiFormat?, status, verdictReason,
       │          videoPath, … }
       └─ Step { index, action, uiText, screenshotPath, note, createdAt }
 ```
 
 **モデル解決**は `case.model ?? scenario.model ?? LLM_MODEL` で、`packages/core`
 の `resolveModel` が算出し `CaseRun` に保存します。後から設定を変えても、履歴には
-「実際に動いたモデル」が残ります。
+「実際に動いたモデル」が残ります。画面の渡し方(`uiFormat`、最後は `UI_FORMAT`)も
+`resolveUiFormat` が同じ順で解決します。詳しくは
+[model-input-ui-tree-text.md](model-input-ui-tree-text.md) を参照してください。
 
 *なぜケース単位でモデルを選べるか:* 明白なハッピーパスは軽いモデルで十分な一方、
 難しい判定には大きなモデルが要ることがあります。run 単位でモデルを固定すると、

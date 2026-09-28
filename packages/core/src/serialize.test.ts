@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { UiNode } from "./schema.ts";
-import { centerOf, serializeForLlm } from "./serialize.ts";
+import { centerOf, serializeAsXml, serializeForLlm, serializeUi } from "./serialize.ts";
 
 /**
  * Builds a node without stating the fields a case does not care about. The
@@ -168,5 +168,131 @@ describe("serializeForLlm: platform-neutral", () => {
 
     expect(text).toBe("");
     expect(refs.size).toBe(0);
+  });
+});
+
+describe("serializeAsXml", () => {
+  const tree = node({
+    className: "android.widget.FrameLayout",
+    bounds: { x1: 0, y1: 0, x2: 1080, y2: 2400 },
+    children: [
+      node({
+        className: "android.widget.Button",
+        text: "Login",
+        resourceId: "com.example:id/loginButton",
+        contentDesc: "Login button",
+        bounds: { x1: 63, y1: 1293, x2: 1017, y2: 1419 },
+        clickable: true,
+      }),
+      node({
+        className: "android.widget.CheckBox",
+        text: "Remember me",
+        bounds: { x1: 63, y1: 1450, x2: 400, y2: 1500 },
+        clickable: true,
+        checked: false,
+      }),
+    ],
+  });
+
+  test("renders every field in uiautomator's spelling, nesting children under their parent", () => {
+    expect(serializeAsXml(tree).text).toBe(
+      [
+        '<node ref="0" text="" resource-id="" class="android.widget.FrameLayout" content-desc="" clickable="false" enabled="true" focused="false" bounds="[0,0][1080,2400]">',
+        '  <node ref="1" text="Login" resource-id="com.example:id/loginButton" class="android.widget.Button" content-desc="Login button" clickable="true" enabled="true" focused="false" bounds="[63,1293][1017,1419]" />',
+        '  <node ref="2" text="Remember me" resource-id="" class="android.widget.CheckBox" content-desc="" checked="false" clickable="true" enabled="true" focused="false" bounds="[63,1450][400,1500]" />',
+        "</node>",
+      ].join("\n"),
+    );
+  });
+
+  test("writes checked only on nodes that have the state, never uiautomator's sibling index", () => {
+    const { text } = serializeAsXml(tree);
+
+    expect(text.match(/checked=/g)).toHaveLength(1);
+    expect(text).not.toContain("index=");
+  });
+
+  test("writes the optional uiautomator fields in its spelling when the tree has them", () => {
+    const { text } = serializeAsXml(
+      node({
+        package: "com.example",
+        checkable: true,
+        checked: true,
+        focusable: true,
+        scrollable: false,
+        longClickable: true,
+        password: true,
+        selected: false,
+      }),
+    );
+
+    expect(text).toBe(
+      '<node ref="0" text="" resource-id="" class="" package="com.example" content-desc="" checkable="true" checked="true" clickable="false" enabled="true" focusable="true" focused="false" scrollable="false" long-clickable="true" password="true" selected="false" bounds="[0,0][100,40]" />',
+    );
+  });
+
+  test("numbers every node in document order, including inert and zero-area ones", () => {
+    const { text, refs } = serializeAsXml(
+      node({
+        className: "root",
+        children: [
+          node({ className: "wrapper", children: [node({ className: "a", clickable: true })] }),
+          node({ className: "hidden", bounds: { x1: 5, y1: 5, x2: 5, y2: 5 } }),
+          node({ className: "b" }),
+        ],
+      }),
+    );
+
+    // Pre-order: a parent before its children, and a subtree before its next sibling.
+    expect([...refs.values()].map((one) => one.node.className)).toEqual([
+      "root",
+      "wrapper",
+      "a",
+      "hidden",
+      "b",
+    ]);
+    expect([...refs.keys()]).toEqual([0, 1, 2, 3, 4]);
+    expect(text).toContain('<node ref="3" text="" resource-id="" class="hidden"');
+    expect(text).toContain('bounds="[5,5][5,5]"');
+  });
+
+  test("maps every ref to the centre of the node it names", () => {
+    const { refs } = serializeAsXml(tree);
+
+    expect(refs.size).toBe(3);
+    expect(refs.get(0)?.center).toEqual({ x: 540, y: 1200 });
+    expect(refs.get(1)).toMatchObject({ ref: 1, center: { x: 540, y: 1356 } });
+    expect(refs.get(1)?.node.text).toBe("Login");
+    expect(refs.get(2)?.center).toEqual({ x: 231, y: 1475 });
+  });
+
+  test("escapes markup, quotes and line breaks so every attribute reads back verbatim", () => {
+    const { text } = serializeAsXml(
+      node({ text: 'Tom & "Jerry" <b>\'s</b>', contentDesc: "line one\nline two\ttab\r" }),
+    );
+
+    expect(text).toContain('text="Tom &amp; &quot;Jerry&quot; &lt;b&gt;\'s&lt;/b&gt;"');
+    expect(text).toContain('content-desc="line one&#10;line two&#9;tab&#13;"');
+  });
+
+  test("replaces characters XML 1.0 cannot carry, so the document stays well-formed", () => {
+    const { text } = serializeAsXml(node({ text: "a\u0000b\u001Fc\u0008d" }));
+
+    expect(text).toContain('text="a\uFFFDb\uFFFDc\uFFFDd"');
+  });
+});
+
+describe("serializeUi", () => {
+  const screen = node({
+    className: "main",
+    children: [node({ className: "button", text: "Go", clickable: true })],
+  });
+
+  test("gives the compact numbering for text, exactly as serializeForLlm does", () => {
+    expect(serializeUi(screen, "text")).toEqual(serializeForLlm(screen));
+  });
+
+  test("gives the full tree for xml, exactly as serializeAsXml does", () => {
+    expect(serializeUi(screen, "xml")).toEqual(serializeAsXml(screen));
   });
 });

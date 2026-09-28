@@ -2,7 +2,7 @@ import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import EditIcon from "@mui/icons-material/Edit";
-import type { AccessibilitySettings, Platform, Target } from "@gemma-e2e/core/schema";
+import type { AccessibilitySettings, Platform, Target, UiFormat } from "@gemma-e2e/core/schema";
 import { AccessibilitySettingsEditor } from "./AccessibilitySettingsEditor.tsx";
 import {
   createScenario,
@@ -15,6 +15,25 @@ import { code, useI18n } from "./I18nProvider.tsx";
 
 /** Sentinel for "let the server decide", which is not a model id. */
 const SERVER_DEFAULT = "";
+
+/**
+ * The screen-format select's value: a format, or {@link SERVER_DEFAULT} for
+ * "inherit". Kept as a string in the draft, like the model, because a
+ * `<select>` has no way to hold `undefined`.
+ */
+export function uiFormatChoiceOf(uiFormat: UiFormat | undefined): string {
+  return uiFormat ?? SERVER_DEFAULT;
+}
+
+/**
+ * The request field a screen-format choice becomes. Inheriting is an absent
+ * key rather than an explicit value, so a scenario saved on "server default"
+ * keeps following `UI_FORMAT` instead of freezing whatever it was that day.
+ */
+export function uiFormatFieldOf(choice: string): { uiFormat?: UiFormat } {
+  const isFormat = choice === "text" || choice === "xml";
+  return isFormat ? { uiFormat: choice } : {};
+}
 
 /** Mirrors the server's slug rule so the browser can refuse it first. */
 const SLUG_PATTERN = "[a-z0-9][a-z0-9-]*";
@@ -29,6 +48,7 @@ interface CaseDraft {
   title: string;
   prompt: string;
   model: string;
+  uiFormat: string;
   /**
    * Carried through untouched, and not editable in this form.
    *
@@ -42,7 +62,15 @@ interface CaseDraft {
 
 function emptyCase(): CaseDraft {
   nextCaseKey += 1;
-  return { key: nextCaseKey, id: "", title: "", prompt: "", model: SERVER_DEFAULT, maxSteps: "20" };
+  return {
+    key: nextCaseKey,
+    id: "",
+    title: "",
+    prompt: "",
+    model: SERVER_DEFAULT,
+    uiFormat: SERVER_DEFAULT,
+    maxSteps: "20",
+  };
 }
 
 /**
@@ -69,6 +97,7 @@ interface Draft {
   appActivity: string;
   url: string;
   model: string;
+  uiFormat: string;
   cases: CaseDraft[];
 }
 
@@ -82,6 +111,7 @@ function emptyDraft(): Draft {
     appActivity: "",
     url: "",
     model: SERVER_DEFAULT,
+    uiFormat: SERVER_DEFAULT,
     cases: [emptyCase()],
   };
 }
@@ -101,6 +131,7 @@ function draftOf(scenario: Scenario): Draft {
     appActivity: scenario.target?.platform === "android" ? (scenario.target.activity ?? "") : "",
     url: scenario.target?.platform === "web" ? scenario.target.url : "",
     model: scenario.model ?? SERVER_DEFAULT,
+    uiFormat: uiFormatChoiceOf(scenario.uiFormat),
     cases: scenario.cases.map((one) => {
       nextCaseKey += 1;
       return {
@@ -110,6 +141,7 @@ function draftOf(scenario: Scenario): Draft {
         title: one.title ?? "",
         prompt: one.prompt,
         model: one.model ?? SERVER_DEFAULT,
+        uiFormat: uiFormatChoiceOf(one.uiFormat),
         ...(one.target === undefined ? {} : { target: one.target }),
         maxSteps: String(one.maxSteps),
       };
@@ -227,6 +259,7 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
   const [appActivity, setAppActivity] = useState(() => initial().appActivity);
   const [url, setUrl] = useState(() => initial().url);
   const [model, setModel] = useState(() => initial().model);
+  const [uiFormat, setUiFormat] = useState(() => initial().uiFormat);
   const [accessibility, setAccessibility] = useState<AccessibilitySettings | undefined>(
     () => initial().accessibility,
   );
@@ -260,6 +293,7 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
     setAppActivity(start.appActivity);
     setUrl(start.url);
     setModel(start.model);
+    setUiFormat(start.uiFormat);
     setAccessibility(start.accessibility);
     setCases(start.cases);
     setError(null);
@@ -313,12 +347,14 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
       tags: parsedTags,
       ...(target === undefined ? {} : { target }),
       ...(model === SERVER_DEFAULT ? {} : { model }),
+      ...uiFormatFieldOf(uiFormat),
       cases: cases.map((one) => ({
         ...(one.accessibility === undefined ? {} : { accessibility: one.accessibility }),
         id: one.id,
         ...(one.title.trim() === "" ? {} : { title: one.title.trim() }),
         prompt: one.prompt.trim(),
         ...(one.model === SERVER_DEFAULT ? {} : { model: one.model }),
+        ...uiFormatFieldOf(one.uiFormat),
         // Sent back as it arrived: this form cannot edit a case's target, so
         // omitting it would delete an override the user never saw.
         ...(one.target === undefined ? {} : { target: one.target }),
@@ -541,6 +577,24 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
                 ))}
               </select>
             </div>
+
+            <div className="builder-field">
+              <label htmlFor={`${dialogId}-ui-format`}>{t.builder.uiFormat}</label>
+              <span id={`${dialogId}-ui-format-hint`} className="builder-hint">
+                {t.builder.uiFormatHint}
+              </span>
+              <select
+                id={`${dialogId}-ui-format`}
+                name="uiFormat"
+                value={uiFormat}
+                onChange={(e) => setUiFormat(e.target.value)}
+                aria-describedby={`${dialogId}-ui-format-hint`}
+              >
+                <option value={SERVER_DEFAULT}>{t.common.serverDefault}</option>
+                <option value="text">{t.builder.uiFormatText}</option>
+                <option value="xml">{t.builder.uiFormatXml}</option>
+              </select>
+            </div>
           </fieldset>
 
           <AccessibilitySettingsEditor value={accessibility} onChange={setAccessibility} />
@@ -628,6 +682,22 @@ export function ScenarioBuilder({ models, scenario, onSaved }: ScenarioBuilderPr
                         {info.id}
                       </option>
                     ))}
+                  </select>
+                </div>
+
+                <div className="builder-field">
+                  <label htmlFor={`${dialogId}-case-${one.key}-ui-format`}>
+                    {t.builder.uiFormat}
+                  </label>
+                  <select
+                    id={`${dialogId}-case-${one.key}-ui-format`}
+                    name={`case-${index}-uiFormat`}
+                    value={one.uiFormat}
+                    onChange={(e) => updateCase(one.key, { uiFormat: e.target.value })}
+                  >
+                    <option value={SERVER_DEFAULT}>{t.builder.scenarioDefault}</option>
+                    <option value="text">{t.builder.uiFormatText}</option>
+                    <option value="xml">{t.builder.uiFormatXml}</option>
                   </select>
                 </div>
 
