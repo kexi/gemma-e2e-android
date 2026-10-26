@@ -43,26 +43,6 @@
 
           isDarwin = nixpkgs.lib.hasSuffix "-darwin" system;
 
-          # pitty's own flake output does not build: the `cargoHash` baked into
-          # its nix/package.nix went stale against its Cargo.lock, so every
-          # `packages.default` build dies on a fixed-output hash mismatch. The
-          # package expression is reused as-is and only the vendor derivation is
-          # replaced with one carrying the hash the current lockfile actually
-          # produces. Overriding here rather than vendoring a copy of
-          # package.nix keeps the build definition upstream's; drop this once
-          # kexi/pitty corrects the hash.
-          pittyPackage =
-            (pkgs.callPackage "${pitty.outPath}/nix/package.nix" {
-              source = pitty.outPath;
-            }).overrideAttrs
-              (old: {
-                cargoDeps = pkgs.rustPlatform.fetchCargoVendor {
-                  inherit (old) src;
-                  name = "pitty-${old.version}-vendor";
-                  hash = "sha256-PfStoHqyo9mViY9RpjGPpRtaitxmuj4vNdQMknDFTHc=";
-                };
-              });
-
           androidSdk = android-nixpkgs.sdk.${system} (
             sdkPkgs:
             with sdkPkgs;
@@ -102,7 +82,7 @@
               # PTY-based CLI test runner (`just test-cli`). Not in nixpkgs, so
               # it comes from its own flake rather than a pinned release
               # tarball that would need hand-updating per platform.
-              pittyPackage
+              pitty.packages.${system}.default
               # NDJSON logs and API responses get inspected constantly; keep
               # the JSON tooling declared instead of leaning on system python.
               pkgs.jq
